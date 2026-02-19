@@ -1438,5 +1438,113 @@ namespace PreConHub.Models.ViewModels
 
     #endregion
 
+    #region Marketing Agency
+
+    // ===== MARKETING AGENCY DASHBOARD =====
+    public class MarketingAgencyDashboardViewModel
+    {
+        public List<MarketingAgencyProjectItemViewModel> Projects { get; set; } = new();
+    }
+
+    public class MarketingAgencyProjectItemViewModel
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public ProjectStatus Status { get; set; }
+        public int TotalUnits { get; set; }
+        public int UnitsNeedingDiscount { get; set; }
+        public DateTime? ClosingDate { get; set; }
+
+        public string StatusBadgeClass => Status switch
+        {
+            ProjectStatus.Active => "bg-success",
+            ProjectStatus.Closing => "bg-warning",
+            ProjectStatus.Completed => "bg-secondary",
+            ProjectStatus.Draft => "bg-info",
+            _ => "bg-secondary"
+        };
+    }
+
+    // ===== MARKETING AGENCY PROJECT UNITS VIEW =====
+    // Design/pricing view only — no SOA, mortgage, or financial data (spec Section H)
+    public class MarketingAgencyProjectUnitsViewModel
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public List<MarketingAgencyUnitItemViewModel> Units { get; set; } = new();
+    }
+
+    public class MarketingAgencyUnitItemViewModel
+    {
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = string.Empty;
+        public UnitType UnitType { get; set; }
+        public int Bedrooms { get; set; }
+        public int Bathrooms { get; set; }
+        public decimal SquareFootage { get; set; }
+        public decimal PurchasePrice { get; set; }
+        public DateTime? ClosingDate { get; set; }
+
+        // AI recommendation category — colour-coded badge only; no raw SOA/shortfall amounts
+        public ClosingRecommendation? Recommendation { get; set; }
+
+        // AI suggested discount (from ShortfallAnalysis) — visible so MA can calibrate their suggestion
+        public decimal? AISuggestedDiscount { get; set; }
+
+        // Has this MA user already submitted a suggestion for this unit?
+        public bool HasMASuggestion { get; set; }
+        public string? MASuggestionJson { get; set; } // Raw NewValues JSON from AuditLog
+
+        public string RecommendationBadgeClass => Recommendation switch
+        {
+            ClosingRecommendation.ProceedToClose      => "bg-success",
+            ClosingRecommendation.CloseWithDiscount   => "bg-primary",
+            ClosingRecommendation.VTBSecondMortgage   => "bg-warning text-dark",
+            ClosingRecommendation.VTBFirstMortgage    => "bg-warning text-dark",
+            ClosingRecommendation.HighRiskDefault     => "bg-danger",
+            ClosingRecommendation.PotentialDefault    => "bg-danger",
+            ClosingRecommendation.MutualRelease       => "bg-secondary",
+            ClosingRecommendation.CombinationSuggestion => "bg-info text-dark",
+            _                                         => "bg-secondary"
+        };
+
+        public string RecommendationText => Recommendation switch
+        {
+            ClosingRecommendation.ProceedToClose        => "Proceed to Close",
+            ClosingRecommendation.CloseWithDiscount     => "Needs Discount",
+            ClosingRecommendation.VTBSecondMortgage     => "VTB 2nd Mortgage",
+            ClosingRecommendation.VTBFirstMortgage      => "VTB 1st Mortgage",
+            ClosingRecommendation.HighRiskDefault       => "High Risk",
+            ClosingRecommendation.PotentialDefault      => "Potential Default",
+            ClosingRecommendation.MutualRelease         => "Mutual Release",
+            ClosingRecommendation.CombinationSuggestion => "Combination",
+            _                                           => "Pending"
+        };
+    }
+
+    // ===== SUGGEST DISCOUNT (Marketing Agency) =====
+    public class SuggestDiscountViewModel
+    {
+        public int UnitId { get; set; }
+        public int ProjectId { get; set; }
+        public string UnitNumber { get; set; } = string.Empty;
+        public string ProjectName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Please enter a suggested discount amount.")]
+        [Range(0, 9999999, ErrorMessage = "Amount must be between 0 and 9,999,999.")]
+        [Display(Name = "Suggested Discount / Credit Amount")]
+        [DataType(DataType.Currency)]
+        public decimal SuggestedAmount { get; set; }
+
+        [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters.")]
+        [Display(Name = "Notes / Justification")]
+        public string? Notes { get; set; }
+    }
+
+    #endregion
+
 
 }
