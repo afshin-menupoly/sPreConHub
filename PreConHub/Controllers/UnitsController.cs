@@ -201,7 +201,9 @@ namespace PreConHub.Controllers
                 HasLocker = unit.HasLocker,
                 LockerPrice = unit.LockerPrice,
                 OccupancyDate = unit.OccupancyDate,
-                ClosingDate = unit.ClosingDate
+                ClosingDate = unit.ClosingDate,
+                ActualAnnualLandTax = unit.ActualAnnualLandTax,
+                ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee
             };
 
             ViewBag.ProjectName = unit.Project.Name;
@@ -259,6 +261,8 @@ namespace PreConHub.Controllers
             unit.LockerPrice = model.HasLocker ? model.LockerPrice : 0;
             unit.OccupancyDate = model.OccupancyDate;
             unit.ClosingDate = model.ClosingDate;
+            unit.ActualAnnualLandTax = model.ActualAnnualLandTax;
+            unit.ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee;
             unit.UpdatedAt = DateTime.UtcNow;
 
             _context.AuditLogs.Add(new AuditLog

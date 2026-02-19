@@ -335,6 +335,8 @@ namespace PreConHub.Models.ViewModels
         public decimal LockerPrice { get; set; }
         public DateTime? OccupancyDate { get; set; }
         public DateTime? ClosingDate { get; set; }
+        public decimal? ActualAnnualLandTax { get; set; }
+        public decimal? ActualMonthlyMaintenanceFee { get; set; }
     }
 
     public class BulkImportUnitsViewModel

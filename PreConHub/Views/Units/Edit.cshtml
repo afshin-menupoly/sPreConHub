@@ -126,6 +126,37 @@
                             </div>
                         </div>
 
+                        <!-- SOA Adjustment Inputs -->
+                        <h5 class="mb-3 pb-2 border-bottom mt-4">
+                            <i class="bi bi-calculator me-2 text-primary"></i>SOA Adjustment Inputs
+                        </h5>
+                        <div class="alert alert-info py-2 mb-3 small">
+                            <i class="bi bi-info-circle me-1"></i>
+                            These values are used in the Statement of Adjustments calculation.
+                            Leave blank to use estimated values. See the
+                            <a href="@Url.Action("FeeReference", "Projects")" class="alert-link" target="_blank">Fee Reference</a>
+                            page for guidance.
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="ActualAnnualLandTax" class="form-label">Actual Annual Land Tax</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="ActualAnnualLandTax" type="number" step="0.01" min="0" class="form-control" placeholder="e.g. 4200.00" />
+                                </div>
+                                <div class="form-text">Annual municipal property tax bill for this unit.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="ActualMonthlyMaintenanceFee" class="form-label">Actual Monthly Maintenance Fee</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="ActualMonthlyMaintenanceFee" type="number" step="0.01" min="0" class="form-control" placeholder="e.g. 650.00" />
+                                </div>
+                                <div class="form-text">Monthly common expense / maintenance fee for this unit.</div>
+                            </div>
+                        </div>
+
                         <!-- Buttons -->
                         <div class="d-flex justify-content-between">
                             <div>
