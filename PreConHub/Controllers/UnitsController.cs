@@ -295,6 +295,7 @@ namespace PreConHub.Controllers
             var unit = await _context.Units
                 .Include(u => u.Project)
                 .Include(u => u.Deposits)
+                    .ThenInclude(d => d.InterestPeriods)
                 .Include(u => u.Purchasers)
                     .ThenInclude(p => p.Purchaser)
                 .Include(u => u.Purchasers)
@@ -350,7 +351,19 @@ namespace PreConHub.Controllers
                     Holder = d.Holder.ToString(),
                     IsInterestEligible = d.IsInterestEligible,
                     InterestRate = d.InterestRate,
-                    CompoundingType = d.CompoundingType
+                    CompoundingType = d.CompoundingType,
+                    InterestPeriods = d.InterestPeriods
+                        .OrderBy(p => p.PeriodStart)
+                        .Select(p => new DepositInterestPeriodViewModel
+                        {
+                            Id = p.Id,
+                            DepositId = p.DepositId,
+                            DepositName = d.DepositName,
+                            UnitId = unit.Id,
+                            PeriodStart = p.PeriodStart,
+                            PeriodEnd = p.PeriodEnd,
+                            AnnualRate = p.AnnualRate
+                        }).ToList()
                 }).ToList(),
 
                 // Documents
@@ -1374,6 +1387,77 @@ namespace PreConHub.Controllers
         }
 
 
+
+        // POST: /Units/AddDepositInterestPeriod
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddDepositInterestPeriod(int depositId, int unitId, DateTime periodStart, DateTime periodEnd, decimal annualRate)
+        {
+            var deposit = await _context.Deposits
+                .Include(d => d.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(d => d.Id == depositId);
+
+            if (deposit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && deposit.Unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (periodEnd <= periodStart)
+            {
+                TempData["Error"] = "Period end date must be after period start date.";
+                return RedirectToAction(nameof(Details), new { id = unitId });
+            }
+
+            var period = new DepositInterestPeriod
+            {
+                DepositId = depositId,
+                PeriodStart = periodStart,
+                PeriodEnd = periodEnd,
+                AnnualRate = annualRate
+            };
+
+            _context.DepositInterestPeriods.Add(period);
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "DepositInterestPeriod",
+                EntityId = depositId,
+                Action = "Create",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { depositId, periodStart, periodEnd, annualRate }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Rate period added: {periodStart:MMM d, yyyy} – {periodEnd:MMM d, yyyy} @ {annualRate:0.000}%";
+            return RedirectToAction(nameof(Details), new { id = unitId });
+        }
+
+        // POST: /Units/DeleteDepositInterestPeriod
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteDepositInterestPeriod(int periodId, int unitId)
+        {
+            var period = await _context.DepositInterestPeriods
+                .Include(p => p.Deposit).ThenInclude(d => d.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(p => p.Id == periodId);
+
+            if (period == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && period.Deposit.Unit.Project.BuilderId != userId)
+                return Forbid();
+
+            _context.DepositInterestPeriods.Remove(period);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Rate period deleted.";
+            return RedirectToAction(nameof(Details), new { id = unitId });
+        }
 
         // GET: /Units/ReviewExtensionRequest/5 (RequestId)
         public async Task<IActionResult> ReviewExtensionRequest(int id)

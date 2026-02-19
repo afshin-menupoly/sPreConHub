@@ -52,13 +52,44 @@
                 </div>
             </div>
 
+            @{
+                var daysAdded = (int)(Model.RequestedNewClosingDate - Model.OriginalClosingDate).TotalDays;
+            }
+
+            <!-- SOA Impact Warning (shown when Approve is selected) -->
+            <div id="soaWarning" class="alert alert-warning border border-warning shadow-sm mb-4" style="display:none;">
+                <div class="d-flex align-items-start gap-3">
+                    <i class="bi bi-exclamation-triangle-fill text-warning fs-3 flex-shrink-0 mt-1"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="fw-bold mb-2">SOA Will Be Automatically Recalculated</h6>
+                        <p class="mb-2">
+                            Approving this extension adds <strong>@daysAdded day(s)</strong> to the closing schedule.
+                            The following SOA components will change:
+                        </p>
+                        <ul class="mb-2 small">
+                            <li><strong>Deposit interest</strong> — each rate period recalculated up to the new closing date</li>
+                            <li><strong>Interest on deposit interest</strong> — calculated over a longer occupancy-to-closing span</li>
+                            <li><strong>Land tax adjustment</strong> — purchaser's share recalculated against the new closing date</li>
+                            <li><strong>Common expense adjustment</strong> — vendor days recalculated for the closing month</li>
+                            <li><strong>Occupancy fees chargeable</strong> — extended by @daysAdded day(s)</li>
+                            <li><strong>Balance Due on Closing</strong> — will change; notify the purchaser of the updated amount</li>
+                        </ul>
+                        <div class="alert alert-light border mb-0 py-2">
+                            <i class="bi bi-info-circle me-1 text-primary"></i>
+                            The SOA recalculates automatically when you click <strong>Submit Decision</strong>.
+                            Review the updated SOA on the unit page immediately after.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Review Form -->
             <div class="card border-0 shadow-sm">
                 <div class="card-header bg-light">
                     <h6 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Your Decision</h6>
                 </div>
                 <div class="card-body p-4">
-                    <form asp-action="ReviewExtensionRequest" method="post">
+                    <form asp-action="ReviewExtensionRequest" method="post" id="decisionForm">
                         <input type="hidden" asp-for="RequestId" />
                         <input type="hidden" asp-for="UnitId" />
                         <input type="hidden" asp-for="UnitNumber" />
@@ -72,7 +103,7 @@
                         <!-- Approve / Reject -->
                         <div class="mb-4">
                             <label class="form-label fw-bold">Decision <span class="text-danger">*</span></label>
-                            <div class="d-flex gap-3">
+                            <div class="d-flex gap-3 mb-2">
                                 <div class="form-check form-check-inline">
                                     <input class="form-check-input" type="radio" name="Approve" id="approveYes"
                                            value="true" @(Model.Approve ? "checked" : "") />
@@ -88,10 +119,16 @@
                                     </label>
                                 </div>
                             </div>
-                            <div class="form-text mt-1">
-                                Approving will update the unit closing date to
-                                <strong>@Model.RequestedNewClosingDate.ToString("MMMM dd, yyyy")</strong>
-                                and automatically recalculate the SOA.
+                        </div>
+
+                        <!-- Acknowledgement checkbox (shown only when Approve is selected) -->
+                        <div id="acknowledgeSection" class="mb-4" style="display:none;">
+                            <div class="form-check border border-warning rounded p-3 bg-warning bg-opacity-10">
+                                <input class="form-check-input" type="checkbox" id="soaAcknowledge" />
+                                <label class="form-check-label fw-semibold" for="soaAcknowledge">
+                                    I understand the SOA will be recalculated and the Balance Due on Closing will change.
+                                    I will notify the purchaser of the updated closing amount.
+                                </label>
                             </div>
                         </div>
 
@@ -109,13 +146,65 @@
                             <a href="@Url.Action("Details", "Units", new { id = Model.UnitId })" class="btn btn-outline-secondary">
                                 <i class="bi bi-arrow-left me-2"></i>Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
                                 <i class="bi bi-check-lg me-2"></i>Submit Decision
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
+
+@section Scripts {
+<script>
+    (function () {
+        var approveYes = document.getElementById('approveYes');
+        var approveNo  = document.getElementById('approveNo');
+        var soaWarning = document.getElementById('soaWarning');
+        var ackSection = document.getElementById('acknowledgeSection');
+        var ackBox     = document.getElementById('soaAcknowledge');
+        var form       = document.getElementById('decisionForm');
+        var errDiv     = null;
+
+        function updateUI() {
+            if (approveYes.checked) {
+                soaWarning.style.display = '';
+                ackSection.style.display = '';
+            } else {
+                soaWarning.style.display = 'none';
+                ackSection.style.display = 'none';
+                ackBox.checked = false;
+                if (errDiv) { errDiv.remove(); errDiv = null; }
+            }
+        }
+
+        approveYes.addEventListener('change', updateUI);
+        approveNo.addEventListener('change', updateUI);
+
+        form.addEventListener('submit', function (e) {
+            if (approveYes.checked && !ackBox.checked) {
+                e.preventDefault();
+                ackBox.classList.add('is-invalid');
+                if (!errDiv) {
+                    errDiv = document.createElement('div');
+                    errDiv.className = 'text-danger small mt-2';
+                    errDiv.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Please check the box above to acknowledge the SOA impact before approving.';
+                    ackSection.appendChild(errDiv);
+                }
+                soaWarning.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+
+        ackBox.addEventListener('change', function () {
+            if (this.checked) {
+                this.classList.remove('is-invalid');
+                if (errDiv) { errDiv.remove(); errDiv = null; }
+            }
+        });
+
+        updateUI();
+    })();
+</script>
+}
         </div>
     </div>
 </div>

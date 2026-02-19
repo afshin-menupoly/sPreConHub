@@ -284,7 +284,23 @@ namespace PreConHub.Models.ViewModels
 
         // NEW: Compounding type
         public InterestCompoundingType CompoundingType { get; set; } = InterestCompoundingType.Simple;
+
+        // Priority 6 — per-period government rate schedule for daily simple interest
+        public List<DepositInterestPeriodViewModel> InterestPeriods { get; set; } = new();
     }
+
+    public class DepositInterestPeriodViewModel
+    {
+        public int Id { get; set; }
+        public int DepositId { get; set; }
+        public string DepositName { get; set; } = string.Empty;
+        public int UnitId { get; set; }
+        [Required] public DateTime PeriodStart { get; set; }
+        [Required] public DateTime PeriodEnd { get; set; }
+        /// <summary>Annual rate as a percentage, e.g. 1.500 = 1.5%</summary>
+        [Required][Range(0.001, 99.999)] public decimal AnnualRate { get; set; }
+    }
+
     // InterestCompoundingType and DepositHolder are defined in Models/Entities/AllEntities.cs
 
     #endregion
