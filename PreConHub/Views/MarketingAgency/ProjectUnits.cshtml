@@ -1,0 +1,218 @@
+@model PreConHub.Models.ViewModels.MarketingAgencyProjectUnitsViewModel
+@{
+    ViewData["Title"] = $"Units — {Model.ProjectName}";
+}
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="mb-4">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item">
+                    <a href="@Url.Action("Dashboard", "MarketingAgency")">My Projects</a>
+                </li>
+                <li class="breadcrumb-item active">@Model.ProjectName</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-1">
+            <i class="bi bi-building text-primary me-2"></i>@Model.ProjectName
+        </h1>
+        <p class="text-muted mb-0">
+            <i class="bi bi-geo-alt me-1"></i>@Model.Address
+        </p>
+        <div class="alert alert-info mt-3 py-2 mb-0">
+            <i class="bi bi-info-circle me-2"></i>
+            <strong>Marketing Agency View:</strong> You can see unit design and pricing information.
+            You may suggest discounts for units that need one. All suggestions are logged and reviewed by the builder.
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (!Model.Units.Any())
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>No units found for this project.
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Unit #</th>
+                                <th>Type</th>
+                                <th>Bed / Bath</th>
+                                <th>Sq Ft</th>
+                                <th class="text-end">Purchase Price</th>
+                                <th>Closing Date</th>
+                                <th>AI Status</th>
+                                <th>AI Suggested Discount</th>
+                                <th>My Suggestion</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var unit in Model.Units)
+                            {
+                                <tr>
+                                    <td class="fw-bold">@unit.UnitNumber</td>
+                                    <td>@unit.UnitType</td>
+                                    <td>@unit.Bedrooms bd / @unit.Bathrooms ba</td>
+                                    <td>@unit.SquareFootage.ToString("N0") ft²</td>
+                                    <td class="text-end">@unit.PurchasePrice.ToString("C0")</td>
+                                    <td class="text-muted small">
+                                        @(unit.ClosingDate?.ToString("MMM dd, yyyy") ?? "—")
+                                    </td>
+                                    <td>
+                                        @if (unit.Recommendation.HasValue)
+                                        {
+                                            <span class="badge @unit.RecommendationBadgeClass">
+                                                @unit.RecommendationText
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Pending</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        @if (unit.AISuggestedDiscount.HasValue && unit.AISuggestedDiscount > 0)
+                                        {
+                                            <span class="text-primary fw-semibold">
+                                                @unit.AISuggestedDiscount.Value.ToString("C0")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (unit.HasMASuggestion)
+                                        {
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check me-1"></i>Submitted
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">None yet</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @* Only show suggest button for units that need a discount or combination *@
+                                        @if (unit.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount ||
+                                             unit.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.CombinationSuggestion ||
+                                             !unit.Recommendation.HasValue)
+                                        {
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-primary"
+                                                    data-bs-toggle="modal"
+                                                    data-bs-target="#suggestModal-@unit.UnitId">
+                                                <i class="bi bi-pencil me-1"></i>
+                                                @(unit.HasMASuggestion ? "Revise" : "Suggest")
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="mt-3">
+        <a href="@Url.Action("AuditTrail", "MarketingAgency")" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-clock-history me-1"></i>My Activity Log
+        </a>
+    </div>
+</div>
+
+<!-- Suggest Discount Modals (one per eligible unit) -->
+@foreach (var unit in Model.Units.Where(u =>
+    u.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount ||
+    u.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.CombinationSuggestion ||
+    !u.Recommendation.HasValue))
+{
+    <div class="modal fade" id="suggestModal-@unit.UnitId" tabindex="-1" aria-labelledby="suggestModalLabel-@unit.UnitId" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="suggestModalLabel-@unit.UnitId">
+                        <i class="bi bi-tag me-2"></i>Suggest Discount — Unit @unit.UnitNumber
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form asp-action="SuggestDiscount" asp-controller="MarketingAgency" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="UnitId" value="@unit.UnitId" />
+                    <input type="hidden" name="ProjectId" value="@Model.ProjectId" />
+                    <input type="hidden" name="UnitNumber" value="@unit.UnitNumber" />
+                    <input type="hidden" name="ProjectName" value="@Model.ProjectName" />
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <p class="text-muted small mb-2">
+                                Unit @unit.UnitNumber — @unit.UnitType, @unit.Bedrooms bd / @unit.Bathrooms ba,
+                                @unit.SquareFootage.ToString("N0") ft², listed at @unit.PurchasePrice.ToString("C0")
+                            </p>
+                            @if (unit.AISuggestedDiscount.HasValue && unit.AISuggestedDiscount > 0)
+                            {
+                                <div class="alert alert-light py-2 mb-3">
+                                    <small>
+                                        <i class="bi bi-robot me-1 text-primary"></i>
+                                        AI suggested discount: <strong>@unit.AISuggestedDiscount.Value.ToString("C0")</strong>
+                                    </small>
+                                </div>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">
+                                Suggested Discount / Credit Amount <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" class="form-control" name="SuggestedAmount"
+                                       min="0" max="9999999" step="500" required
+                                       placeholder="e.g. 15000" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Notes / Justification</label>
+                            <textarea class="form-control" name="Notes" rows="3" maxlength="500"
+                                      placeholder="Briefly explain your reasoning (optional)..."></textarea>
+                        </div>
+                        <p class="text-muted small mb-0">
+                            <i class="bi bi-shield-lock me-1"></i>
+                            Your suggestion will be logged and reviewed by the builder. It does not automatically apply.
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-send me-1"></i>Submit Suggestion
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
