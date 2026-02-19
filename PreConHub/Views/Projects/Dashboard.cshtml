@@ -40,6 +40,20 @@
                class="btn btn-info">
                 <i class="bi bi-file-earmark-text me-2"></i>Upload APS
             </a>
+            @{
+                bool allowMA = ViewBag.AllowMarketingAccess == true;
+            }
+            <form asp-action="ToggleMarketingAccess" asp-controller="Projects"
+                  asp-route-id="@Model.ProjectId" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit"
+                        class="btn @(allowMA ? "btn-warning" : "btn-outline-warning")"
+                        title="@(allowMA ? "Revoke Marketing Agency access" : "Grant Marketing Agency access")"
+                        onclick="return confirm('@(allowMA ? "Revoke Marketing Agency access for this project?" : "Grant Marketing Agency access for this project?")')">
+                    <i class="bi bi-megaphone me-1"></i>
+                    @(allowMA ? "MA Access: ON" : "MA Access: OFF")
+                </button>
+            </form>
         </div>
     </div>
 

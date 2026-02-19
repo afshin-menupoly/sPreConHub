@@ -103,6 +103,16 @@
                             </li>
                         }
 
+                        @* Marketing Agency Dashboard *@
+                        @if (User.IsInRole("MarketingAgency"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="MarketingAgency" asp-action="Dashboard">
+                                    <i class="bi bi-megaphone me-1"></i>My Projects
+                                </a>
+                            </li>
+                        }
+
                         @* Purchaser Dashboard *@
                         @if (User.IsInRole("Purchaser"))
                         {

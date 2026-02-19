@@ -116,6 +116,9 @@ namespace PreConHub.Controllers
                 return Forbid();
             }
 
+            // Expose marketing access flag to view
+            ViewBag.AllowMarketingAccess = project.AllowMarketingAccess;
+
             // Calculate/refresh project summary
             var summary = await _summaryService.CalculateProjectSummaryAsync(id);
 
