@@ -1,7 +1,7 @@
 # PreConHub — Gap Analysis & Remediation Status
 
 **Original analysis date:** 2026-02-18
-**Last updated:** 2026-02-19 (after Priority 4 Audit & Compliance + Priority 5 Bug Fixes)
+**Last updated:** 2026-02-19 (Priority 6 SOA Real-World Alignment — planning complete, work not yet started)
 **Spec source:** `PreConHub/docs/spec/WORKFLOW_SPEC.md`
 **Codebase:** ASP.NET Core 8 MVC at `PreConHub/`
 
@@ -14,6 +14,8 @@
 | 1 | 2026-02-18 | Priority 1 (Data Model), Priority 2 (AI Logic), Priority 3 (Workflows) | `Priority1_DataModel`, `Priority2_AILogicFixes`, `Priority3_WorkflowsAndComments` |
 | 2 | 2026-02-19 | Priority 3 views complete; all 3 migrations applied to DB | Migration fix: conditional index SQL in `Priority1_DataModel` |
 | 3 | 2026-02-19 | Priority 4 (Audit & Compliance) + Priority 5 (Bug Fixes) complete | No new migrations required |
+| 4 | 2026-02-19 | Marketing Agency full workflow complete (controller + views + toggle + nav link) | No new migrations |
+| 5 | 2026-02-19 | SOA real-world alignment — research complete, spec written, work not yet started | `Priority6_SOAAlignment` (pending) |
 
 > **DATABASE:** All 3 migrations have been applied. No further migrations are needed for Priority 4 or 5.
 
@@ -22,7 +24,8 @@
 ## Overall Assessment
 
 > Original estimate: ~65% system change required.
-> After Priority 1–5: approximately 85% complete. Remaining gaps are Marketing Agency workflow, Lawyer SOA upload, and SOA differences flag.
+> After Priority 1–5 + Marketing Agency: approximately 90% complete.
+> Priority 6 (SOA Real-World Alignment) is the next major work block — 6-part plan, data model + calculation engine + PDF layout overhaul.
 
 ---
 
@@ -35,6 +38,8 @@
 | **Priority 3** | Missing Workflows + Views | ✅ COMPLETE |
 | **Priority 4** | Audit & Compliance | ✅ COMPLETE |
 | **Priority 5** | Bug Fixes | ✅ COMPLETE |
+| **Marketing Agency** | Full MA workflow (unassigned gap) | ✅ COMPLETE |
+| **Priority 6** | SOA Real-World Alignment | ⏳ PLANNED — not started |
 
 ---
 
@@ -188,24 +193,30 @@ All Priority 3 views are complete — see the Views table below.
 
 ---
 
-## REMAINING GAPS NOT YET ASSIGNED TO A PRIORITY
+## MARKETING AGENCY WORKFLOW ✅ COMPLETE (Session 4)
 
-### Marketing Agency full workflow
-- `UserType.MarketingAgency` ✅ added (Priority 1)
-- `"MarketingAgency"` Identity role ✅ seeded (Priority 3)
-- `Project.AllowMarketingAccess` flag ✅ added (Priority 1)
-- ❌ No `MarketingAgencyController` or views
-- ❌ No per-project toggle UI to grant/revoke access
-- ❌ No discount/credit suggestion workflow for Marketing Agency role
-- ❌ No `[Authorize(Roles="MarketingAgency")]` controller actions
+All files created/modified. Committed and pushed to GitHub.
 
-### SOA differences flag (spec Process D)
-- ❌ No UI comparing system-calculated SOA vs. lawyer-uploaded balance due
-- Would require a field on `StatementOfAdjustments` for `LawyerUploadedBalanceDue` and a view showing the delta
+- `MarketingAgencyController.cs` — Dashboard, ProjectUnits, SuggestDiscount POST, AuditTrail
+- `Views/MarketingAgency/Dashboard.cshtml` — project cards with toggle state
+- `Views/MarketingAgency/ProjectUnits.cshtml` — unit table + per-unit suggest-discount modal
+- `Views/MarketingAgency/AuditTrail.cshtml` — MA's own audit log table
+- `ProjectsController.cs` — `ToggleMarketingAccess` POST + `ViewBag.AllowMarketingAccess` in Dashboard GET
+- `Views/Projects/Dashboard.cshtml` — Marketing Access toggle button
+- `Views/Shared/_Layout.cshtml` — nav link for MarketingAgency role
+- MA discount suggestions stored in `AuditLog` (Action="SuggestDiscount") — no new migration needed
+
+---
+
+## REMAINING GAPS
 
 ### Lawyer SOA upload (spec Process D)
 - ❌ `LawyerController` has no action to upload a new SOA document
 - Only builder can upload/recalculate SOA via `UnitsController`
+
+### SOA differences flag (spec Process D)
+- ❌ No UI comparing system-calculated SOA vs. lawyer-uploaded balance due
+- Would require a field on `StatementOfAdjustments` for `LawyerUploadedBalanceDue` and a view showing the delta
 
 ### Purchaser `Comments` field in UI
 - ✅ `MortgageInfo.Comments` field added to entity and ViewModel (Priority 3)
@@ -297,14 +308,256 @@ All Priority 3 views are complete — see the Views table below.
 
 ---
 
+---
+
+## PRIORITY 6 — SOA Real-World Alignment ⏳ PLANNED
+
+**Source specs:** `PreConHub/docs/spec/FinalSOA1607.pdf` (real SOA for Suite 1607, 35 Parliament St, Toronto) and `PreConHub/docs/spec/DynamicSOAClosingDate.docx` (dynamic formula spec).
+**Goal:** Make the calculation engine and PDF output match the real Ontario SOA structure exactly.
+**Broken into 6 parts — do one at a time, build + commit after each.**
+
+---
+
+### Research Findings (confirmed 2026-02-19)
+
+**Ontario LTT — Province-wide formula, no builder inputs required:**
+
+| Price Range | Marginal Rate | Quick Formula |
+|---|---|---|
+| $0–$55,000 | 0.5% | `Price × 0.005` |
+| $55,001–$250,000 | 1.0% | `(Price × 0.01) − $275` |
+| $250,001–$400,000 | 1.5% | `(Price × 0.015) − $1,525` |
+| $400,001–$2,000,000 | 2.0% | `(Price × 0.02) − $3,525` |
+| Over $2,000,000 | 2.5% | `(Price × 0.025) − $13,525` |
+
+FTHB Rebate: Max $4,000 (Ontario) + $4,475 (Toronto). LTT is already calculated correctly; user decision: **show as informational, not as a debit in the SOA balance.**
+
+**Ontario Flat Fee Schedule (all province-wide, no regional variation):**
+
+| Fee | Base Amount | HST Treatment | Notes |
+|---|---|---|---|
+| HCRA Regulatory Oversight Fee | $170.00 | +13% = $192.10 | Per unit; HCRA may update periodically |
+| Electronic Registration (Teranet) | $85.00 | Included | Per instrument registered |
+| Status Certificate | $100.00 | Tax-inclusive | Regulated max under Condominium Act 1998 |
+| Transaction Levy Surcharge (LAWPRO) | $65.00 | +HST when disbursed = ~$73.45 | LAWPRO insurance levy |
+
+Storage: `SystemFeeConfig` table — admin-editable key/value pairs so amounts can be updated without a code deploy.
+
+**Deposit Interest Rates:** Each project has its own government-published rate schedule. Builder enters periods per deposit (PeriodStart, PeriodEnd, AnnualRate%) on the project/unit page.
+
+---
+
+### Gaps Identified (vs. FinalSOA1607.pdf)
+
+**Calculation Engine (`CalculationServices.cs`):**
+
+| # | Gap | Severity |
+|---|---|---|
+| P6-1 | Deposit interest uses single rate + compounding; must be per-period daily simple interest | Critical |
+| P6-2 | Interest on Deposit Interest (OccupancyDate → ClosingDate) — completely missing | Critical |
+| P6-3 | Land tax uses estimated 1% of price; must use actual annual tax × (PurchaserDays/365) | Critical |
+| P6-4 | Common expenses uses $0.60/sqft estimate; must use actual monthly fee × (VendorDays/DaysInMonth) | Critical |
+| P6-5 | Occupancy fees: only one field; must split into Chargeable (Credit Vendor) + Paid (Credit Purchaser) | Critical |
+| P6-6 | HST shown as a debit; must be embedded in Sale Price section | High |
+| P6-7 | LTT is a debit in SOA; must be informational only | High |
+| P6-8 | HCRA fee completely missing | High |
+| P6-9 | Electronic Registration fee completely missing | High |
+| P6-10 | Status Certificate fee completely missing | High |
+| P6-11 | Transaction Levy fee completely missing | High |
+| P6-12 | Security Deposit refund (Credit Purchaser) completely missing | Medium |
+| P6-13 | HST not added to vendor fees (dev charges, Tarion, HCRA, connection charges, etc.) | High |
+| P6-14 | Tarion: single tiered amount; must be Unit Enrolment + Low-rise Common Element + 13% HST | Medium |
+| P6-15 | "Additional Consideration" concept (π) — fees eligible for HST rebate calculation — not modeled | Medium |
+
+**PDF Layout (`PdfService.cs`):**
+
+| # | Gap | Severity |
+|---|---|---|
+| P6-16 | PDF uses Debits/Credits sections; must use two-column Credit Vendor / Credit Purchaser structure | Critical |
+| P6-17 | Sale Price section missing (Agreed Price → HST extracted → Rebate → Net Sale Price → Credit Vendor) | Critical |
+| P6-18 | Deposit interest shown as one line; must be per-deposit with per-period rate rows | High |
+| P6-19 | All missing fee lines (HCRA, ElecReg, StatusCert, TransactionLevy, SecurityDeposit) | High |
+| P6-20 | LTT section shown as debit; must be informational-only section at bottom | Medium |
+
+---
+
+### Part A — Data Model (Migration Required) ⏳ NOT STARTED
+
+**New entity: `DepositInterestPeriod`**
+```csharp
+public class DepositInterestPeriod {
+    public int Id { get; set; }
+    public int DepositId { get; set; }
+    public Deposit Deposit { get; set; } = null!;
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd { get; set; }
+    public decimal AnnualRate { get; set; }  // e.g. 1.500 = 1.5%
+}
+```
+
+**New entity: `SystemFeeConfig`**
+```csharp
+public class SystemFeeConfig {
+    public int Id { get; set; }
+    public string Key { get; set; } = "";        // "HCRA", "ElectronicReg", "StatusCert", "TransactionLevy"
+    public string DisplayName { get; set; } = "";
+    public decimal Amount { get; set; }
+    public bool HSTApplicable { get; set; }      // true = add 13% HST on top
+    public bool HSTIncluded { get; set; }        // true = amount is already tax-inclusive
+    public string? Notes { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public string? UpdatedByUserId { get; set; }
+}
+```
+
+**New fields on `Unit`:**
+- `ActualAnnualLandTax` (decimal?) — builder enters actual municipal tax
+- `ActualMonthlyMaintenanceFee` (decimal?) — builder enters actual maintenance fee
+
+**New fields on `StatementOfAdjustments`:**
+- `HCRAFee` (decimal) — from SystemFeeConfig
+- `ElectronicRegFee` (decimal) — from SystemFeeConfig
+- `StatusCertFee` (decimal) — from SystemFeeConfig
+- `TransactionLevyFee` (decimal) — from SystemFeeConfig
+- `SecurityDepositRefund` (decimal) — Credit Purchaser
+- `OccupancyFeesChargeable` (decimal) — Credit Vendor (replaces/supplements OccupancyFeesOwing)
+- `OccupancyFeesPaid` (decimal) — Credit Purchaser
+- `InterestOnDepositInterest` (decimal) — Credit Purchaser
+- `TotalVendorCredits` (decimal) — replaces TotalDebits semantically
+- `TotalPurchaserCredits` (decimal) — replaces TotalCredits semantically
+
+**Migration name:** `Priority6_SOAAlignment`
+**Seed data:** Insert 4 rows in `SystemFeeConfig` (HCRA $170 + HST, ElectronicReg $85 included, StatusCert $100 included, TransactionLevy $65 + HST when disbursed)
+
+---
+
+### Part B — Builder UI: Deposit Interest Rate Periods ⏳ NOT STARTED
+
+- Add "Interest Rate Periods" section to the unit deposit management page
+- Per deposit: table showing existing periods (PeriodStart, PeriodEnd, AnnualRate%)
+- Add/Edit/Delete period rows
+- Controller: `UnitsController.AddDepositInterestPeriod` POST and `DeleteDepositInterestPeriod` POST
+
+---
+
+### Part C — Builder UI: Unit-level Fields ⏳ NOT STARTED
+
+- Add `ActualAnnualLandTax` (decimal, optional) to `UnitsController.Edit` GET/POST + `Views/Units/Edit.cshtml`
+- Add `ActualMonthlyMaintenanceFee` (decimal, optional) to same form
+- Labels: "Actual Annual Land Tax ($)" and "Actual Monthly Maintenance Fee ($)"
+- Note: if left blank, SOA engine falls back to estimates with a warning flag in the SOA
+
+---
+
+### Part D — Admin UI: Fee Schedule ⏳ NOT STARTED
+
+- New admin page: `Views/Admin/FeeSchedule.cshtml`
+- Lists all `SystemFeeConfig` rows with Edit inline form
+- `AdminController.FeeSchedule` GET + `UpdateFeeConfig` POST
+- Only accessible to Admin role
+
+---
+
+### Part E — Calculation Engine Rewrite ⏳ NOT STARTED
+
+**File:** `Services/CalculationServices.cs` — `CalculateSOAAsync` method
+
+Key changes:
+1. **Deposit interest** — replace `CalculateDepositInterestEnhanced` with period-based daily simple:
+   - For each deposit: loop through its `DepositInterestPeriods`, calculate `Amount × (Rate/100) × (DaysInPeriod/365)`
+   - `DaysInPeriod = (MIN(ClosingDate, PeriodEnd) − MAX(DepositDate, PeriodStart)).Days`
+2. **Interest on Deposit Interest** — after calculating total deposit interest, calculate interest on that amount from `OccupancyDate` to `ClosingDate` at the last applicable government rate
+3. **Land tax** — use `unit.ActualAnnualLandTax` if set; VendorDays = (ClosingDate − Jan1).Days; Credit Vendor = AnnualTax × (PurchaserDays/365); fallback to estimate with flag
+4. **Common expenses** — use `unit.ActualMonthlyMaintenanceFee` if set; VendorShare = Monthly × (VendorDays/DaysInMonth); Credit Vendor = Monthly − VendorShare; fallback to estimate
+5. **Occupancy fees** — split: `OccupancyFeesChargeable` (Credit Vendor) vs `OccupancyFeesPaid` (Credit Purchaser)
+6. **HST** — move from debit line to Sale Price section; NetSalePrice = Total / 1.13; show HST federal + provincial components
+7. **LTT** — calculate and store as informational; exclude from `TotalVendorCredits` / `TotalPurchaserCredits` balance
+8. **HCRA/ElecReg/StatusCert/TransactionLevy** — load from `SystemFeeConfig`, apply HST rules, add to vendor credits
+9. **HST on vendor fees** — add 13% to dev charges, Tarion, HCRA, connection charges where applicable
+10. **Tarion** — split into Unit Enrolment + Low-rise Common Element + 13% HST
+11. **Balance Due** = `TotalVendorCredits − TotalPurchaserCredits`
+
+---
+
+### Part F — PDF Layout Rewrite ⏳ NOT STARTED
+
+**File:** `Services/PdfService.cs` — `GenerateStatementOfAdjustments` method
+
+Target structure (matching `FinalSOA1607.pdf`):
+```
+SALE PRICE
+  Agreed Sale Price                         Credit Vendor: $xxx
+  + Additional Consideration (π)            Credit Vendor: $xxx
+  = Total including HST                                    $xxx
+  Less: HST Federal ($xxx) + Provincial ($xxx)
+  Less: HST Rebate                                        ($xxx)
+  = Net Sale Price (Credit Vendor)          Credit Vendor: $xxx
+
+DEPOSITS (each listed separately)
+  [Date] Deposit                            Credit Purchaser: $xxx
+
+HST REBATE (if assigned to builder)         Credit Vendor: $xxx
+
+INTEREST ON DEPOSITS (per deposit, per period)
+  [Deposit label] [Period dates] @ [Rate]%  Credit Purchaser: $xxx
+  [Deposit label] [Period dates] @ [Rate]%  Credit Purchaser: $xxx
+
+INTEREST ON DEPOSIT INTEREST
+  [OccupancyDate to ClosingDate] @ [Rate]%  Credit Purchaser: $xxx
+
+LAND TAXES
+  Annual Tax: $xxx; Vendor: [days]/365      Credit Vendor: $xxx
+
+COMMON EXPENSES
+  Monthly: $xxx; Vendor: [days]/[month]     Credit Vendor: $xxx
+
+TARION WARRANTY
+  Unit Enrolment: $xxx
+  Low-rise Common Element: $xxx
+  HST: $xxx                                 Credit Vendor: $xxx
+
+HCRA REGULATORY OVERSIGHT FEE
+  $xxx + HST                                Credit Vendor: $xxx
+
+OCCUPANCY FEES CHARGEABLE                   Credit Vendor: $xxx
+OCCUPANCY FEES PAID                         Credit Purchaser: $xxx
+
+ELECTRONIC REGISTRATION FEE                 Credit Vendor: $xxx
+STATUS CERTIFICATE                          Credit Vendor: $xxx
+TRANSACTION LEVY SURCHARGE                  Credit Vendor: $xxx
+
+CONNECTION/ENERGIZATION CHARGES + HST      Credit Vendor: $xxx
+DEVELOPMENT CHARGES + HST                  Credit Vendor: $xxx
+
+REIMBURSE SECURITY DEPOSIT                  Credit Purchaser: $xxx
+
+TOTAL VENDOR CREDITS                                       $xxx
+TOTAL PURCHASER CREDITS                                    $xxx
+BALANCE DUE ON CLOSING                                     $xxx
+
+─────────────────────────────────────────────────────
+INFORMATIONAL — LAND TRANSFER TAX (paid at registration)
+  Ontario LTT:   $xxx
+  Toronto MLTT:  $xxx
+  FTHB Rebate:  ($xxx)
+  Net LTT:       $xxx
+─────────────────────────────────────────────────────
+```
+
+---
+
 ## HOW TO RESUME NEXT SESSION
 
-Priorities 1–5 are all complete. Remaining work is in unassigned gaps:
-
-- **Marketing Agency workflow** — controller, views, per-project toggle UI, discount/credit suggestion workflow
-- **Lawyer SOA upload** — `LawyerController` action to upload a new SOA document
-- **SOA differences flag** — UI comparing system-calculated SOA vs. lawyer-uploaded balance due
+Marketing Agency workflow is complete. Priority 6 (SOA Real-World Alignment) is fully planned — start with Part A.
 
 Tell Claude Code:
 
-> "Continue from the PreConHub gap analysis. Priorities 1–5 are complete. Read GAP_ANALYSIS.md for the remaining unassigned gaps (Marketing Agency workflow, Lawyer SOA upload, SOA differences flag). All 3 DB migrations are applied. No new migrations are pending."
+> "Continue PreConHub. Marketing Agency workflow is done. Priority 6 SOA alignment is next — start with Part A (data model + migration). Read GAP_ANALYSIS.md for the full spec."
+
+**Migration status:**
+| Migration | Status |
+|---|---|
+| `Priority1_DataModel` | ✅ Applied |
+| `Priority2_AILogicFixes` | ✅ Applied |
+| `Priority3_WorkflowsAndComments` | ✅ Applied |
+| `Priority6_SOAAlignment` | ⏳ Not yet created |
