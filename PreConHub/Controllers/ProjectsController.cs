@@ -826,6 +826,43 @@ namespace PreConHub.Controllers
             }
         }
 
+        // POST: /Projects/ToggleMarketingAccess/5
+        // Builder grants or revokes Marketing Agency access for a project (spec Section H)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ToggleMarketingAccess(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && project.BuilderId != userId)
+                return Forbid();
+
+            project.AllowMarketingAccess = !project.AllowMarketingAccess;
+            project.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Project",
+                EntityId = project.Id,
+                Action = project.AllowMarketingAccess ? "MarketingAccessGranted" : "MarketingAccessRevoked",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { AllowMarketingAccess = project.AllowMarketingAccess }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = project.AllowMarketingAccess
+                ? "Marketing Agency access granted for this project."
+                : "Marketing Agency access revoked for this project.";
+
+            return RedirectToAction(nameof(Dashboard), new { id });
+        }
+
         // Helper method to generate temporary password
         private string GenerateTemporaryPassword()
         {
