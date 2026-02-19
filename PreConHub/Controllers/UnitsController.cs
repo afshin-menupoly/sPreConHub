@@ -26,6 +26,7 @@ namespace PreConHub.Controllers
         private readonly ILogger<UnitsController> _logger;
         private readonly IDocumentAnalysisService _documentAnalysisService;
         private readonly INotificationService _notificationService;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
 
         public UnitsController(
             ApplicationDbContext context,
@@ -36,16 +37,18 @@ namespace PreConHub.Controllers
             IPdfService pdfService,
             IDocumentAnalysisService documentAnalysisService,
             INotificationService notificationService,
+            IServiceScopeFactory serviceScopeFactory,
             ILogger<UnitsController> logger)
         {
             _context = context;
             _userManager = userManager;
             _soaService = soaService;
             _shortfallService = shortfallService;
-            _emailService = emailService; 
+            _emailService = emailService;
             _pdfService = pdfService;
             _documentAnalysisService = documentAnalysisService;
             _notificationService = notificationService;
+            _serviceScopeFactory = serviceScopeFactory;
             _logger = logger;
         }
 
@@ -1519,17 +1522,65 @@ namespace PreConHub.Controllers
                 request.Unit.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
-                try
-                {
-                    await _soaService.CalculateSOAAsync(request.UnitId);
-                    await _shortfallService.AnalyzeShortfallAsync(request.UnitId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error recalculating SOA after extension approval for unit {UnitId}", request.UnitId);
-                }
+                // Capture values needed in background thread (do not close over EF entities)
+                var bgUnitId      = request.UnitId;
+                var bgUnitNumber  = request.Unit.UnitNumber;
+                var bgProjectName = request.Unit.Project.Name;
+                var bgBuilderId   = request.Unit.Project.BuilderId;
+                var bgNewDate     = request.RequestedNewClosingDate;
 
-                TempData["Success"] = $"Extension approved. Closing date updated to {request.RequestedNewClosingDate:MMM dd, yyyy} and SOA recalculated.";
+                // Fire-and-forget: recalculate SOA + shortfall in a new DI scope,
+                // then notify the builder when done (or on failure).
+                _ = Task.Run(async () =>
+                {
+                    using var scope = _serviceScopeFactory.CreateScope();
+                    var soaSvc      = scope.ServiceProvider.GetRequiredService<ISoaCalculationService>();
+                    var sfSvc       = scope.ServiceProvider.GetRequiredService<IShortfallAnalysisService>();
+                    var notifySvc   = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                    var bgLogger    = scope.ServiceProvider.GetRequiredService<ILogger<UnitsController>>();
+
+                    try
+                    {
+                        await soaSvc.CalculateSOAAsync(bgUnitId);
+                        await sfSvc.AnalyzeShortfallAsync(bgUnitId);
+
+                        await notifySvc.CreateAsync(
+                            userId:     bgBuilderId,
+                            title:      "SOA Recalculated",
+                            message:    $"SOA for Unit {bgUnitNumber} ({bgProjectName}) has been recalculated following the closing date extension to {bgNewDate:MMM dd, yyyy}.",
+                            type:       NotificationType.Success,
+                            priority:   NotificationPriority.Normal,
+                            actionUrl:  $"/Units/Details/{bgUnitId}",
+                            actionText: "View SOA",
+                            unitId:     bgUnitId
+                        );
+
+                        bgLogger.LogInformation(
+                            "Background SOA recalculation complete for unit {UnitId} after extension approval.", bgUnitId);
+                    }
+                    catch (Exception ex)
+                    {
+                        bgLogger.LogError(ex,
+                            "Background SOA recalculation failed for unit {UnitId} after extension approval.", bgUnitId);
+                        try
+                        {
+                            await notifySvc.CreateAsync(
+                                userId:     bgBuilderId,
+                                title:      "SOA Recalculation Failed",
+                                message:    $"Background SOA recalculation for Unit {bgUnitNumber} ({bgProjectName}) encountered an error. Please recalculate manually from the unit page.",
+                                type:       NotificationType.Alert,
+                                priority:   NotificationPriority.High,
+                                actionUrl:  $"/Units/Details/{bgUnitId}",
+                                actionText: "View Unit",
+                                unitId:     bgUnitId
+                            );
+                        }
+                        catch { /* swallow: avoid crashing the background thread on notification failure */ }
+                    }
+                });
+
+                TempData["Success"] = $"Extension approved. Closing date updated to {request.RequestedNewClosingDate:MMM dd, yyyy}. " +
+                                      "SOA recalculation is running in the background — you will receive a notification when it is complete.";
             }
             else
             {
