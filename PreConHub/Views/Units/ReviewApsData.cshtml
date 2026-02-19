@@ -1,0 +1,292 @@
+@model PreConHub.Models.ViewModels.ReviewApsDataViewModel
+@{
+    ViewData["Title"] = "Review Extracted Data";
+    var data = Model.ExtractedData;
+}
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                    <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })">@Model.ProjectName</a></li>
+                    <li class="breadcrumb-item active">Review APS Data</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0">
+                <i class="bi bi-check2-square text-success me-2"></i>Review Extracted Data
+            </h1>
+            <p class="text-muted">Verify the AI-extracted information and make corrections if needed</p>
+        </div>
+    </div>
+
+    <!-- Confidence Score -->
+    @{
+        var confidence = data?.ConfidenceScore ?? 0;
+        var confidenceClass = confidence >= 0.8m ? "success" : confidence >= 0.5m ? "warning" : "danger";
+        var confidenceText = confidence >= 0.8m ? "High" : confidence >= 0.5m ? "Medium" : "Low";
+    }
+    <div class="alert alert-@confidenceClass d-flex align-items-center mb-4">
+        <i class="bi bi-@(confidence >= 0.8m ? "check-circle" : confidence >= 0.5m ? "exclamation-triangle" : "x-circle") me-2 fs-4"></i>
+        <div>
+            <strong>AI Confidence: @confidenceText (@((confidence * 100).ToString("F0"))%)</strong>
+            <span class="ms-2">from <strong>@Model.FileName</strong></span>
+        </div>
+    </div>
+
+    <!-- Warnings -->
+    @if (data?.Warnings?.Any() == true)
+    {
+        <div class="alert alert-warning">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>AI Notes:</h6>
+            <ul class="mb-0 small">
+                @foreach (var warning in data.Warnings)
+                {
+                    <li>@warning</li>
+                }
+            </ul>
+        </div>
+    }
+
+    <form asp-action="ConfirmApsData" asp-route-id="@Model.ProjectId" method="post">
+        <div class="row">
+            <!-- Left Column: Unit & Property -->
+            <div class="col-lg-6">
+                <!-- Unit Information -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-building me-2"></i>Unit Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Unit Number <span class="text-danger">*</span></label>
+                                <input type="text" name="UnitNumber" class="form-control" value="@data?.UnitNumber" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Floor</label>
+                                <input type="text" name="FloorNumber" class="form-control" value="@data?.FloorNumber" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Unit Type</label>
+                                <select name="UnitType" class="form-select">
+                                    @{
+                                        var unitTypes = new[] {
+                                    ("Studio", "Studio"),
+                                    ("OneBedroom", "1 Bedroom"),
+                                    ("OnePlusDen", "1 Bed + Den"),
+                                    ("TwoBedroom", "2 Bedroom"),
+                                    ("TwoPlusDen", "2 Bed + Den"),
+                                    ("ThreeBedroom", "3 Bedroom"),
+                                    ("Penthouse", "Penthouse"),
+                                    ("Townhouse", "Townhouse"),
+                                    ("Other", "Other")
+                                    };
+                                        foreach (var (value, text) in unitTypes)
+                                        {
+                                            if (data?.UnitType == value)
+                                            {
+                                                <option value="@value" selected>@text</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@value">@text</option>
+                                            }
+                                        }
+                                    }
+                                </select>
+                            </div>                            <div class="col-md-4">
+                                <label class="form-label">Bedrooms</label>
+                                <input type="number" name="Bedrooms" class="form-control" value="@data?.Bedrooms" min="0" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Bathrooms</label>
+                                <input type="number" name="Bathrooms" class="form-control" value="@data?.Bathrooms" min="0" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Square Footage</label>
+                                <input type="number" name="SquareFootage" class="form-control" value="@data?.SquareFootage" step="0.01" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Purchase Price <span class="text-danger">*</span></label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="PurchasePrice" class="form-control" value="@data?.PurchasePrice" step="0.01" required />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Parking & Locker -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="bi bi-car-front me-2"></i>Parking & Locker</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" name="HasParking" value="true" class="form-check-input" id="hasParking" @(data?.HasParking == true ? "checked" : "") />
+                                    <label class="form-check-label" for="hasParking">Has Parking</label>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="ParkingPrice" class="form-control" value="@data?.ParkingPrice" step="0.01" placeholder="Parking Price" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input type="checkbox" name="HasLocker" value="true" class="form-check-input" id="hasLocker" @(data?.HasLocker == true ? "checked" : "") />
+                                    <label class="form-check-label" for="hasLocker">Has Locker</label>
+                                </div>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="LockerPrice" class="form-control" value="@data?.LockerPrice" step="0.01" placeholder="Locker Price" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dates -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Important Dates</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Occupancy Date</label>
+                                <input type="date" name="OccupancyDate" class="form-control" value="@data?.ExpectedOccupancyDate?.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Closing Date</label>
+                                <input type="date" name="ClosingDate" class="form-control" value="@data?.FirmClosingDate?.ToString("yyyy-MM-dd")" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Purchaser & Deposits -->
+            <div class="col-lg-6">
+                <!-- Primary Purchaser -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-person me-2"></i>Primary Purchaser</h5>
+                    </div>
+                    <div class="card-body">
+                        @{
+                            var primaryPurchaser = data?.Purchasers?.FirstOrDefault(p => p.IsPrimary) ?? data?.Purchasers?.FirstOrDefault();
+                        }
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">First Name</label>
+                                <input type="text" name="PurchaserFirstName" class="form-control" value="@primaryPurchaser?.FirstName" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" name="PurchaserLastName" class="form-control" value="@primaryPurchaser?.LastName" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="PurchaserEmail" class="form-control" value="@primaryPurchaser?.Email" placeholder="Required for portal access" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" name="PurchaserPhone" class="form-control" value="@primaryPurchaser?.Phone" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Co-Purchaser (if any) -->
+                @{
+                    var coPurchaser = data?.Purchasers?.Skip(1).FirstOrDefault();
+                }
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-outline-success">
+                        <h5 class="mb-0"><i class="bi bi-people me-2"></i>Co-Purchaser (Optional)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label">First Name</label>
+                                <input type="text" name="CoPurchaserFirstName" class="form-control" value="@coPurchaser?.FirstName" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name</label>
+                                <input type="text" name="CoPurchaserLastName" class="form-control" value="@coPurchaser?.LastName" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="CoPurchaserEmail" class="form-control" value="@coPurchaser?.Email" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" name="CoPurchaserPhone" class="form-control" value="@coPurchaser?.Phone" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Deposit Schedule -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-warning">
+                        <h5 class="mb-0"><i class="bi bi-cash-stack me-2"></i>Deposit Schedule</h5>
+                    </div>
+                    <div class="card-body">
+                        @for (int i = 0; i < 5; i++)
+                        {
+                            var deposit = data?.Deposits?.ElementAtOrDefault(i);
+                            var depositNum = i + 1;
+                            <div class="row g-2 mb-3 pb-3 @(i < 4 ? "border-bottom" : "")">
+                                <div class="col-12">
+                                    <strong>Deposit @depositNum</strong>
+                                    <span class="text-muted small ms-2">@deposit?.DueDescription</span>
+                                </div>
+                                <div class="col-md-5">
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="Deposit@(depositNum)Amount" class="form-control" value="@deposit?.Amount" step="0.01" placeholder="Amount" />
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="date" name="Deposit@(depositNum)DueDate" class="form-control form-control-sm" value="@deposit?.DueDate?.ToString("yyyy-MM-dd")" />
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-check form-check-inline pt-1">
+                                        <input type="checkbox" name="Deposit@(depositNum)Paid" value="true" class="form-check-input" @(deposit?.IsPaid == true ? "checked" : "") />
+                                        <label class="form-check-label small">Paid</label>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="@Url.Action("UploadAps", new { id = Model.ProjectId })" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Upload Different Document
+                    </a>
+                    <div>
+                        <a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-danger me-2">
+                            <i class="bi bi-x-lg me-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-lg me-2"></i>Create Unit with This Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>

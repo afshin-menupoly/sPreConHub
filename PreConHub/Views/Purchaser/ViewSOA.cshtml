@@ -1,0 +1,312 @@
+@model PreConHub.Models.Entities.UnitPurchaser
+@{
+    ViewData["Title"] = "Statement of Adjustments";
+    var unit = Model.Unit;
+    var soa = unit.SOA;
+    var project = unit.Project;
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Purchaser")">My Dashboard</a></li>
+                            <li class="breadcrumb-item active">Statement of Adjustments</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h3 mb-1">Statement of Adjustments</h1>
+                    <p class="text-muted">Unit @unit.UnitNumber at @project.Name</p>
+                </div>
+                <div>
+                    <button onclick="window.print()" class="btn btn-outline-primary">
+                        <i class="bi bi-printer me-2"></i>Print
+                    </button>
+                </div>
+            </div>
+
+            <!-- SOA Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-file-text me-2"></i>Statement of Adjustments
+                        </h5>
+                        <a href="@Url.Action("DownloadSOA", "Purchaser", new { id = Model.UnitId })" class="btn btn-primary">
+                            <i class="bi bi-file-earmark-pdf me-2"></i>Download PDF
+                        </a>
+
+                        <span class="badge bg-white text-primary">
+                            Calculated: @soa.CalculatedAt.ToString("MMM dd, yyyy")
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-body p-4">
+                    <!-- Property Info -->
+                    <div class="row mb-4 pb-3 border-bottom">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Project:</strong> @project.Name</p>
+                            <p class="mb-1"><strong>Address:</strong> @project.Address, @project.City, ON @project.PostalCode</p>
+                            <p class="mb-0"><strong>Unit:</strong> @unit.UnitNumber</p>
+                        </div>
+                        <div class="col-md-6 text-md-end">
+                            <p class="mb-1"><strong>Closing Date:</strong> @(unit.ClosingDate?.ToString("MMMM dd, yyyy") ?? "TBD")</p>
+                            <p class="mb-0"><strong>Purchase Price:</strong> $@soa.PurchasePrice.ToString("N2")</p>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- DEBITS Column -->
+                        <div class="col-md-6">
+                            <h5 class="text-danger mb-3">
+                                <i class="bi bi-dash-circle me-2"></i>DEBITS (Amounts Owing)
+                            </h5>
+                            
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td>Purchase Price</td>
+                                        <td class="text-end">$@soa.PurchasePrice.ToString("N2")</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Ontario Land Transfer Tax</td>
+                                        <td class="text-end">$@soa.LandTransferTax.ToString("N2")</td>
+                                    </tr>
+                                    @if (soa.TorontoLandTransferTax > 0)
+                                    {
+                                        <tr>
+                                            <td>Toronto Land Transfer Tax</td>
+                                            <td class="text-end">$@soa.TorontoLandTransferTax.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.DevelopmentCharges > 0)
+                                    {
+                                        <tr>
+                                            <td>Development Charges</td>
+                                            <td class="text-end">$@soa.DevelopmentCharges.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    <tr>
+                                        <td>Tarion Warranty Fee</td>
+                                        <td class="text-end">$@soa.TarionFee.ToString("N2")</td>
+                                    </tr>
+                                    @if (soa.UtilityConnectionFees > 0)
+                                    {
+                                        <tr>
+                                            <td>Utility Connection Fees</td>
+                                            <td class="text-end">$@soa.UtilityConnectionFees.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.PropertyTaxAdjustment > 0)
+                                    {
+                                        <tr>
+                                            <td>Property Tax Adjustment</td>
+                                            <td class="text-end">$@soa.PropertyTaxAdjustment.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.CommonExpenseAdjustment > 0)
+                                    {
+                                        <tr>
+                                            <td>Common Expense Adjustment</td>
+                                            <td class="text-end">$@soa.CommonExpenseAdjustment.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.OccupancyFeesOwing > 0)
+                                    {
+                                        <tr>
+                                            <td>Occupancy Fees Owing</td>
+                                            <td class="text-end">$@soa.OccupancyFeesOwing.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.ParkingPrice > 0)
+                                    {
+                                        <tr>
+                                            <td>Parking</td>
+                                            <td class="text-end">$@soa.ParkingPrice.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.LockerPrice > 0)
+                                    {
+                                        <tr>
+                                            <td>Locker</td>
+                                            <td class="text-end">$@soa.LockerPrice.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.Upgrades > 0)
+                                    {
+                                        <tr>
+                                            <td>Upgrades/Extras</td>
+                                            <td class="text-end">$@soa.Upgrades.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    <tr>
+                                        <td>Legal Fees (Estimated)</td>
+                                        <td class="text-end">$@soa.LegalFeesEstimate.ToString("N2")</td>
+                                    </tr>
+                                    @if (soa.OtherDebits > 0)
+                                    {
+                                        <tr>
+                                            <td>Other Charges</td>
+                                            <td class="text-end">$@soa.OtherDebits.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-danger fw-bold">
+                                        <td>TOTAL DEBITS</td>
+                                        <td class="text-end">$@soa.TotalDebits.ToString("N2")</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <!-- CREDITS Column -->
+                        <div class="col-md-6">
+                            <h5 class="text-success mb-3">
+                                <i class="bi bi-plus-circle me-2"></i>CREDITS (Amounts Paid)
+                            </h5>
+                            
+                            <table class="table table-sm">
+                                <tbody>
+                                    <tr>
+                                        <td>Deposits Paid</td>
+                                        <td class="text-end">$@soa.DepositsPaid.ToString("N2")</td>
+                                    </tr>
+                                    @if (soa.DepositInterest > 0)
+                                    {
+                                        <tr>
+                                            <td>Deposit Interest</td>
+                                            <td class="text-end">$@soa.DepositInterest.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.BuilderCredits > 0)
+                                    {
+                                        <tr>
+                                            <td>Builder Credits</td>
+                                            <td class="text-end">$@soa.BuilderCredits.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (soa.OtherCredits > 0)
+                                    {
+                                        <tr>
+                                            <td>Other Credits</td>
+                                            <td class="text-end">$@soa.OtherCredits.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr class="table-success fw-bold">
+                                        <td>TOTAL CREDITS</td>
+                                        <td class="text-end">$@soa.TotalCredits.ToString("N2")</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+
+                            <!-- Deposit Details -->
+                            @if (unit.Deposits.Any())
+                            {
+                                <div class="border rounded p-3 mt-4 bg-light">
+                                    <h6 class="mb-2">Deposit Breakdown</h6>
+                                    <table class="table table-sm table-borderless small mb-0">
+                                        @foreach (var deposit in unit.Deposits.OrderBy(d => d.DueDate))
+                                        {
+                                            <tr>
+                                                <td>@deposit.DepositName</td>
+                                                <td class="text-end">$@deposit.Amount.ToString("N0")</td>
+                                                <td class="text-end">
+                                                    @if (deposit.IsPaid)
+                                                    {
+                                                        <span class="badge bg-success">Paid</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="badge bg-warning text-dark">Due @deposit.DueDate.ToString("MMM dd")</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </table>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Final Summary -->
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="bg-light rounded p-4">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <table class="table table-sm table-borderless mb-0">
+                                            <tr>
+                                                <td>Total Debits</td>
+                                                <td class="text-end">$@soa.TotalDebits.ToString("N2")</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Less: Total Credits</td>
+                                                <td class="text-end">($@soa.TotalCredits.ToString("N2"))</td>
+                                            </tr>
+                                            <tr class="fw-bold border-top">
+                                                <td>Balance Due on Closing</td>
+                                                <td class="text-end">$@soa.BalanceDueOnClosing.ToString("N2")</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <table class="table table-sm table-borderless mb-0">
+                                            <tr>
+                                                <td>Balance Due on Closing</td>
+                                                <td class="text-end">$@soa.BalanceDueOnClosing.ToString("N2")</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Less: Mortgage Amount</td>
+                                                <td class="text-end">($@soa.MortgageAmount.ToString("N2"))</td>
+                                            </tr>
+                                            <tr class="fw-bold border-top fs-5">
+                                                <td class="text-primary">CASH REQUIRED TO CLOSE</td>
+                                                <td class="text-end text-primary">$@soa.CashRequiredToClose.ToString("N2")</td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disclaimer -->
+            <div class="alert alert-warning">
+                <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Important Notice</h6>
+                <p class="small mb-0">
+                    This Statement of Adjustments is an <strong>estimate only</strong> and is subject to change. 
+                    The final Statement of Adjustments will be prepared by your lawyer and may include additional 
+                    charges or credits not shown here. Please consult with your lawyer for the official closing figures.
+                </p>
+            </div>
+
+            <!-- Back Button -->
+            <div class="text-center mt-4">
+                <a href="@Url.Action("Dashboard", "Purchaser")" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @@media print {
+        .btn, nav, .breadcrumb, .alert-warning {
+            display: none !important;
+        }
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+        }
+    }
+</style>

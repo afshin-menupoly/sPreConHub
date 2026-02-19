@@ -1,0 +1,231 @@
+@model PreConHub.Models.ViewModels.UploadApsViewModel
+@{
+    ViewData["Title"] = "Upload APS Document";
+}
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                    <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })">@Model.ProjectName</a></li>
+                    <li class="breadcrumb-item active">Upload APS</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0">
+                <i class="bi bi-file-earmark-text text-primary me-2"></i>AI Document Analysis
+            </h1>
+            <p class="text-muted">Upload an Agreement of Purchase & Sale (APS) and let AI extract the data</p>
+        </div>
+        <a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Left: Upload Form -->
+        <div class="col-lg-7 mb-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-cloud-upload me-2"></i>Upload APS Document</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form asp-action="UploadAps" asp-route-id="@Model.ProjectId" method="post" enctype="multipart/form-data" id="uploadForm">
+                        
+                        <!-- Drop Zone -->
+                        <div class="upload-zone border-2 border-dashed rounded-3 p-5 text-center mb-4" id="dropZone">
+                            <i class="bi bi-file-earmark-pdf display-1 text-danger mb-3"></i>
+                            <h5>Drag & Drop your APS PDF here</h5>
+                            <p class="text-muted mb-3">or click to browse</p>
+                            <input type="file" name="apsFile" id="apsFile" class="d-none" accept=".pdf" required />
+                            <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('apsFile').click()">
+                                <i class="bi bi-folder2-open me-2"></i>Browse Files
+                            </button>
+                            <div id="fileInfo" class="mt-3 d-none">
+                                <span class="badge bg-success fs-6">
+                                    <i class="bi bi-file-earmark-check me-2"></i>
+                                    <span id="fileName"></span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                                <i class="bi bi-magic me-2"></i>Analyze Document with AI
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Processing Indicator -->
+                    <div id="processingIndicator" class="text-center mt-4 d-none">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Processing...</span>
+                        </div>
+                        <h5 class="text-primary">Analyzing Document...</h5>
+                        <p class="text-muted">AI is extracting information from your APS. This may take 15-30 seconds.</p>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Instructions -->
+        <div class="col-lg-5 mb-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb me-2"></i>How It Works</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex mb-3">
+                        <div class="flex-shrink-0">
+                            <span class="badge bg-primary rounded-circle p-2">1</span>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-1">Upload PDF</h6>
+                            <p class="text-muted small mb-0">Upload the signed APS document in PDF format</p>
+                        </div>
+                    </div>
+                    <div class="d-flex mb-3">
+                        <div class="flex-shrink-0">
+                            <span class="badge bg-primary rounded-circle p-2">2</span>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-1">AI Analysis</h6>
+                            <p class="text-muted small mb-0">Our AI reads the document and extracts key information</p>
+                        </div>
+                    </div>
+                    <div class="d-flex mb-3">
+                        <div class="flex-shrink-0">
+                            <span class="badge bg-primary rounded-circle p-2">3</span>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-1">Review & Confirm</h6>
+                            <p class="text-muted small mb-0">Review extracted data and make any corrections</p>
+                        </div>
+                    </div>
+                    <div class="d-flex">
+                        <div class="flex-shrink-0">
+                            <span class="badge bg-success rounded-circle p-2">4</span>
+                        </div>
+                        <div class="ms-3">
+                            <h6 class="mb-1">Create Unit</h6>
+                            <p class="text-muted small mb-0">Unit and purchaser records are created automatically</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Data Extracted</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small mb-2">The AI will attempt to extract:</p>
+                    <ul class="small mb-0">
+                        <li><strong>Unit Details:</strong> Number, type, size, price</li>
+                        <li><strong>Parking & Locker:</strong> Prices and numbers</li>
+                        <li><strong>Purchaser Info:</strong> Names, contact details</li>
+                        <li><strong>Deposit Schedule:</strong> Amounts and due dates</li>
+                        <li><strong>Key Dates:</strong> Occupancy, closing dates</li>
+                        <li><strong>Builder Info:</strong> Name, lawyer details</li>
+                        <li><strong>Special Conditions:</strong> Any noted conditions</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .upload-zone {
+        border: 2px dashed #dee2e6 !important;
+        background: #f8f9fa;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+        border-color: #0d6efd !important;
+        background: #e7f1ff;
+    }
+    .border-dashed {
+        border-style: dashed !important;
+    }
+</style>
+
+@section Scripts {
+<script>
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('apsFile');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const submitBtn = document.getElementById('submitBtn');
+    const uploadForm = document.getElementById('uploadForm');
+    const processingIndicator = document.getElementById('processingIndicator');
+
+    // Drag and drop handlers
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type === 'application/pdf') {
+            fileInput.files = files;
+            updateFileInfo(files[0]);
+        } else {
+            alert('Please upload a PDF file.');
+        }
+    });
+
+    dropZone.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            updateFileInfo(e.target.files[0]);
+        }
+    });
+
+    function updateFileInfo(file) {
+        fileName.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+        fileInfo.classList.remove('d-none');
+        submitBtn.disabled = false;
+    }
+
+    uploadForm.addEventListener('submit', () => {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+        processingIndicator.classList.remove('d-none');
+        dropZone.classList.add('d-none');
+    });
+</script>
+}

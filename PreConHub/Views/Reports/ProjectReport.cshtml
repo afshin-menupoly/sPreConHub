@@ -1,0 +1,249 @@
+@model PreConHub.Models.ViewModels.ProjectReportViewModel
+@{
+    ViewData["Title"] = $"Report — {Model.ProjectName}";
+}
+
+<style>
+    .report-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; color: #fff; }
+    .metric-card { border-radius: 8px; padding: 1rem; text-align: center; border: 1px solid #e0e0e0; position: relative; overflow: hidden; }
+    .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; }
+    .metric-card .value { font-size: 1.6rem; font-weight: 700; }
+    .metric-card .label { font-size: 0.78rem; color: #6c757d; }
+    .mc-green::before { background: #28a745; } .mc-blue::before { background: #007bff; }
+    .mc-yellow::before { background: #ffc107; } .mc-red::before { background: #dc3545; }
+    .mc-secondary::before { background: #6c757d; }
+    .financial-bar { background: #f8f9fa; border-radius: 8px; padding: 1rem; border: 1px solid #e0e0e0; }
+    .financial-bar .item { text-align: center; }
+    .financial-bar .item .val { font-size: 1.1rem; font-weight: 700; }
+    .financial-bar .item .lbl { font-size: 0.7rem; color: #6c757d; }
+    .chart-container { max-height: 320px; position: relative; }
+    .bg-orange { background-color: #f97316 !important; color: #fff !important; }
+</style>
+
+<div class="report-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1" style="--bs-breadcrumb-divider-color: rgba(255,255,255,0.5);">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index")" class="text-white-50">Reports</a></li>
+                    <li class="breadcrumb-item active text-white">Dashboard</li>
+                </ol>
+            </nav>
+            <h3 class="mb-0">@Model.ProjectName</h3>
+            <small class="opacity-75">@Model.ProjectAddress @(Model.ClosingDate.HasValue ? $"• Closing: {Model.ClosingDate:MMM dd, yyyy}" : "")</small>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            @if (Model.AllProjects.Count > 1)
+            {
+                <select class="form-select form-select-sm bg-transparent text-white border-light" style="max-width: 220px;"
+                        onchange="window.location.href='@Url.Action("ProjectReport")?projectId=' + this.value">
+                    @foreach (var p in Model.AllProjects)
+                    {
+                        <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name</option>
+                    }
+                </select>
+            }
+            <div class="btn-group btn-group-sm">
+                <a href="@Url.Action("ExportPDF", new { projectId = Model.ProjectId })" class="btn btn-outline-light"><i class="bi bi-filetype-pdf me-1"></i>PDF</a>
+                <a href="@Url.Action("ExportExcel", new { projectId = Model.ProjectId })" class="btn btn-outline-light"><i class="bi bi-filetype-xlsx me-1"></i>Excel</a>
+                <a href="@Url.Action("ExportCSV", new { projectId = Model.ProjectId })" class="btn btn-outline-light"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+                <button onclick="window.print()" class="btn btn-outline-light"><i class="bi bi-printer"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Metric Cards -->
+<div class="row g-3 mb-3">
+    <div class="col-6 col-md">
+        <div class="metric-card mc-secondary">
+            <div class="value">@Model.TotalUnits</div>
+            <div class="label">Total Units</div>
+        </div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="metric-card mc-green">
+            <div class="value text-success">@Model.UnitsReadyToClose</div>
+            <div class="label">Closing Clean (@Model.PercentReadyToClose%)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="metric-card mc-blue">
+            <div class="value text-primary">@Model.UnitsNeedingDiscount</div>
+            <div class="label">Need Discount (@Model.PercentNeedingDiscount%)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="metric-card mc-yellow">
+            <div class="value text-warning">@Model.UnitsNeedingVTB</div>
+            <div class="label">Need VTB (@Model.PercentNeedingVTB%)</div>
+        </div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="metric-card mc-red">
+            <div class="value text-danger">@Model.UnitsAtRisk</div>
+            <div class="label">At Risk (@Model.PercentAtRisk%)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Summary Bar -->
+<div class="financial-bar mb-4">
+    <div class="row g-2 text-center">
+        <div class="col"><div class="item"><div class="val">@Model.TotalSalesValue.ToString("C0")</div><div class="lbl">Total Sales</div></div></div>
+        <div class="col"><div class="item"><div class="val">@Model.TotalDepositsPaid.ToString("C0")</div><div class="lbl">Deposits Paid</div></div></div>
+        <div class="col"><div class="item"><div class="val text-primary">@Model.TotalDiscountExposure.ToString("C0")</div><div class="lbl">Discount Exposure</div></div></div>
+        <div class="col"><div class="item"><div class="val text-warning">@Model.TotalVTBExposure.ToString("C0")</div><div class="lbl">VTB Exposure</div></div></div>
+        <div class="col"><div class="item"><div class="val text-success">@Model.CapitalRecoveryPercent%</div><div class="lbl">Capital Recovery</div></div></div>
+        <div class="col"><div class="item"><div class="val text-danger">@Model.LitigationRiskPercent%</div><div class="lbl">Litigation Risk</div></div></div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="card-title">Status Distribution</h6>
+                <div class="chart-container"><canvas id="statusChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="card-title">Top Shortfalls by Unit</h6>
+                <div class="chart-container"><canvas id="shortfallChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="card-title">Mortgage Status</h6>
+                <div class="chart-container"><canvas id="mortgageChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unit Details Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-table me-2"></i>Unit Closing Summary</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="unitsTable" class="table table-sm table-hover" style="font-size: 0.82rem;">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Unit</th>
+                        <th>Purchaser</th>
+                        <th>Purchase Price</th>
+                        <th>Mortgage</th>
+                        <th>Provider</th>
+                        <th>SOA Amount</th>
+                        <th>Deposits</th>
+                        <th>Shortfall</th>
+                        <th>%</th>
+                        <th>Recommendation</th>
+                        <th>Closing</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model.Units)
+                    {
+                        <tr>
+                            <td><a href="@Url.Action("Details", "Projects", new { id = u.UnitId })">@u.UnitNumber</a></td>
+                            <td>@(u.PurchaserName ?? "—")</td>
+                            <td>@u.PurchasePrice.ToString("C0")</td>
+                            <td>@u.MortgageAmount.ToString("C0")</td>
+                            <td>@(u.MortgageProvider ?? "—")</td>
+                            <td>@u.SOAAmount.ToString("C0")</td>
+                            <td>@u.DepositsPaid.ToString("C0")</td>
+                            <td class="@(u.ShortfallAmount > 0 ? "text-danger fw-bold" : "text-success")">
+                                @(u.ShortfallAmount > 0 ? $"-{u.ShortfallAmount:C0}" : "$0")
+                            </td>
+                            <td>@u.ShortfallPercentage.ToString("F1")%</td>
+                            <td><span class="badge @u.StatusBadgeClass">@u.RecommendationText</span></td>
+                            <td>
+                                @if (u.ClosingDate.HasValue)
+                                {
+                                    <span class="@(u.DaysUntilClosing <= 7 ? "text-danger fw-bold" : u.DaysUntilClosing <= 30 ? "text-warning" : "")">
+                                        @u.ClosingDate.Value.ToString("MMM dd")
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" />
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        // DataTables
+        $('#unitsTable').DataTable({
+            pageLength: 25,
+            order: [[7, 'desc']],
+            language: { search: 'Filter:' }
+        });
+
+        // Status Chart
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Closing Clean', 'Need Discount', 'Need VTB', 'At Risk', 'Pending'],
+                datasets: [{
+                    data: [@Model.UnitsReadyToClose, @Model.UnitsNeedingDiscount, @Model.UnitsNeedingVTB, @Model.UnitsAtRisk, @Model.UnitsPendingData],
+                    backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545', '#6c757d']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
+        });
+
+        // Shortfall Chart (top 20)
+        var shortfallUnits = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            Model.Units.Where(u => u.ShortfallAmount > 0).OrderByDescending(u => u.ShortfallAmount).Take(20)
+                .Select(u => new { u.UnitNumber, u.ShortfallAmount, Color = u.StatusColor })));
+        new Chart(document.getElementById('shortfallChart'), {
+            type: 'bar',
+            data: {
+                labels: shortfallUnits.map(u => u.unitNumber),
+                datasets: [{
+                    label: 'Shortfall',
+                    data: shortfallUnits.map(u => u.shortfallAmount),
+                    backgroundColor: shortfallUnits.map(u => u.color)
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } },
+                scales: { y: { ticks: { callback: v => '$' + v.toLocaleString() } } } }
+        });
+
+        // Mortgage Chart
+        new Chart(document.getElementById('mortgageChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Approved', 'Pending/Conditional', 'No Mortgage'],
+                datasets: [{
+                    data: [@Model.MortgageApprovedCount, @Model.MortgagePendingCount, @Model.NoMortgageCount],
+                    backgroundColor: ['#28a745', '#ffc107', '#dc3545']
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
+        });
+    </script>
+}

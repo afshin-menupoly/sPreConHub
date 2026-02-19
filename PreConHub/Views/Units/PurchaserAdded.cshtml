@@ -1,0 +1,190 @@
+@{
+    ViewData["Title"] = "Purchaser Added";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Success Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex p-4">
+                            <i class="bi bi-check-circle text-success" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                    
+                    <h2 class="mb-3">Purchaser Added Successfully!</h2>
+                    
+                    <p class="text-muted mb-4">
+                        <strong>@ViewBag.PurchaserName</strong> has been added to 
+                        <strong>Unit @ViewBag.UnitNumber</strong>.
+                    </p>
+                    @if (TempData["EmailSent"] != null && (bool)TempData["EmailSent"])
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-envelope-check me-2"></i>
+                            Invitation email sent successfully!
+                        </div>
+                    }
+                    else if (TempData["EmailSent"] != null && !(bool)TempData["EmailSent"])
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-envelope-x me-2"></i>
+                            Email could not be sent. Please share the invitation link manually.
+                        </div>
+                    }
+
+                    @if (ViewBag.InvitationLink != null)
+                    {
+                        <div class="alert alert-info text-start mb-4">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-envelope me-2"></i>Invitation Link
+                            </h6>
+                            <p class="small mb-2">
+                                Share this link with the purchaser so they can set their password and access their portal:
+                            </p>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control form-control-sm" id="invitationLink" 
+                                       value="@ViewBag.InvitationLink" readonly />
+                                <button class="btn btn-outline-primary btn-sm" type="button" onclick="copyLink()">
+                                    <i class="bi bi-clipboard me-1"></i>Copy
+                                </button>
+                            </div>
+                            <p class="small text-muted mb-0">
+                                <i class="bi bi-info-circle me-1"></i>
+                                This link will allow them to create their password and log in.
+                            </p>
+                        </div>
+
+                        <div class="card bg-light border-0 text-start mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="bi bi-envelope-paper me-2"></i>Sample Email to Send:</h6>
+                                <div class="bg-white border rounded p-3 small" id="emailTemplate">
+                                    <p><strong>Subject:</strong> Access Your PreConHub Portal - Unit @ViewBag.UnitNumber</p>
+                                    <hr />
+                                    <p>Dear @ViewBag.PurchaserName,</p>
+                                    <p>You have been added as a purchaser for <strong>Unit @ViewBag.UnitNumber</strong> at <strong>@ViewBag.ProjectName</strong>.</p>
+                                    <p>Please click the link below to set your password and access your portal:</p>
+                                    <p><a href="@ViewBag.InvitationLink">@ViewBag.InvitationLink</a></p>
+                                    <p>Once logged in, you will be able to:</p>
+                                    <ul>
+                                        <li>View your unit details and Statement of Adjustments</li>
+                                        <li>Submit your mortgage approval information</li>
+                                        <li>Upload required documents</li>
+                                        <li>Track your closing progress</li>
+                                    </ul>
+                                    <p>If you have any questions, please contact your builder representative.</p>
+                                    <p>Best regards,<br />@ViewBag.ProjectName Team</p>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copyEmail()">
+                                    <i class="bi bi-clipboard me-1"></i>Copy Email Text
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="@Url.Action("Details", "Units", new { id = ViewBag.UnitId })" class="btn btn-primary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Unit
+                        </a>
+                        <a href="@Url.Action("Dashboard", "Projects", new { id = ViewBag.ProjectId })" class="btn btn-outline-secondary">
+                            <i class="bi bi-grid me-2"></i>Project Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Next Steps Card -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h5><i class="bi bi-list-check me-2 text-primary"></i>What Happens Next?</h5>
+                    <div class="timeline mt-3">
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-success rounded-circle p-2">1</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong>Send the Invitation</strong>
+                                <p class="text-muted small mb-0">Copy the link above and email it to the purchaser</p>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-secondary rounded-circle p-2">2</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong>Purchaser Sets Password</strong>
+                                <p class="text-muted small mb-0">They click the link and create their account password</p>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-secondary rounded-circle p-2">3</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong>Purchaser Submits Info</strong>
+                                <p class="text-muted small mb-0">They enter their mortgage approval and financial details</p>
+                            </div>
+                        </div>
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-secondary rounded-circle p-2">4</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong>Analysis Updates</strong>
+                                <p class="text-muted small mb-0">The system recalculates the shortfall and recommendation</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function copyLink() {
+        var linkInput = document.getElementById('invitationLink');
+        linkInput.select();
+        document.execCommand('copy');
+        
+        // Show feedback
+        var btn = event.target.closest('button');
+        var originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-success');
+        
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-primary');
+        }, 2000);
+    }
+    
+    function copyEmail() {
+        var emailTemplate = document.getElementById('emailTemplate');
+        var range = document.createRange();
+        range.selectNode(emailTemplate);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+        
+        // Show feedback
+        var btn = event.target.closest('button');
+        var originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-success');
+        
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-secondary');
+        }, 2000);
+    }
+</script>
+}

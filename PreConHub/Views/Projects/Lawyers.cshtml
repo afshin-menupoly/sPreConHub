@@ -1,0 +1,366 @@
+@model PreConHub.Models.ViewModels.ProjectLawyersViewModel
+@{
+    ViewData["Title"] = "Manage Lawyers";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                    <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })">@Model.ProjectName</a></li>
+                    <li class="breadcrumb-item active">Lawyers</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0">
+                <i class="bi bi-briefcase text-primary me-2"></i>Manage Lawyers
+            </h1>
+            <p class="text-muted mb-0">@Model.ProjectName — @Model.Lawyers.Count lawyer(s) assigned</p>
+        </div>
+        <div>
+            <a href="@Url.Action("BulkAssignLawyer", "Projects", new { id = Model.ProjectId })" class="btn btn-primary me-2">
+                <i class="bi bi-people me-2"></i>Bulk Assign Units to Lawyer
+            </a>
+            <a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["InvitationLink"] != null)
+    {
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <h6 class="alert-heading"><i class="bi bi-link-45deg me-2"></i>Invitation Link Generated</h6>
+            <div class="input-group input-group-sm mt-2" style="max-width: 600px;">
+                <input type="text" class="form-control" id="invitationLink" value="@TempData["InvitationLink"]" readonly />
+                <button class="btn btn-outline-primary" type="button" onclick="copyInvitationLink()">
+                    <i class="bi bi-clipboard"></i> Copy
+                </button>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-primary">@Model.Lawyers.Count</div>
+                    <div class="text-muted">Total Lawyers</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-success">@Model.Lawyers.Count(l => l.HasActivated)</div>
+                    <div class="text-muted">Activated</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-warning">@Model.Lawyers.Count(l => !l.HasActivated)</div>
+                    <div class="text-muted">Pending Activation</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-info">@Model.Lawyers.Sum(l => l.AssignedUnitsCount)</div>
+                    <div class="text-muted">Total Assignments</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lawyers Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-list-ul me-2"></i>All Lawyers
+            </h5>
+            <div class="btn-group btn-group-sm" role="group">
+                <input type="radio" class="btn-check" name="statusFilter" id="filterAll" autocomplete="off" checked onchange="filterLawyers('all')">
+                <label class="btn btn-outline-secondary" for="filterAll">All</label>
+                
+                <input type="radio" class="btn-check" name="statusFilter" id="filterActivated" autocomplete="off" onchange="filterLawyers('activated')">
+                <label class="btn btn-outline-success" for="filterActivated">Activated</label>
+                
+                <input type="radio" class="btn-check" name="statusFilter" id="filterPending" autocomplete="off" onchange="filterLawyers('pending')">
+                <label class="btn btn-outline-warning" for="filterPending">Pending</label>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            @if (Model.Lawyers.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lawyer</th>
+                                <th>Law Firm</th>
+                                <th>Account Status</th>
+                                <th>Last Login</th>
+                                <th>Assigned Units</th>
+                                <th>Review Progress</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var lawyer in Model.Lawyers)
+                            {
+                                <tr class="lawyer-row" data-status="@(lawyer.HasActivated ? "activated" : "pending")">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle me-3 @(lawyer.HasActivated ? "bg-success" : "bg-warning")">
+                                                @lawyer.FirstName?.Substring(0, 1).ToUpper()@lawyer.LastName?.Substring(0, 1).ToUpper()
+                                            </div>
+                                            <div>
+                                                <strong>@lawyer.FirstName @lawyer.LastName</strong>
+                                                <br />
+                                                <small class="text-muted">@lawyer.Email</small>
+                                                @if (!string.IsNullOrEmpty(lawyer.Phone))
+                                                {
+                                                    <br /><small class="text-muted">@lawyer.Phone</small>
+                                                }
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(lawyer.LawFirm))
+                                        {
+                                            @lawyer.LawFirm
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">—</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (lawyer.HasActivated)
+                                        {
+                                            <span class="badge bg-success">
+                                                <i class="bi bi-check-circle me-1"></i>Activated
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="bi bi-hourglass-split me-1"></i>Pending
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (lawyer.LastLoginAt.HasValue)
+                                        {
+                                            <span title="@lawyer.LastLoginAt?.ToString("g")">
+                                                @GetTimeAgo(lawyer.LastLoginAt.Value)
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Never</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <strong>@lawyer.AssignedUnitsCount</strong> unit(s)
+                                        <br />
+                                        <small class="text-muted">
+                                            @string.Join(", ", lawyer.AssignedUnitNumbers.Take(3))
+                                            @if (lawyer.AssignedUnitNumbers.Count > 3)
+                                            {
+                                                <text>...</text>
+                                            }
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="progress flex-grow-1 me-2" style="height: 8px; min-width: 80px;">
+                                                @{
+                                                    var progress = lawyer.AssignedUnitsCount > 0 
+                                                        ? (int)((double)lawyer.ApprovedCount / lawyer.AssignedUnitsCount * 100) 
+                                                        : 0;
+                                                }
+                                                <div class="progress-bar bg-success" style="width: @progress%"></div>
+                                            </div>
+                                            <small>@lawyer.ApprovedCount/@lawyer.AssignedUnitsCount</small>
+                                        </div>
+                                        <small class="text-muted">
+                                            @if (lawyer.PendingCount > 0)
+                                            {
+                                                <span class="text-warning">@lawyer.PendingCount pending</span>
+                                            }
+                                            @if (lawyer.UnderReviewCount > 0)
+                                            {
+                                                <span class="text-info ms-1">@lawyer.UnderReviewCount reviewing</span>
+                                            }
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            @if (!lawyer.HasActivated)
+                                            {
+                                                <form asp-action="ResendLawyerInvitation" asp-controller="Projects" method="post" class="d-inline">
+                                                    <input type="hidden" name="lawyerId" value="@lawyer.LawyerId" />
+                                                    <input type="hidden" name="projectId" value="@Model.ProjectId" />
+                                                    <button type="submit" class="btn btn-outline-primary" title="Resend Invitation">
+                                                        <i class="bi bi-envelope"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                            <button type="button" class="btn btn-outline-secondary" title="View Assignments"
+                                                    data-bs-toggle="modal" data-bs-target="#assignmentsModal-@lawyer.LawyerId.Replace("-", "")">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-briefcase text-muted" style="font-size: 4rem;"></i>
+                    <h5 class="mt-3">No Lawyers Assigned</h5>
+                    <p class="text-muted">Assign a lawyer to review units before closing.</p>
+                    <a href="@Url.Action("AssignProjectLawyer", "Projects", new { id = Model.ProjectId })" class="btn btn-primary">
+                        <i class="bi bi-plus-lg me-2"></i>Assign Lawyer
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Details Modals -->
+@foreach (var lawyer in Model.Lawyers)
+{
+    <div class="modal fade" id="assignmentsModal-@lawyer.LawyerId.Replace("-", "")" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@lawyer.FirstName @lawyer.LastName - Assignments</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Unit</th>
+                                <th>Status</th>
+                                <th>Assigned</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var assignment in lawyer.Assignments)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@Url.Action("Details", "Units", new { id = assignment.UnitId })">
+                                            Unit @assignment.UnitNumber
+                                        </a>
+                                    </td>
+                                    <td>
+                                        @{
+                                            var statusClass = assignment.ReviewStatus switch
+                                            {
+                                                PreConHub.Models.Entities.LawyerReviewStatus.Pending => "warning",
+                                                PreConHub.Models.Entities.LawyerReviewStatus.UnderReview => "info",
+                                                PreConHub.Models.Entities.LawyerReviewStatus.Approved => "success",
+                                                PreConHub.Models.Entities.LawyerReviewStatus.NeedsRevision => "danger",
+                                                _ => "secondary"
+                                            };
+                                        }
+                                        <span class="badge bg-@statusClass">@assignment.ReviewStatus</span>
+                                    </td>
+                                    <td>@assignment.AssignedAt.ToString("MMM dd")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Styles {
+<style>
+    .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+    .table td {
+        vertical-align: middle;
+    }
+</style>
+}
+
+@section Scripts {
+<script>
+    function copyInvitationLink() {
+        var input = document.getElementById('invitationLink');
+        input.select();
+        document.execCommand('copy');
+        
+        var btn = event.target.closest('button');
+        var originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+        }, 2000);
+    }
+
+    function filterLawyers(status) {
+        var rows = document.querySelectorAll('.lawyer-row');
+        rows.forEach(function(row) {
+            if (status === 'all') {
+                row.style.display = '';
+            } else if (row.dataset.status === status) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+</script>
+}
+
+@functions {
+    string GetTimeAgo(DateTime dateTime)
+    {
+        var span = DateTime.UtcNow - dateTime;
+        if (span.TotalMinutes < 1) return "Just now";
+        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes}m ago";
+        if (span.TotalHours < 24) return $"{(int)span.TotalHours}h ago";
+        if (span.TotalDays < 7) return $"{(int)span.TotalDays}d ago";
+        return dateTime.ToString("MMM dd");
+    }
+}

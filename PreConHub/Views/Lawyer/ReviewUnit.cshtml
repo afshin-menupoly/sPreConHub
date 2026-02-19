@@ -1,0 +1,634 @@
+@model PreConHub.Models.ViewModels.LawyerReviewViewModel
+@using PreConHub.Models.Entities
+@{
+    ViewData["Title"] = $"Review Unit {Model.UnitNumber}";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Lawyer")">Dashboard</a></li>
+                    <li class="breadcrumb-item active">Review Unit @Model.UnitNumber</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">Unit @Model.UnitNumber</h1>
+            <p class="text-muted mb-0">@Model.ProjectName — @Model.ProjectAddress</p>
+        </div>
+        <div class="text-end">
+            <span class="badge bg-@GetReviewStatusClass() fs-6 p-2">
+                @Model.ReviewStatus
+            </span>
+            @if (Model.ClosingDate.HasValue)
+            {
+                var daysLeft = (int)(Model.ClosingDate.Value - DateTime.Now).TotalDays;
+                <div class="mt-2">
+                    <small class="text-muted">Closing: @Model.ClosingDate.Value.ToString("MMM dd, yyyy")</small>
+                    @if (daysLeft > 0 && daysLeft <= 30)
+                    {
+                        <span class="badge bg-warning text-dark ms-2">@daysLeft days left</span>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Left Column: Unit & Purchaser Info -->
+        <div class="col-lg-4">
+            <!-- Unit Information -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-building me-2 text-primary"></i>Unit Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">Unit Number</td>
+                            <td class="fw-bold">@Model.UnitNumber</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Type</td>
+                            <td>@Model.UnitType</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Bedrooms</td>
+                            <td>@Model.Bedrooms</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Bathrooms</td>
+                            <td>@Model.Bathrooms</td>
+                        </tr>
+                        @if (Model.SquareFootage > 0)
+                        {
+                            <tr>
+                                <td class="text-muted">Size</td>
+                                <td>@Model.SquareFootage sq ft</td>
+                            </tr>
+                        }
+                        <tr>
+                            <td class="text-muted">Purchase Price</td>
+                            <td class="fw-bold text-success">$@Model.PurchasePrice.ToString("N0")</td>
+                        </tr>
+                        @if (Model.OccupancyDate.HasValue)
+                        {
+                            <tr>
+                                <td class="text-muted">Occupancy</td>
+                                <td>@Model.OccupancyDate.Value.ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                        <tr>
+                            <td class="text-muted">Closing</td>
+                            <td class="fw-bold">@(Model.ClosingDate?.ToString("MMM dd, yyyy") ?? "TBD")</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Purchaser Information -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-person me-2 text-primary"></i>Purchaser</h5>
+                </div>
+                <div class="card-body">
+                    <h6>@Model.PurchaserName</h6>
+                    @if (!string.IsNullOrEmpty(Model.PurchaserEmail))
+                    {
+                        <p class="mb-1"><i class="bi bi-envelope me-2 text-muted"></i>@Model.PurchaserEmail</p>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.PurchaserPhone))
+                    {
+                        <p class="mb-1"><i class="bi bi-phone me-2 text-muted"></i>@Model.PurchaserPhone</p>
+                    }
+                    @if (Model.CoPurchasers.Any())
+                    {
+                        <hr />
+                        <small class="text-muted">Co-Purchasers:</small>
+                        <ul class="mb-0 small">
+                            @foreach (var co in Model.CoPurchasers)
+                            {
+                                <li>@co</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+
+            <!-- Mortgage Information -->
+            <div class="card border-0 shadow-sm mb-4 @(Model.HasMortgageApproval ? "" : "border-danger border-2")">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-bank me-2 text-primary"></i>Mortgage</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.HasMortgageApproval)
+                    {
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="bi bi-check-circle-fill text-success fs-4 me-2"></i>
+                            <span class="fw-bold text-success">Approved</span>
+                        </div>
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr>
+                                <td class="text-muted">Lender</td>
+                                <td>@(Model.MortgageProvider ?? "N/A")</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Amount</td>
+                                <td class="fw-bold">$@Model.MortgageAmount.ToString("N0")</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Type</td>
+                                <td>@Model.MortgageApprovalType</td>
+                            </tr>
+                            @if (Model.MortgageExpiryDate.HasValue)
+                            {
+                                var expired = Model.MortgageExpiryDate.Value < DateTime.Now;
+                                <tr>
+                                    <td class="text-muted">Expires</td>
+                                    <td class="@(expired ? "text-danger fw-bold" : "")">
+                                        @Model.MortgageExpiryDate.Value.ToString("MMM dd, yyyy")
+                                        @if (expired)
+                                        {
+                                            <span class="badge bg-danger ms-1">EXPIRED</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-exclamation-circle-fill text-danger fs-4 me-2"></i>
+                            <span class="fw-bold text-danger">No Mortgage Approval</span>
+                        </div>
+                        <p class="small text-muted mt-2 mb-0">
+                            Purchaser has not submitted mortgage approval documentation.
+                        </p>
+                    }
+                </div>
+            </div>
+
+            <!-- Deposits -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-cash-stack me-2 text-primary"></i>Deposits</h5>
+                    <span class="badge bg-primary">$@Model.TotalDepositsPaid.ToString("N0") paid</span>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.Deposits.Any())
+                    {
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th class="text-end">Amount</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var deposit in Model.Deposits)
+                                {
+                                    <tr>
+                                        <td>@deposit.DepositName</td>
+                                        <td class="text-end">$@deposit.Amount.ToString("N0")</td>
+                                        <td class="text-center">
+                                            @if (deposit.IsPaid)
+                                            {
+                                                <span class="badge bg-success">Paid</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="text-center py-3 text-muted">No deposits recorded</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Column: SOA -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-calculator me-2 text-primary"></i>Statement of Adjustments</h5>
+                    @if (Model.SOA != null)
+                    {
+                        <a asp-controller="Lawyer" asp-action="DownloadSoaPdf" asp-route-id="@Model.UnitId" 
+                           class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-download me-1"></i>PDF
+                        </a>
+                    }
+                </div>
+                <div class="card-body">
+                    @if (Model.SOA != null)
+                    {
+                        <div class="mb-3">
+                            <small class="text-muted">Last calculated: @Model.SOA.CalculatedAt.ToString("MMM dd, yyyy h:mm tt")</small>
+                        </div>
+
+                        <!-- Debits -->
+                        <h6 class="text-muted border-bottom pb-2 mb-2">DEBITS (Purchaser Owes)</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td>Purchase Price</td>
+                                <td class="text-end">$@Model.SOA.PurchasePrice.ToString("N0")</td>
+                            </tr>
+                            @if (Model.SOA.LandTransferTax > 0)
+                            {
+                                <tr>
+                                    <td>Ontario Land Transfer Tax</td>
+                                    <td class="text-end">$@Model.SOA.LandTransferTax.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.TorontoLandTransferTax > 0)
+                            {
+                                <tr>
+                                    <td>Toronto Land Transfer Tax</td>
+                                    <td class="text-end">$@Model.SOA.TorontoLandTransferTax.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.DevelopmentCharges > 0)
+                            {
+                                <tr>
+                                    <td>Development Charges</td>
+                                    <td class="text-end">$@Model.SOA.DevelopmentCharges.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.TarionFee > 0)
+                            {
+                                <tr>
+                                    <td>Tarion Fee</td>
+                                    <td class="text-end">$@Model.SOA.TarionFee.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.ParkingPrice > 0)
+                            {
+                                <tr>
+                                    <td>Parking</td>
+                                    <td class="text-end">$@Model.SOA.ParkingPrice.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.LockerPrice > 0)
+                            {
+                                <tr>
+                                    <td>Locker</td>
+                                    <td class="text-end">$@Model.SOA.LockerPrice.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.Upgrades > 0)
+                            {
+                                <tr>
+                                    <td>Upgrades</td>
+                                    <td class="text-end">$@Model.SOA.Upgrades.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.LegalFeesEstimate > 0)
+                            {
+                                <tr>
+                                    <td>Legal Fees (Est.)</td>
+                                    <td class="text-end">$@Model.SOA.LegalFeesEstimate.ToString("N0")</td>
+                                </tr>
+                            }
+                            <tr class="fw-bold border-top">
+                                <td>Total Debits</td>
+                                <td class="text-end text-danger">$@Model.SOA.TotalDebits.ToString("N0")</td>
+                            </tr>
+                        </table>
+
+                        <!-- Credits -->
+                        <h6 class="text-muted border-bottom pb-2 mb-2 mt-4">CREDITS (Purchaser Has)</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td>Deposits Paid</td>
+                                <td class="text-end">$@Model.SOA.DepositsPaid.ToString("N0")</td>
+                            </tr>
+                            @if (Model.SOA.DepositInterest > 0)
+                            {
+                                <tr>
+                                    <td>Deposit Interest</td>
+                                    <td class="text-end">$@Model.SOA.DepositInterest.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.MortgageAmount > 0)
+                            {
+                                <tr>
+                                    <td>Mortgage Proceeds</td>
+                                    <td class="text-end">$@Model.SOA.MortgageAmount.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (Model.SOA.BuilderCredits > 0)
+                            {
+                                <tr>
+                                    <td>Builder Credits</td>
+                                    <td class="text-end">$@Model.SOA.BuilderCredits.ToString("N0")</td>
+                                </tr>
+                            }
+                            <tr class="fw-bold border-top">
+                                <td>Total Credits</td>
+                                <td class="text-end text-success">$@Model.SOA.TotalCredits.ToString("N0")</td>
+                            </tr>
+                        </table>
+
+                        <!-- Balance -->
+                        <div class="alert @(Model.SOA.CashRequiredToClose > 0 ? "alert-warning" : "alert-success") mt-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <strong>Cash Required to Close:</strong>
+                                <span class="fs-5 fw-bold">$@Model.SOA.CashRequiredToClose.ToString("N0")</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-calculator display-4"></i>
+                            <p class="mt-2">SOA not yet calculated</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Actions & Notes -->
+        <div class="col-lg-4">
+            <!-- Review Actions -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-check2-square me-2"></i>Review Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        @if (Model.ReviewStatus != LawyerReviewStatus.Approved)
+                        {
+                            <button class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#approveModal">
+                                <i class="bi bi-check-circle me-2"></i>Approve for Closing
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="alert alert-success mb-2">
+                                <i class="bi bi-check-circle-fill me-2"></i>
+                                <strong>Approved</strong> - This unit is ready for closing.
+                            </div>
+                        }
+                        
+                        <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#revisionModal">
+                            <i class="bi bi-arrow-counterclockwise me-2"></i>Request Revision
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Note -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="bi bi-chat-left-text me-2"></i>Add Note</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-controller="Lawyer" asp-action="AddNote" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="assignmentId" value="@Model.AssignmentId" />
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Note Type</label>
+                                <select name="noteType" class="form-select" required>
+                                    <option value="0">General Note</option>
+                                    <option value="1">Question for Builder</option>
+                                    <option value="2">Concern</option>
+                                    <option value="3">Revision Request</option>
+                                    <option value="4">Approval Note</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Who Can See This?</label>
+                                <select name="visibility" class="form-select" required id="noteVisibility">
+                                    <option value="1" selected>Builder (Recommended)</option>
+                                    <option value="0">Only Me (Private)</option>
+                                    <option value="2">All Lawyers on This Unit</option>
+                                </select>
+                                <div class="form-text" id="visibilityHelp">
+                                    Builder will be notified of this note.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Note</label>
+                            <textarea name="note" class="form-control" rows="4" 
+                                      placeholder="Enter your note, question, or comment here..." required></textarea>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send me-2"></i>Submit Note
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Existing Notes -->
+            @if (Model.Notes != null && Model.Notes.Any())
+            {
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>Your Notes</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush">
+                            @foreach (var note in Model.Notes.OrderByDescending(n => n.CreatedAt))
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <span class="@GetNoteTypeColor(note.NoteType)">
+                                                <i class="bi @GetNoteTypeIcon(note.NoteType) me-1"></i>
+                                                <strong>@GetNoteTypeDisplay(note.NoteType)</strong>
+                                            </span>
+                                            @* Visibility Badge - using int comparison *@
+                                            @if (note.Visibility == 0)
+                                            {
+                                                <span class="badge bg-secondary ms-2"><i class="bi bi-lock me-1"></i>Private</span>
+                                            }
+                                            else if (note.Visibility == 1)
+                                            {
+                                                <span class="badge bg-primary ms-2"><i class="bi bi-building me-1"></i>Builder</span>
+                                                @if (note.IsReadByBuilder)
+                                                {
+                                                    <span class="badge bg-success ms-1"><i class="bi bi-check me-1"></i>Read</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark ms-1">Unread</span>
+                                                }
+                                            }
+                                            else if (note.Visibility == 2)
+                                            {
+                                                <span class="badge bg-info ms-2"><i class="bi bi-people me-1"></i>All Lawyers</span>
+                                            }
+                                        </div>
+                                        <small class="text-muted">@note.CreatedAt.ToString("MMM dd, yyyy h:mm tt")</small>
+                                    </div>
+                                    <p class="mb-0">@note.Note</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="ApproveUnit" method="post">
+                <input type="hidden" name="id" value="@Model.AssignmentId" />
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Approve for Closing</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>You are about to approve <strong>Unit @Model.UnitNumber</strong> for closing.</p>
+                    <div class="mb-3">
+                        <label class="form-label">Approval Notes (Optional)</label>
+                        <textarea name="approvalNotes" class="form-control" rows="3" 
+                                  placeholder="Add any notes about this approval..."></textarea>
+                    </div>
+                    <div class="alert alert-info small mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        This will mark the unit as lawyer-confirmed and ready for closing.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle me-2"></i>Confirm Approval
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Revision Modal -->
+<div class="modal fade" id="revisionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="RequestRevision" method="post">
+                <input type="hidden" name="id" value="@Model.AssignmentId" />
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="bi bi-arrow-counterclockwise me-2"></i>Request Revision</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Please describe what needs to be revised for <strong>Unit @Model.UnitNumber</strong>:</p>
+                    <div class="mb-3">
+                        <label class="form-label">Revision Details <span class="text-danger">*</span></label>
+                        <textarea name="revisionNotes" class="form-control" rows="4" required
+                                  placeholder="Describe what needs to be corrected or updated..."></textarea>
+                    </div>
+                    <div class="alert alert-warning small mb-0">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        The builder will be notified about this revision request.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-arrow-counterclockwise me-2"></i>Submit Revision Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetReviewStatusClass()
+    {
+        return Model.ReviewStatus switch
+        {
+            LawyerReviewStatus.Pending => "warning",
+            LawyerReviewStatus.UnderReview => "info",
+            LawyerReviewStatus.Approved => "success",
+            LawyerReviewStatus.NeedsRevision => "danger",
+            _ => "secondary"
+        };
+    }
+
+    string GetNoteTypeDisplay(LawyerNoteType type) => type switch
+    {
+        LawyerNoteType.General => "Note",
+        LawyerNoteType.Question => "Question",
+        LawyerNoteType.Concern => "Concern",
+        LawyerNoteType.RevisionRequest => "Revision Request",
+        LawyerNoteType.Approval => "Approval Note",
+        _ => "Note"
+    };
+
+    string GetNoteTypeIcon(LawyerNoteType type) => type switch
+    {
+        LawyerNoteType.Question => "bi-question-circle",
+        LawyerNoteType.Concern => "bi-exclamation-triangle",
+        LawyerNoteType.RevisionRequest => "bi-arrow-repeat",
+        LawyerNoteType.Approval => "bi-check-circle",
+        _ => "bi-chat-left-text"
+    };
+
+    string GetNoteTypeColor(LawyerNoteType type) => type switch
+    {
+        LawyerNoteType.Question => "text-info",
+        LawyerNoteType.Concern => "text-warning",
+        LawyerNoteType.RevisionRequest => "text-danger",
+        LawyerNoteType.Approval => "text-success",
+        _ => "text-secondary"
+    };
+}
+
+<script>
+    document.getElementById('noteVisibility')?.addEventListener('change', function() {
+        var helpText = document.getElementById('visibilityHelp');
+        if (helpText) {
+            switch(this.value) {
+                case '0':
+                    helpText.textContent = 'Only you can see this note. Useful for personal reminders.';
+                    break;
+                case '1':
+                    helpText.textContent = 'Builder will be notified of this note.';
+                    break;
+                case '2':
+                    helpText.textContent = 'All lawyers assigned to this unit can see this note.';
+                    break;
+            }
+        }
+    });
+</script>

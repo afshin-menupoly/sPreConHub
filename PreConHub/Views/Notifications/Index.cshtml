@@ -1,0 +1,339 @@
+@using PreConHub.Models.Entities
+@model List<PreConHub.Models.Entities.Notification>
+
+@{
+    ViewData["Title"] = "Notifications";
+}
+
+<style>
+    .notifications-container { background: #f8f9fa; min-height: 100vh; padding: 2rem 0; }
+    .notification-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 1rem;
+        overflow: hidden;
+        transition: all 0.2s;
+    }
+    .notification-card:hover { transform: translateX(4px); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+    .notification-card.unread { border-left: 4px solid #007bff; background: #f8fbff; }
+    .notification-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+    .notification-icon.primary { background: #e3f2fd; color: #1976d2; }
+    .notification-icon.success { background: #e8f5e9; color: #388e3c; }
+    .notification-icon.warning { background: #fff3e0; color: #f57c00; }
+    .notification-icon.danger { background: #ffebee; color: #d32f2f; }
+    .notification-icon.purple { background: #f3e5f5; color: #7b1fa2; }
+    .notification-icon.secondary { background: #eceff1; color: #546e7a; }
+    .notification-icon.orange { background: #fff3e0; color: #e65100; }
+    .notification-icon.info { background: #e0f7fa; color: #0097a7; }
+    .notification-icon.teal { background: #e0f2f1; color: #00796b; }
+    .filter-pills .btn { border-radius: 20px; padding: 0.4rem 1rem; font-size: 0.85rem; }
+    .filter-pills .btn.active { font-weight: 600; }
+    .priority-badge { font-size: 0.65rem; padding: 0.15rem 0.4rem; border-radius: 3px; font-weight: 600; text-transform: uppercase; }
+    .priority-urgent { background: #dc3545; color: white; }
+    .priority-high { background: #f97316; color: white; }
+    .priority-normal { background: #6c757d; color: white; }
+    .empty-state { text-align: center; padding: 4rem 2rem; }
+    .empty-state i { font-size: 5rem; color: #dee2e6; margin-bottom: 1.5rem; }
+</style>
+
+<div class="notifications-container">
+    <div class="container">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-bell me-2 text-primary"></i>Notifications</h2>
+                <p class="text-muted mb-0">
+                    @{
+                        var unreadCount = Model.Count(n => !n.IsRead);
+                        if (unreadCount > 0)
+                        {
+                            <span class="badge bg-primary me-2">@unreadCount unread</span>
+                        }
+                    }
+                    @Model.Count total notifications
+                </p>
+            </div>
+            <div class="d-flex gap-2">
+                @if (unreadCount > 0)
+                {
+                    <button class="btn btn-outline-primary" onclick="markAllAsRead()">
+                        <i class="bi bi-check-all me-1"></i>Mark All Read
+                    </button>
+                }
+                <button class="btn btn-outline-secondary" onclick="clearOldNotifications()">
+                    <i class="bi bi-trash me-1"></i>Clear Read
+                </button>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="filter-pills btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary active" data-filter="all">
+                            All <span class="badge bg-primary ms-1">@Model.Count</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" data-filter="unread">
+                            Unread <span class="badge bg-secondary ms-1">@unreadCount</span>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" data-filter="urgent">
+                            Urgent
+                        </button>
+                        <button type="button" class="btn btn-outline-success" data-filter="mortgage">
+                            Mortgage
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" data-filter="closing">
+                            Closing
+                        </button>
+                    </div>
+                    <div class="input-group" style="width: 250px;">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="searchNotifications" placeholder="Search...">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification List -->
+        <div id="notificationsList">
+            @if (Model.Any())
+            {
+                @foreach (var notification in Model.OrderByDescending(n => n.CreatedAt))
+                {
+                    var iconClass = notification.Type switch
+                    {
+                        NotificationType.Info => "bi-info-circle-fill",
+                        NotificationType.Success => "bi-check-circle-fill",
+                        NotificationType.Warning => "bi-exclamation-triangle-fill",
+                        NotificationType.Alert => "bi-exclamation-circle-fill",
+                        NotificationType.Mortgage => "bi-bank",
+                        NotificationType.Document => "bi-file-earmark-text-fill",
+                        NotificationType.Closing => "bi-calendar-check-fill",
+                        NotificationType.Deposit => "bi-cash-stack",
+                        NotificationType.Lawyer => "bi-briefcase-fill",
+                        NotificationType.Purchaser => "bi-person-fill",
+                        NotificationType.System => "bi-gear-fill",
+                        _ => "bi-bell-fill"
+                    };
+                    
+                    var colorClass = notification.Type switch
+                    {
+                        NotificationType.Info => "primary",
+                        NotificationType.Success => "success",
+                        NotificationType.Warning => "warning",
+                        NotificationType.Alert => "danger",
+                        NotificationType.Mortgage => "purple",
+                        NotificationType.Document => "secondary",
+                        NotificationType.Closing => "orange",
+                        NotificationType.Deposit => "success",
+                        NotificationType.Lawyer => "info",
+                        NotificationType.Purchaser => "teal",
+                        _ => "primary"
+                    };
+                    
+                    var priorityClass = notification.Priority switch
+                    {
+                        NotificationPriority.Urgent => "priority-urgent",
+                        NotificationPriority.High => "priority-high",
+                        _ => ""
+                    };
+                    
+                    <div class="notification-card @(notification.IsRead ? "" : "unread")" 
+                         data-id="@notification.Id"
+                         data-type="@notification.Type.ToString().ToLower()"
+                         data-priority="@notification.Priority.ToString().ToLower()"
+                         data-read="@notification.IsRead.ToString().ToLower()">
+                        <div class="card-body">
+                            <div class="d-flex align-items-start">
+                                <div class="notification-icon @colorClass me-3">
+                                    <i class="bi @iconClass"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <h6 class="mb-0">
+                                            @notification.Title
+                                            @if (notification.Priority >= NotificationPriority.High)
+                                            {
+                                                <span class="priority-badge @priorityClass ms-2">@notification.Priority</span>
+                                            }
+                                        </h6>
+                                        <small class="text-muted">@GetTimeAgo(notification.CreatedAt)</small>
+                                    </div>
+                                    <p class="text-muted mb-2">@notification.Message</p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            @if (!string.IsNullOrEmpty(notification.ActionUrl))
+                                            {
+                                                <a href="@notification.ActionUrl" class="btn btn-sm btn-outline-primary me-2" 
+                                                   onclick="markAsRead(@notification.Id)">
+                                                    <i class="bi bi-arrow-right me-1"></i>@(notification.ActionText ?? "View")
+                                                </a>
+                                            }
+                                            @if (!notification.IsRead)
+                                            {
+                                                <button class="btn btn-sm btn-outline-secondary" onclick="markAsRead(@notification.Id)">
+                                                    <i class="bi bi-check me-1"></i>Mark Read
+                                                </button>
+                                            }
+                                        </div>
+                                        <button class="btn btn-sm btn-link text-muted" onclick="deleteNotification(@notification.Id)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="empty-state">
+                    <i class="bi bi-bell-slash"></i>
+                    <h4>No notifications yet</h4>
+                    <p class="text-muted">When something important happens, we'll let you know here.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetTimeAgo(DateTime dateTime)
+    {
+        var timeSpan = DateTime.UtcNow - dateTime;
+        if (timeSpan.TotalMinutes < 1) return "Just now";
+        if (timeSpan.TotalMinutes < 60) return $"{(int)timeSpan.TotalMinutes} minutes ago";
+        if (timeSpan.TotalHours < 24) return $"{(int)timeSpan.TotalHours} hours ago";
+        if (timeSpan.TotalDays < 7) return $"{(int)timeSpan.TotalDays} days ago";
+        return dateTime.ToString("MMM dd, yyyy");
+    }
+}
+
+@section Scripts {
+<script>
+// Filter functionality
+document.querySelectorAll('.filter-pills .btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-pills .btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        const filter = this.dataset.filter;
+        filterNotifications(filter);
+    });
+});
+
+function filterNotifications(filter) {
+    document.querySelectorAll('.notification-card').forEach(card => {
+        let show = true;
+        
+        switch(filter) {
+            case 'unread':
+                show = card.dataset.read === 'false';
+                break;
+            case 'urgent':
+                show = card.dataset.priority === 'urgent' || card.dataset.priority === 'high';
+                break;
+            case 'mortgage':
+                show = card.dataset.type === 'mortgage';
+                break;
+            case 'closing':
+                show = card.dataset.type === 'closing' || card.dataset.type === 'alert';
+                break;
+            default:
+                show = true;
+        }
+        
+        card.style.display = show ? 'block' : 'none';
+    });
+}
+
+// Search functionality
+document.getElementById('searchNotifications')?.addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    document.querySelectorAll('.notification-card').forEach(card => {
+        const text = card.textContent.toLowerCase();
+        card.style.display = text.includes(search) ? 'block' : 'none';
+    });
+});
+
+// Mark as read
+async function markAsRead(id) {
+    try {
+        await fetch(`/api/NotificationsApi/${id}/read`, { method: 'POST' });
+        const card = document.querySelector(`.notification-card[data-id="${id}"]`);
+        if (card) {
+            card.classList.remove('unread');
+            card.dataset.read = 'true';
+            const markBtn = card.querySelector('.btn-outline-secondary');
+            if (markBtn && markBtn.textContent.includes('Mark Read')) {
+                markBtn.remove();
+            }
+        }
+        updateUnreadCount();
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Mark all as read
+async function markAllAsRead() {
+    try {
+        await fetch('/api/NotificationsApi/read-all', { method: 'POST' });
+        document.querySelectorAll('.notification-card.unread').forEach(card => {
+            card.classList.remove('unread');
+            card.dataset.read = 'true';
+        });
+        updateUnreadCount();
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Delete notification
+async function deleteNotification(id) {
+    if (!confirm('Delete this notification?')) return;
+    
+    try {
+        await fetch(`/api/NotificationsApi/${id}`, { method: 'DELETE' });
+        const card = document.querySelector(`.notification-card[data-id="${id}"]`);
+        if (card) {
+            card.style.opacity = '0';
+            card.style.transform = 'translateX(100%)';
+            setTimeout(() => card.remove(), 200);
+        }
+        updateUnreadCount();
+    } catch (error) {
+        console.error('Error:', error);
+    }
+}
+
+// Clear old notifications
+async function clearOldNotifications() {
+    if (!confirm('Delete all read notifications?')) return;
+    
+    const readCards = document.querySelectorAll('.notification-card[data-read="true"]');
+    for (const card of readCards) {
+        const id = card.dataset.id;
+        await fetch(`/api/NotificationsApi/${id}`, { method: 'DELETE' });
+        card.remove();
+    }
+}
+
+function updateUnreadCount() {
+    const count = document.querySelectorAll('.notification-card.unread').length;
+    const badge = document.querySelector('.filter-pills .btn[data-filter="unread"] .badge');
+    if (badge) badge.textContent = count;
+}
+</script>
+}

@@ -1,0 +1,143 @@
+@model PreConHub.Models.ViewModels.AllProjectsReportViewModel
+@{
+    ViewData["Title"] = "All Projects Overview";
+}
+<style>
+    .report-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; color: #fff; }
+    .agg-card { background: rgba(255,255,255,0.12); border-radius: 8px; padding: 0.8rem; text-align: center; }
+    .agg-card .value { font-size: 1.5rem; font-weight: 700; color: #fff; }
+    .agg-card .label { font-size: 0.75rem; color: rgba(255,255,255,0.7); }
+    .project-summary-card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 1.2rem; transition: all 0.25s; }
+    .project-summary-card:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+    .status-bar { height: 8px; border-radius: 4px; overflow: hidden; display: flex; background: #e9ecef; }
+    .status-bar .segment { height: 100%; }
+</style>
+
+<div class="report-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1" style="--bs-breadcrumb-divider-color: rgba(255,255,255,0.5);">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index")" class="text-white-50">Reports</a></li>
+            <li class="breadcrumb-item active text-white">All Projects</li>
+        </ol>
+    </nav>
+    <h3 class="mb-3"><i class="bi bi-building me-2"></i>All Projects Overview</h3>
+    <div class="row g-2">
+        <div class="col-4 col-md-2"><div class="agg-card"><div class="value">@Model.TotalProjects</div><div class="label">Projects</div></div></div>
+        <div class="col-4 col-md-2"><div class="agg-card"><div class="value">@Model.TotalUnits</div><div class="label">Total Units</div></div></div>
+        <div class="col-4 col-md-2"><div class="agg-card"><div class="value text-success">@Model.TotalClosingClean</div><div class="label">Closing Clean</div></div></div>
+        <div class="col-4 col-md-2"><div class="agg-card"><div class="value text-warning">@Model.TotalNeedSupport</div><div class="label">Need Support</div></div></div>
+        <div class="col-4 col-md-2"><div class="agg-card"><div class="value text-danger">@Model.TotalHighRisk</div><div class="label">High Risk</div></div></div>
+        <div class="col-4 col-md-2"><div class="agg-card"><div class="value">@Model.TotalSalesValue.ToString("C0")</div><div class="label">Total Sales</div></div></div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-4 mb-4">
+    <div class="col-md-6">
+        <div class="card h-100"><div class="card-body">
+            <h6>Units by Project</h6>
+            <canvas id="unitsByProjectChart" style="max-height: 300px;"></canvas>
+        </div></div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100"><div class="card-body">
+            <h6>Exposure by Project</h6>
+            <canvas id="exposureByProjectChart" style="max-height: 300px;"></canvas>
+        </div></div>
+    </div>
+</div>
+
+<!-- Project Cards -->
+<div class="row g-4">
+    @foreach (var p in Model.Projects)
+    {
+        var cleanPct = p.TotalUnits > 0 ? (double)p.ClosingClean / p.TotalUnits * 100 : 0;
+        var supportPct = p.TotalUnits > 0 ? (double)p.NeedSupport / p.TotalUnits * 100 : 0;
+        var riskPct = p.TotalUnits > 0 ? (double)p.HighRisk / p.TotalUnits * 100 : 0;
+
+        <div class="col-md-6 col-lg-4">
+            <div class="project-summary-card h-100">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h5 class="mb-0">@p.ProjectName</h5>
+                        <small class="text-muted">@p.ProjectAddress</small>
+                    </div>
+                    <span class="badge @p.HealthBadgeClass">@p.HealthStatus</span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-secondary">@p.TotalUnits units</span>
+                    @if (p.ClosingDate.HasValue)
+                    {
+                        <small class="text-muted">Closing: @p.ClosingDate.Value.ToString("MMM dd, yyyy")</small>
+                    }
+                </div>
+
+                <!-- Status Bar -->
+                <div class="status-bar mb-2">
+                    <div class="segment" style="width: @cleanPct%; background: #28a745;"></div>
+                    <div class="segment" style="width: @supportPct%; background: #ffc107;"></div>
+                    <div class="segment" style="width: @riskPct%; background: #dc3545;"></div>
+                </div>
+                <div class="d-flex justify-content-between small mb-3">
+                    <span class="text-success">@p.ClosingClean clean</span>
+                    <span class="text-warning">@p.NeedSupport support</span>
+                    <span class="text-danger">@p.HighRisk risk</span>
+                </div>
+
+                <div class="small">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Sales Value</span>
+                        <strong>@p.TotalSalesValue.ToString("C0")</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Total Exposure</span>
+                        <strong class="text-danger">@p.TotalExposure.ToString("C0")</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Capital Recovery</span>
+                        <strong class="@(p.CapitalRecoveryPercent >= 70 ? "text-success" : p.CapitalRecoveryPercent >= 40 ? "text-warning" : "text-danger")">@p.CapitalRecoveryPercent%</strong>
+                    </div>
+                </div>
+
+                <a href="@Url.Action("ProjectReport", new { projectId = p.ProjectId })" class="btn btn-sm btn-outline-primary w-100 mt-3">
+                    <i class="bi bi-bar-chart me-1"></i>View Report
+                </a>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script>
+        var projectData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            Model.Projects.Select(p => new { p.ProjectName, p.ClosingClean, p.NeedSupport, p.HighRisk, p.DiscountExposure, p.VTBExposure })));
+
+        new Chart(document.getElementById('unitsByProjectChart'), {
+            type: 'bar',
+            data: {
+                labels: projectData.map(p => p.projectName),
+                datasets: [
+                    { label: 'Closing Clean', data: projectData.map(p => p.closingClean), backgroundColor: '#28a745' },
+                    { label: 'Need Support', data: projectData.map(p => p.needSupport), backgroundColor: '#ffc107' },
+                    { label: 'High Risk', data: projectData.map(p => p.highRisk), backgroundColor: '#dc3545' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: true, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
+        });
+
+        new Chart(document.getElementById('exposureByProjectChart'), {
+            type: 'bar',
+            data: {
+                labels: projectData.map(p => p.projectName),
+                datasets: [
+                    { label: 'Discount', data: projectData.map(p => p.discountExposure), backgroundColor: '#007bff' },
+                    { label: 'VTB', data: projectData.map(p => p.vtbExposure), backgroundColor: '#f97316' }
+                ]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } },
+                scales: { y: { ticks: { callback: v => '$' + (v/1000).toFixed(0) + 'k' } } } }
+        });
+    </script>
+}

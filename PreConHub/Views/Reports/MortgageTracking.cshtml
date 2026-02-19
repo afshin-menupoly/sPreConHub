@@ -1,0 +1,183 @@
+@model PreConHub.Models.ViewModels.MortgageTrackingViewModel
+@{
+    ViewData["Title"] = $"Mortgage Tracking — {Model.ProjectName}";
+}
+<style>
+    .report-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; color: #fff; }
+    .summary-card { border-radius: 8px; padding: 1rem; text-align: center; border-left: 4px solid; background: #fff; border: 1px solid #e0e0e0; }
+    .provider-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 0.8rem; }
+    .urgent-section { border: 2px solid #dc3545; border-radius: 10px; padding: 1rem; background: #fff5f5; }
+</style>
+
+<div class="report-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1" style="--bs-breadcrumb-divider-color: rgba(255,255,255,0.5);">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index")" class="text-white-50">Reports</a></li>
+                    <li class="breadcrumb-item active text-white">Mortgage Tracking</li>
+                </ol>
+            </nav>
+            <h3 class="mb-0"><i class="bi bi-bank me-2"></i>Mortgage Tracking — @Model.ProjectName</h3>
+        </div>
+        @if (Model.AllProjects.Count > 1)
+        {
+            <select class="form-select form-select-sm bg-transparent text-white border-light" style="max-width: 220px;"
+                    onchange="window.location.href='@Url.Action("MortgageTracking")?projectId=' + this.value">
+                @foreach (var p in Model.AllProjects) { <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name</option> }
+            </select>
+        }
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md">
+        <div class="summary-card" style="border-left-color: #28a745;">
+            <div class="fs-3 fw-bold text-success">@Model.ApprovedCount</div>
+            <div class="small text-muted">Approved</div>
+        </div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="summary-card" style="border-left-color: #ffc107;">
+            <div class="fs-3 fw-bold text-warning">@Model.PendingCount</div>
+            <div class="small text-muted">Pending / Conditional</div>
+        </div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="summary-card" style="border-left-color: #dc3545;">
+            <div class="fs-3 fw-bold text-danger">@Model.NoMortgageCount</div>
+            <div class="small text-muted">No Mortgage</div>
+        </div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="summary-card" style="border-left-color: #007bff;">
+            <div class="fs-4 fw-bold text-primary">@Model.TotalMortgageCommitted.ToString("C0")</div>
+            <div class="small text-muted">Total Committed</div>
+        </div>
+    </div>
+    <div class="col-6 col-md">
+        <div class="summary-card" style="border-left-color: #6f42c1;">
+            <div class="fs-3 fw-bold" style="color: #6f42c1;">@Model.AverageLTV%</div>
+            <div class="small text-muted">Avg LTV</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Approval Chart -->
+    <div class="col-md-5">
+        <div class="card h-100"><div class="card-body">
+            <h6>Approval Status</h6>
+            <canvas id="approvalChart" style="max-height: 260px;"></canvas>
+        </div></div>
+    </div>
+    <!-- Provider Breakdown -->
+    <div class="col-md-7">
+        <div class="card h-100"><div class="card-body">
+            <h6>Lender Breakdown</h6>
+            <div class="row g-2">
+                @foreach (var prov in Model.Providers)
+                {
+                    <div class="col-md-6">
+                        <div class="provider-card">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong>@prov.ProviderName</strong>
+                                <span class="badge bg-primary">@prov.UnitCount units</span>
+                            </div>
+                            <div class="small text-muted">
+                                Total: @prov.TotalAmount.ToString("C0") • Avg: @prov.AverageAmount.ToString("C0")
+                            </div>
+                            <div class="small">
+                                <span class="text-success">@prov.ApprovedCount approved</span> •
+                                <span class="text-warning">@prov.PendingCount pending</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+                @if (!Model.Providers.Any())
+                {
+                    <div class="col-12 text-center text-muted py-3">No mortgage provider data available.</div>
+                }
+            </div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Urgent Attention -->
+@if (Model.UrgentUnits.Any())
+{
+    <div class="urgent-section mb-4">
+        <h5 class="text-danger mb-3"><i class="bi bi-exclamation-triangle-fill me-2"></i>Urgent Attention — Closing Within 30 Days Without Firm Approval</h5>
+        <div class="table-responsive">
+            <table class="table table-sm" style="font-size: 0.82rem;">
+                <thead><tr><th>Unit</th><th>Purchaser</th><th>Price</th><th>Approval</th><th>Closing</th><th>Days</th><th>Shortfall</th></tr></thead>
+                <tbody>
+                    @foreach (var u in Model.UrgentUnits)
+                    {
+                        <tr>
+                            <td><a href="@Url.Action("Details", "Projects", new { id = u.UnitId })">@u.UnitNumber</a></td>
+                            <td>@(u.PurchaserName ?? "—")</td>
+                            <td>@u.PurchasePrice.ToString("C0")</td>
+                            <td><span class="badge @u.ApprovalBadgeClass">@u.ApprovalStatusText</span></td>
+                            <td>@(u.ClosingDate?.ToString("MMM dd") ?? "—")</td>
+                            <td><span class="badge bg-danger">@u.DaysUntilClosing days</span></td>
+                            <td class="text-danger fw-bold">@(u.ShortfallAmount > 0 ? $"-{u.ShortfallAmount:C0}" : "$0")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<!-- Full Mortgage Table -->
+<div class="card">
+    <div class="card-header"><h5 class="mb-0"><i class="bi bi-table me-2"></i>All Units — Mortgage Details</h5></div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="mortgageTable" class="table table-sm table-hover" style="font-size: 0.82rem;">
+                <thead class="table-dark">
+                    <tr><th>Unit</th><th>Purchaser</th><th>Price</th><th>Provider</th><th>Amount</th><th>Type</th><th>LTV</th><th>Shortfall</th><th>%</th><th>Closing</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model.AllUnits)
+                    {
+                        <tr>
+                            <td><a href="@Url.Action("Details", "Projects", new { id = u.UnitId })">@u.UnitNumber</a></td>
+                            <td>@(u.PurchaserName ?? "—")</td>
+                            <td>@u.PurchasePrice.ToString("C0")</td>
+                            <td>@(u.MortgageProvider ?? "—")</td>
+                            <td>@u.MortgageAmount.ToString("C0")</td>
+                            <td><span class="badge @u.ApprovalBadgeClass" style="font-size:0.7rem;">@u.ApprovalStatusText</span></td>
+                            <td>@u.LTV%</td>
+                            <td class="@(u.ShortfallAmount > 0 ? "text-danger fw-bold" : "text-success")">@(u.ShortfallAmount > 0 ? $"-{u.ShortfallAmount:C0}" : "$0")</td>
+                            <td>@u.ShortfallPercentage.ToString("F1")%</td>
+                            <td>@(u.ClosingDate?.ToString("MMM dd") ?? "—")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" />
+}
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $('#mortgageTable').DataTable({ pageLength: 25, order: [[5, 'asc'], [9, 'asc']] });
+        new Chart(document.getElementById('approvalChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Approved', 'Pending/Conditional', 'No Mortgage'],
+                datasets: [{ data: [@Model.ApprovedCount, @Model.PendingCount, @Model.NoMortgageCount], backgroundColor: ['#28a745', '#ffc107', '#dc3545'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
+        });
+    </script>
+}

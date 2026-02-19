@@ -1,0 +1,239 @@
+@model PreConHub.Models.ViewModels.SubmitFinancialsViewModel
+@{
+    ViewData["Title"] = "Submit Financial Information";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="mb-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Purchaser")">My Dashboard</a></li>
+                        <li class="breadcrumb-item active">Financial Information</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">
+                    <i class="bi bi-wallet2 text-success me-2"></i>Financial Information
+                </h1>
+                <p class="text-muted">Unit @Model.UnitNumber at @Model.ProjectName</p>
+            </div>
+
+            <!-- Info Banner -->
+            <div class="alert alert-info mb-4">
+                <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Why We Need This</h6>
+                <p class="mb-0 small">
+                    Beyond your mortgage, you'll need additional funds to cover your deposits, closing costs, and any 
+                    shortfall. This helps us ensure you're prepared for a smooth closing.
+                </p>
+            </div>
+
+            <!-- Form -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form asp-action="SubmitFinancials" method="post">
+                        <input type="hidden" asp-for="UnitId" />
+                        <input type="hidden" asp-for="UnitNumber" />
+                        <input type="hidden" asp-for="ProjectName" />
+
+                        <!-- Available Funds Section -->
+                        <h5 class="mb-3 pb-2 border-bottom">
+                            <i class="bi bi-cash-stack me-2 text-success"></i>Available Funds
+                        </h5>
+                        <p class="text-muted small mb-3">
+                            Enter the amounts you have available for closing (excluding your mortgage).
+                        </p>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="AdditionalCashAvailable" class="form-label">
+                                    Cash / Savings
+                                    <i class="bi bi-question-circle text-muted" data-bs-toggle="tooltip" 
+                                       title="Money in your bank accounts that you can use for closing"></i>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="AdditionalCashAvailable" type="number" step="1000" class="form-control" 
+                                           placeholder="0" oninput="calculateTotal()" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="RRSPAvailable" class="form-label">
+                                    RRSP (Home Buyers' Plan)
+                                    <i class="bi bi-question-circle text-muted" data-bs-toggle="tooltip" 
+                                       title="Up to $35,000 can be withdrawn tax-free for first-time home buyers"></i>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="RRSPAvailable" type="number" step="1000" class="form-control" 
+                                           placeholder="0" max="35000" oninput="calculateTotal()" />
+                                </div>
+                                <div class="form-text">Max $35,000 per person (First-Time Home Buyers' Plan)</div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="GiftFromFamily" class="form-label">
+                                    Gift from Family
+                                    <i class="bi bi-question-circle text-muted" data-bs-toggle="tooltip" 
+                                       title="Funds gifted by family members (gift letter may be required)"></i>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="GiftFromFamily" type="number" step="1000" class="form-control" 
+                                           placeholder="0" oninput="calculateTotal()" />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="ProceedsFromSale" class="form-label">
+                                    Proceeds from Property Sale
+                                    <i class="bi bi-question-circle text-muted" data-bs-toggle="tooltip" 
+                                       title="Net proceeds you expect from selling another property"></i>
+                                </label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="ProceedsFromSale" type="number" step="1000" class="form-control" 
+                                           placeholder="0" oninput="calculateTotal()" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="OtherFundsDescription" class="form-label">Other Funds (Description)</label>
+                                <input asp-for="OtherFundsDescription" class="form-control" 
+                                       placeholder="e.g., Investment account, LOC" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="OtherFundsAmount" class="form-label">Other Funds (Amount)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="OtherFundsAmount" type="number" step="1000" class="form-control" 
+                                           placeholder="0" oninput="calculateTotal()" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Total Summary -->
+                        <div class="alert alert-success mb-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold">Total Available Funds:</span>
+                                <span class="fs-4 fw-bold" id="totalFunds">$0</span>
+                            </div>
+                            <small class="text-muted">(Excluding mortgage amount)</small>
+                        </div>
+
+                        <!-- Existing Property Section -->
+                        <h5 class="mb-3 pb-2 border-bottom">
+                            <i class="bi bi-house me-2 text-primary"></i>Existing Property (Optional)
+                        </h5>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input asp-for="HasExistingPropertyToSell" class="form-check-input" type="checkbox" 
+                                       id="hasProperty" onchange="togglePropertySection()" />
+                                <label class="form-check-label" for="hasProperty">
+                                    I have a property to sell before closing
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="propertySection" style="display: @(Model.HasExistingPropertyToSell ? "block" : "none");" class="border rounded p-3 mb-4 bg-light">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label asp-for="ExistingPropertyValue" class="form-label">Estimated Property Value</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input asp-for="ExistingPropertyValue" type="number" step="10000" class="form-control" placeholder="0" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="ExistingMortgageBalance" class="form-label">Existing Mortgage Balance</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input asp-for="ExistingMortgageBalance" type="number" step="1000" class="form-control" placeholder="0" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input asp-for="IsPropertyListed" class="form-check-input" type="checkbox" />
+                                        <label asp-for="IsPropertyListed" class="form-check-label">Property is currently listed for sale</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="ExpectedSaleDate" class="form-label">Expected Sale Date</label>
+                                    <input asp-for="ExpectedSaleDate" type="date" class="form-control" />
+                                </div>
+                            </div>
+
+                            <div class="alert alert-warning mt-3 mb-0 small">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Note:</strong> If your closing depends on selling your existing property, 
+                                please ensure the sale closes before or coordinates with your new purchase closing date.
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="@Url.Action("Dashboard", "Purchaser")" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-lg me-2"></i>Save Financial Information
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tips -->
+            <div class="card border-0 shadow-sm mt-4 bg-light">
+                <div class="card-body">
+                    <h6><i class="bi bi-lightbulb me-2 text-warning"></i>Important Notes</h6>
+                    <ul class="small mb-0">
+                        <li><strong>Home Buyers' Plan:</strong> First-time buyers can withdraw up to $35,000 from RRSP tax-free</li>
+                        <li><strong>Gift Funds:</strong> Your lender may require a gift letter confirming the funds are not a loan</li>
+                        <li><strong>Proof of Funds:</strong> Be prepared to provide bank statements showing available funds</li>
+                        <li><strong>Bridge Financing:</strong> If selling a property, you may need bridge financing to cover timing gaps</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    function calculateTotal() {
+        var cash = parseFloat(document.getElementById('AdditionalCashAvailable').value) || 0;
+        var rrsp = parseFloat(document.getElementById('RRSPAvailable').value) || 0;
+        var gift = parseFloat(document.getElementById('GiftFromFamily').value) || 0;
+        var sale = parseFloat(document.getElementById('ProceedsFromSale').value) || 0;
+        var other = parseFloat(document.getElementById('OtherFundsAmount').value) || 0;
+        
+        var total = cash + rrsp + gift + sale + other;
+        document.getElementById('totalFunds').textContent = '$' + total.toLocaleString('en-US');
+    }
+
+    function togglePropertySection() {
+        var checkbox = document.getElementById('hasProperty');
+        document.getElementById('propertySection').style.display = checkbox.checked ? 'block' : 'none';
+    }
+
+    // Calculate on page load
+    calculateTotal();
+</script>
+}

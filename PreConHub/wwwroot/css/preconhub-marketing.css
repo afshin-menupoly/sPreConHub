@@ -1,0 +1,839 @@
+/* =====================================================
+   PreConHub Marketing Pages - UPDATED VERSION
+   Full-width hero, lighter overlay, more attractive design
+   ===================================================== */
+
+/* Only apply to marketing pages with .marketing-page class */
+.marketing-page {
+    font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', sans-serif;
+    line-height: 1.6;
+}
+
+/* CSS Variables */
+.marketing-page {
+    --primary-blue: #0066ff;
+    --primary-blue-dark: #0052cc;
+    --secondary-blue: #00a8ff;
+    --accent-cyan: #00d9ff;
+    --dark-bg: #0a1628;
+    --dark-bg-secondary: #132238;
+    --light-text: #ffffff;
+    --accent-gold: #ffd700;
+    --accent-orange: #ff6b35;
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+}
+
+/* Remove default body margin/padding for full-width hero */
+.marketing-page {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Hero Section - FULL WIDTH and covers header */
+.marketing-hero {
+    position: relative;
+    min-height: 100vh;
+    width: 100vw;
+    margin-left: calc(-50vw + 50%);
+    margin-right: calc(-50vw + 50%);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    background: linear-gradient(135deg, #0a1628 0%, #1a2744 50%, #0a1628 100%);
+}
+
+/* Video/Image Background - MORE VISIBLE */
+.marketing-hero-video,
+.marketing-hero-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.5; /* INCREASED from 0.3 - video now more visible! */
+    z-index: 1;
+}
+
+/* Lighter overlay so video shows through */
+.marketing-hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(10, 22, 40, 0.75) 0%, rgba(26, 39, 68, 0.65) 50%, rgba(10, 22, 40, 0.8) 100%);
+    z-index: 2;
+}
+
+/* Animated gradient overlay for visual interest */
+.marketing-hero-overlay::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, 
+        transparent 0%, 
+        rgba(0, 102, 255, 0.1) 25%, 
+        rgba(0, 168, 255, 0.1) 50%, 
+        rgba(0, 217, 255, 0.1) 75%, 
+        transparent 100%);
+    animation: gradientShift 15s ease infinite;
+    z-index: 1;
+}
+
+@keyframes gradientShift {
+    0%, 100% { transform: translateX(-50%) translateY(-50%) rotate(0deg); }
+    50% { transform: translateX(50%) translateY(50%) rotate(180deg); }
+}
+
+/* Hero Content */
+.marketing-hero-content {
+    position: relative;
+    z-index: 3;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 8rem 2rem 4rem;
+    color: var(--light-text);
+}
+
+/* Badge with glow effect */
+.marketing-hero-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 0 30px rgba(0, 102, 255, 0.6), 0 0 60px rgba(0, 168, 255, 0.3);
+    animation: pulseGlow 3s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 30px rgba(0, 102, 255, 0.6), 0 0 60px rgba(0, 168, 255, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(0, 102, 255, 0.8), 0 0 80px rgba(0, 168, 255, 0.5); }
+}
+
+/* Title with better gradient */
+.marketing-hero-title {
+    font-size: clamp(2.5rem, 6vw, 5rem);
+    font-weight: 900;
+    line-height: 1.05;
+    margin-bottom: 2rem;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.marketing-gradient-text {
+    background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--secondary-blue) 30%, var(--accent-gold) 70%, var(--accent-orange) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    background-size: 200% auto;
+    animation: shimmer 8s linear infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; }
+}
+
+/* Subtitle with better contrast */
+.marketing-hero-subtitle {
+    font-size: clamp(1.2rem, 2vw, 1.75rem);
+    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 3rem;
+    max-width: 800px;
+    line-height: 1.6;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* CTA Buttons with better effects */
+.marketing-hero-cta {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 5rem;
+}
+
+.marketing-btn-primary,
+.marketing-btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1.25rem 3rem;
+    border-radius: 12px;
+    font-size: 1.125rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.marketing-btn-primary {
+    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    color: white;
+    box-shadow: 0 10px 40px rgba(0, 102, 255, 0.4);
+}
+
+.marketing-btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.6s;
+}
+
+.marketing-btn-primary:hover::before {
+    left: 100%;
+}
+
+.marketing-btn-primary:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 15px 50px rgba(0, 102, 255, 0.6);
+    color: white;
+    text-decoration: none;
+}
+
+.marketing-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(10px);
+}
+
+.marketing-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.8);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.2);
+    color: white;
+    text-decoration: none;
+}
+
+/* Stats with glass morphism */
+.marketing-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 2rem;
+    max-width: 1000px;
+}
+
+.marketing-stat-item {
+    text-align: center;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 2rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.marketing-stat-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(0, 168, 255, 0.5);
+    transform: translateY(-5px);
+}
+
+.marketing-stat-number {
+    font-size: 3.5rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--accent-cyan), var(--secondary-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    display: block;
+    text-shadow: 0 0 30px rgba(0, 168, 255, 0.5);
+}
+
+.marketing-stat-label {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+/* Sections */
+.marketing-section {
+    padding: 8rem 2rem;
+    position: relative;
+}
+
+.marketing-section-header {
+    text-align: center;
+    max-width: 900px;
+    margin: 0 auto 5rem;
+}
+
+.marketing-section-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, rgba(0, 102, 255, 0.15), rgba(0, 168, 255, 0.15));
+    color: var(--primary-blue);
+    padding: 0.75rem 2rem;
+    border-radius: 50px;
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 2px solid rgba(0, 102, 255, 0.2);
+}
+
+.marketing-section-title {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 900;
+    color: var(--dark-bg);
+    margin-bottom: 1.5rem;
+    line-height: 1.1;
+}
+
+.marketing-section-subtitle {
+    font-size: 1.35rem;
+    color: var(--gray-500);
+    line-height: 1.6;
+}
+
+/* Feature Cards with hover effects */
+.marketing-features-grid {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2.5rem;
+}
+
+.marketing-feature-card {
+    background: white;
+    border: 2px solid var(--gray-200);
+    border-radius: 20px;
+    padding: 3rem 2.5rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.marketing-feature-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary-blue), var(--secondary-blue), var(--accent-cyan));
+    transform: scaleX(0);
+    transition: transform 0.4s ease;
+}
+
+.marketing-feature-card::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(0, 102, 255, 0.05) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.marketing-feature-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 25px 50px rgba(0, 102, 255, 0.15);
+    border-color: var(--primary-blue);
+}
+
+.marketing-feature-card:hover::before {
+    transform: scaleX(1);
+}
+
+.marketing-feature-card:hover::after {
+    opacity: 1;
+}
+
+.marketing-feature-icon {
+    width: 70px;
+    height: 70px;
+    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 10px 30px rgba(0, 102, 255, 0.3);
+}
+
+.marketing-feature-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--dark-bg);
+    margin-bottom: 1rem;
+    position: relative;
+    z-index: 1;
+}
+
+.marketing-feature-description {
+    color: var(--gray-500);
+    line-height: 1.8;
+    font-size: 1.05rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* Timeline with better design */
+.marketing-timeline {
+    max-width: 1100px;
+    margin: 3rem auto 0;
+}
+
+.marketing-timeline-item {
+    display: flex;
+    gap: 3rem;
+    margin-bottom: 4rem;
+    position: relative;
+}
+
+.marketing-timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 29px;
+    top: 70px;
+    width: 3px;
+    height: calc(100% - 60px);
+    background: linear-gradient(180deg, var(--primary-blue), var(--secondary-blue));
+    opacity: 0.3;
+}
+
+.marketing-timeline-number {
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.75rem;
+    font-weight: 900;
+    box-shadow: 0 10px 40px rgba(0, 102, 255, 0.4);
+    position: relative;
+    z-index: 1;
+}
+
+.marketing-timeline-content {
+    flex: 1;
+    background: white;
+    padding: 2.5rem;
+    border-radius: 16px;
+    border: 2px solid var(--gray-200);
+    transition: all 0.3s ease;
+}
+
+.marketing-timeline-content:hover {
+    border-color: var(--primary-blue);
+    box-shadow: 0 15px 40px rgba(0, 102, 255, 0.1);
+    transform: translateX(10px);
+}
+
+.marketing-timeline-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--dark-bg);
+    margin-bottom: 1rem;
+}
+
+.marketing-timeline-description {
+    color: var(--gray-500);
+    line-height: 1.8;
+    font-size: 1.05rem;
+}
+
+/* Benefits Section with dark theme */
+.marketing-benefits-section {
+    background: linear-gradient(135deg, var(--dark-bg) 0%, var(--dark-bg-secondary) 100%);
+    color: white;
+    position: relative;
+    overflow: hidden;
+}
+
+.marketing-benefits-section::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -20%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(0, 168, 255, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.marketing-benefits-grid {
+    max-width: 1400px;
+    margin: 3rem auto 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+.marketing-benefit-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 3rem 2rem;
+    text-align: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+}
+
+.marketing-benefit-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--secondary-blue);
+    transform: translateY(-8px);
+    box-shadow: 0 20px 50px rgba(0, 168, 255, 0.2);
+}
+
+.marketing-benefit-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    filter: drop-shadow(0 0 20px rgba(0, 168, 255, 0.5));
+}
+
+.marketing-benefit-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+}
+
+.marketing-benefit-text {
+    color: var(--gray-400);
+    font-size: 1.05rem;
+    line-height: 1.7;
+}
+
+/* CTA Section with bold gradient */
+.marketing-cta-section {
+    padding: 8rem 2rem;
+    background: linear-gradient(135deg, var(--primary-blue) 0%, var(--secondary-blue) 50%, var(--accent-cyan) 100%);
+    color: white;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.marketing-cta-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="2" fill="white" fill-opacity="0.1"/></svg>');
+    opacity: 0.3;
+}
+
+.marketing-cta-content {
+    max-width: 900px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.marketing-cta-title {
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 900;
+    margin-bottom: 2rem;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.marketing-cta-text {
+    font-size: 1.35rem;
+    margin-bottom: 3rem;
+    line-height: 1.6;
+    opacity: 0.95;
+}
+
+.marketing-btn-cta {
+    padding: 1.5rem 3.5rem;
+    background: white;
+    color: var(--primary-blue);
+    border-radius: 12px;
+    font-size: 1.25rem;
+    font-weight: 800;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+    display: inline-block;
+    margin: 0.5rem;
+}
+
+.marketing-btn-cta:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+    color: var(--primary-blue);
+    text-decoration: none;
+}
+
+.marketing-btn-cta-outline {
+    background: transparent;
+    color: white;
+    border: 3px solid white;
+}
+
+.marketing-btn-cta-outline:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+/* Contact Form */
+.marketing-contact-container {
+    max-width: 1300px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5rem;
+}
+
+.marketing-contact-info-item {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.marketing-contact-icon {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    box-shadow: 0 10px 30px rgba(0, 102, 255, 0.3);
+}
+
+.marketing-contact-form {
+    background: linear-gradient(135deg, var(--gray-50), white);
+    padding: 3.5rem;
+    border-radius: 20px;
+    border: 2px solid var(--gray-200);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+}
+
+.marketing-form-group {
+    margin-bottom: 2rem;
+}
+
+.marketing-form-group label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+    color: var(--dark-bg);
+    font-size: 1.05rem;
+}
+
+.marketing-form-control {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    border: 2px solid var(--gray-200);
+    border-radius: 10px;
+    font-size: 1.05rem;
+    font-family: inherit;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.marketing-form-control:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 4px rgba(0, 102, 255, 0.1);
+}
+
+/* About Page */
+.marketing-about-grid {
+    max-width: 1300px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5rem;
+    align-items: center;
+}
+
+.marketing-about-image {
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(0, 102, 255, 0.2);
+}
+
+.marketing-about-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.marketing-values-grid {
+    max-width: 1400px;
+    margin: 3rem auto 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2.5rem;
+}
+
+.marketing-value-card {
+    background: white;
+    padding: 3rem 2.5rem;
+    border-radius: 20px;
+    border: 2px solid var(--gray-200);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.marketing-value-card:hover {
+    border-color: var(--primary-blue);
+    box-shadow: 0 20px 50px rgba(0, 102, 255, 0.15);
+    transform: translateY(-8px);
+}
+
+.marketing-value-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2.5rem;
+    margin: 0 auto 2rem;
+    box-shadow: 0 15px 40px rgba(0, 102, 255, 0.3);
+}
+
+/* Footer */
+.marketing-footer {
+    background: var(--dark-bg);
+    color: var(--gray-400);
+    padding: 4rem 2rem 2rem;
+}
+
+.marketing-footer-content {
+    max-width: 1300px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.marketing-footer-logo {
+    font-size: 2rem;
+    font-weight: 900;
+    background: linear-gradient(135deg, var(--primary-blue), var(--secondary-blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 1.5rem;
+}
+
+.marketing-footer-links {
+    display: flex;
+    gap: 3rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 3rem 0;
+}
+
+.marketing-footer-link {
+    color: var(--gray-400);
+    text-decoration: none;
+    transition: color 0.3s ease;
+    font-weight: 600;
+    font-size: 1.05rem;
+}
+
+.marketing-footer-link:hover {
+    color: var(--secondary-blue);
+    text-decoration: none;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .marketing-contact-container,
+    .marketing-about-grid {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .marketing-hero {
+        min-height: auto;
+        padding: 6rem 0 4rem;
+    }
+    
+    .marketing-hero-content {
+        padding: 6rem 1.5rem 2rem;
+    }
+    
+    .marketing-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .marketing-features-grid,
+    .marketing-benefits-grid,
+    .marketing-values-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .marketing-timeline-item {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .marketing-timeline-item::after {
+        display: none;
+    }
+    
+    .marketing-contact-form {
+        padding: 2.5rem;
+    }
+    
+    .marketing-section {
+        padding: 5rem 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .marketing-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .marketing-hero-cta {
+        flex-direction: column;
+    }
+    
+    .marketing-btn-primary,
+    .marketing-btn-secondary {
+        width: 100%;
+        justify-content: center;
+    }
+}

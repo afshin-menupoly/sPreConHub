@@ -1,0 +1,183 @@
+@model PreConHub.Models.ViewModels.BulkImportViewModel
+@{
+    ViewData["Title"] = "Bulk Import Units";
+}
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                    <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })">@Model.ProjectName</a></li>
+                    <li class="breadcrumb-item active">Bulk Import</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0">Bulk Import Units</h1>
+            <p class="text-muted">Import multiple units with purchaser information from a CSV file</p>
+        </div>
+        <a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["ImportErrors"] != null)
+    {
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Import Completed with Errors</h6>
+            <hr>
+            <ul class="mb-0">
+                @foreach (var error in (List<string>)TempData["ImportErrors"])
+                {
+                    <li>@error</li>
+                }
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Left: Instructions & Template -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Step 1: Download Template</h5>
+                </div>
+                <div class="card-body">
+                    <p>Download the CSV template, fill in your unit and purchaser data, then upload it below.</p>
+                    
+                    <a href="@Url.Action("DownloadImportTemplate", "Units", new { id = Model.ProjectId })" class="btn btn-outline-primary mb-4">
+                        <i class="bi bi-download me-2"></i>Download CSV Template
+                    </a>
+
+                    <h6 class="text-muted mb-3">CSV Columns:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Column</th>
+                                    <th>Required</th>
+                                    <th>Example</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>UnitNumber</td><td><span class="badge bg-danger">Yes</span></td><td>101</td></tr>
+                                <tr><td>FloorNumber</td><td><span class="badge bg-secondary">No</span></td><td>1</td></tr>
+                                <tr><td>UnitType</td><td><span class="badge bg-danger">Yes</span></td><td>OneBedroom</td></tr>
+                                <tr><td>Bedrooms</td><td><span class="badge bg-danger">Yes</span></td><td>1</td></tr>
+                                <tr><td>Bathrooms</td><td><span class="badge bg-danger">Yes</span></td><td>1</td></tr>
+                                <tr><td>SquareFootage</td><td><span class="badge bg-danger">Yes</span></td><td>650</td></tr>
+                                <tr><td>PurchasePrice</td><td><span class="badge bg-danger">Yes</span></td><td>599000</td></tr>
+                                <tr><td>HasParking</td><td><span class="badge bg-secondary">No</span></td><td>true</td></tr>
+                                <tr><td>ParkingPrice</td><td><span class="badge bg-secondary">No</span></td><td>50000</td></tr>
+                                <tr><td>HasLocker</td><td><span class="badge bg-secondary">No</span></td><td>true</td></tr>
+                                <tr><td>LockerPrice</td><td><span class="badge bg-secondary">No</span></td><td>5000</td></tr>
+                                <tr><td>OccupancyDate</td><td><span class="badge bg-secondary">No</span></td><td>2026-06-01</td></tr>
+                                <tr><td>ClosingDate</td><td><span class="badge bg-secondary">No</span></td><td>2026-09-01</td></tr>
+                                <tr class="table-success"><td colspan="3"><strong>SOA Enhancement Fields (NEW)</strong></td></tr>
+                                <tr><td>APSDate</td><td><span class="badge bg-secondary">No</span></td><td>2024-01-10</td></tr>
+                                <tr><td>IsFirstTimeBuyer</td><td><span class="badge bg-secondary">No</span></td><td>true</td></tr>
+                                <tr><td>IsPrimaryResidence</td><td><span class="badge bg-secondary">No</span></td><td>true</td></tr>
+
+                                <tr class="table-info"><td colspan="3"><strong>Purchaser Info (Optional)</strong></td></tr>
+                                <tr><td>PurchaserEmail</td><td><span class="badge bg-secondary">No</span></td><td>john@email.com</td></tr>
+                                <tr><td>PurchaserFirstName</td><td><span class="badge bg-secondary">No</span></td><td>John</td></tr>
+                                <tr><td>PurchaserLastName</td><td><span class="badge bg-secondary">No</span></td><td>Smith</td></tr>
+                                <tr><td>PurchaserPhone</td><td><span class="badge bg-secondary">No</span></td><td>416-555-1234</td></tr>
+                                <tr class="table-warning"><td colspan="3"><strong>Deposit Info (Optional)</strong></td></tr>
+                                <tr><td>Deposit1Amount</td><td><span class="badge bg-secondary">No</span></td><td>29950</td></tr>
+                                <tr><td>Deposit1PaidDate</td><td><span class="badge bg-secondary">No</span></td><td>2024-01-15</td></tr>
+                                <tr><td>Deposit2Amount</td><td><span class="badge bg-secondary">No</span></td><td>29950</td></tr>
+                                <tr><td>Deposit2PaidDate</td><td><span class="badge bg-secondary">No</span></td><td>2024-04-15</td></tr>
+                                <tr class="table-info"><td colspan="3"><strong>Deposit Interest Fields (for each deposit)</strong></td></tr>
+                                <tr><td>Deposit1Holder</td><td><span class="badge bg-secondary">No</span></td><td>Trust</td></tr>
+                                <tr><td>Deposit1InterestEligible</td><td><span class="badge bg-secondary">No</span></td><td>true</td></tr>
+                                <tr><td>Deposit1InterestRate</td><td><span class="badge bg-secondary">No</span></td><td>0.02</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="alert alert-info mt-3">
+                        <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>UnitType Values:</h6>
+                        <code>Studio, OneBedroom, OnePlusDen, TwoBedroom, TwoPlusDen, ThreeBedroom, Penthouse, Townhouse, Other</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: Upload Form -->
+        <div class="col-lg-6 mb-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-cloud-upload me-2"></i>Step 2: Upload CSV</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="BulkImport" asp-route-id="@Model.ProjectId" method="post" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Select CSV File</label>
+                            <input type="file" name="file" class="form-control form-control-lg" accept=".csv" required />
+                            <div class="form-text">Maximum file size: 5MB. Only .csv files are accepted.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input type="checkbox" name="sendInvitations" value="true" class="form-check-input" id="sendInvitations" checked />
+                                <label class="form-check-label" for="sendInvitations">
+                                    <strong>Send invitation emails to purchasers</strong>
+                                    <div class="text-muted small">Automatically send portal invitations to purchasers with email addresses</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input type="checkbox" name="skipDuplicates" value="true" class="form-check-input" id="skipDuplicates" checked />
+                                <label class="form-check-label" for="skipDuplicates">
+                                    <strong>Skip duplicate unit numbers</strong>
+                                    <div class="text-muted small">If a unit number already exists, skip it instead of showing an error</div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-upload me-2"></i>Import Units
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tips Card -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h6><i class="bi bi-lightbulb text-warning me-2"></i>Tips for Successful Import</h6>
+                    <ul class="mb-0 small">
+                        <li>Ensure your CSV uses <strong>comma separators</strong> (not semicolons)</li>
+                        <li>Dates should be in <strong>YYYY-MM-DD</strong> format</li>
+                        <li>Prices should be <strong>numbers only</strong> (no $ or commas)</li>
+                        <li>Boolean values: use <strong>true/false</strong> or <strong>yes/no</strong></li>
+                        <li>Leave purchaser columns empty if unit has no purchaser yet</li>
+                        <li>Each row = one unit (even if same purchaser has multiple units)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

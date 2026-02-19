@@ -1,0 +1,193 @@
+@{
+    ViewData["Title"] = "Add Purchaser";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <!-- Header -->
+            <div class="mb-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                        <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = ViewBag.ProjectId })">@ViewBag.ProjectName</a></li>
+                        <li class="breadcrumb-item"><a href="@Url.Action("Details", "Units", new { id = ViewBag.UnitId })">Unit @ViewBag.UnitNumber</a></li>
+                        <li class="breadcrumb-item active">Add Purchaser</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">Add Purchaser</h1>
+                <p class="text-muted">Enter the buyer information for Unit @ViewBag.UnitNumber</p>
+            </div>
+
+            <!-- Form Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form asp-action="AddPurchaser" method="post">
+                        <input type="hidden" name="unitId" value="@ViewBag.UnitId" />
+
+                        <!-- Primary Purchaser -->
+                        <h5 class="mb-3 pb-2 border-bottom">
+                            <i class="bi bi-person me-2 text-primary"></i>Primary Purchaser
+                        </h5>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                <input type="text" name="firstName" class="form-control" placeholder="John" required />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                <input type="text" name="lastName" class="form-control" placeholder="Smith" required />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                            <input type="email" name="email" class="form-control" placeholder="john.smith@email.com" required />
+                            <div class="form-text">Invitation will be sent to this email address</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" name="phone" class="form-control" placeholder="(416) 555-1234" />
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Ownership Percentage</label>
+                            <div class="input-group" style="max-width: 150px;">
+                                <input type="number" name="ownershipPercentage" class="form-control" value="100" min="1" max="100" />
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <div class="form-text">100% if single owner, or split if multiple purchasers</div>
+                        </div>
+
+                        <!-- Co-Purchaser (Optional) -->
+                        <div class="mb-4">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="hasCoPurchaser" onchange="toggleCoPurchaser()">
+                                <label class="form-check-label" for="hasCoPurchaser">
+                                    <strong>Add Co-Purchaser</strong> (spouse, partner, family member)
+                                </label>
+                            </div>
+                        </div>
+
+                        <div id="coPurchaserSection" style="display: none;" class="border rounded p-3 mb-4 bg-light">
+                            <h6 class="mb-3"><i class="bi bi-person-plus me-2"></i>Co-Purchaser Information</h6>
+                            
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">First Name</label>
+                                    <input type="text" name="coFirstName" class="form-control" placeholder="Jane" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Last Name</label>
+                                    <input type="text" name="coLastName" class="form-control" placeholder="Smith" />
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Email Address</label>
+                                <input type="email" name="coEmail" class="form-control" placeholder="jane.smith@email.com" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Phone Number</label>
+                                <input type="tel" name="coPhone" class="form-control" placeholder="(416) 555-5678" />
+                            </div>
+
+                            <div>
+                                <label class="form-label">Ownership Percentage</label>
+                                <div class="input-group" style="max-width: 150px;">
+                                    <input type="number" name="coOwnershipPercentage" class="form-control" value="50" min="1" max="99" />
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Lawyer Information (Optional) -->
+                        <h5 class="mb-3 pb-2 border-bottom">
+                            <i class="bi bi-briefcase me-2 text-primary"></i>Buyer's Lawyer (Optional)
+                        </h5>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Lawyer Name</label>
+                                <input type="text" name="lawyerName" class="form-control" placeholder="Sarah Johnson" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Law Firm</label>
+                                <input type="text" name="lawFirm" class="form-control" placeholder="Johnson & Associates" />
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label">Lawyer Email</label>
+                                <input type="email" name="lawyerEmail" class="form-control" placeholder="sarah@johnsonlaw.ca" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Lawyer Phone</label>
+                                <input type="tel" name="lawyerPhone" class="form-control" placeholder="(416) 555-9999" />
+                            </div>
+                        </div>
+
+                        <!-- Send Invitation Option -->
+                        <div class="alert alert-info mb-4">
+                            <div class="form-check">
+                                <input type="checkbox" name="sendInvitation" value="true" class="form-check-input" id="sendInvitation" checked>
+                                <label class="form-check-label" for="sendInvitation">
+                                    <strong>Send Invitation Email</strong>
+                                </label>
+                            </div>
+                            <p class="mb-0 mt-2 small">
+                                <i class="bi bi-envelope me-1"></i>
+                                An email will be sent to the purchaser with a link to create their account and submit their mortgage/financial information.
+                            </p>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="@Url.Action("Details", "Units", new { id = ViewBag.UnitId })" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-person-plus me-2"></i>Add Purchaser
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Info Card -->
+            <div class="card border-0 shadow-sm mt-4 bg-light">
+                <div class="card-body">
+                    <h6><i class="bi bi-info-circle me-2 text-primary"></i>What Happens Next?</h6>
+                    <ol class="small mb-0">
+                        <li>Purchaser receives an email invitation</li>
+                        <li>They click the link and create their account</li>
+                        <li>They log in and see only their unit(s)</li>
+                        <li>They submit their mortgage approval and financial info</li>
+                        <li>The system recalculates the shortfall and updates recommendations</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function toggleCoPurchaser() {
+        var checkbox = document.getElementById('hasCoPurchaser');
+        var section = document.getElementById('coPurchaserSection');
+        section.style.display = checkbox.checked ? 'block' : 'none';
+        
+        // Adjust ownership percentages
+        if (checkbox.checked) {
+            document.querySelector('input[name="ownershipPercentage"]').value = 50;
+        } else {
+            document.querySelector('input[name="ownershipPercentage"]').value = 100;
+        }
+    }
+</script>
+}

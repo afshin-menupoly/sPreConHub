@@ -1,0 +1,715 @@
+@model PreConHub.Models.ViewModels.UnitDetailsViewModel
+@{
+    ViewData["Title"] = $"Unit {Model.UnitNumber} Details";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                    <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })">@Model.ProjectName</a></li>
+                    <li class="breadcrumb-item active">Unit @Model.UnitNumber</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">Unit @Model.UnitNumber</h1>
+            <p class="text-muted mb-0">@Model.ProjectName</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="@Url.Action("Edit", "Units", new { id = Model.UnitId })" class="btn btn-outline-primary">
+                <i class="bi bi-pencil me-1"></i>Edit Unit
+            </a>
+            <form asp-action="CalculateSOA" asp-route-id="@Model.UnitId" method="post" class="d-inline">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-calculator me-1"></i>Calculate SOA
+                </button>
+            </form>
+            <a href="@Url.Action("DownloadSOA", "Units", new { id = Model.UnitId })" class="btn btn-outline-secondary">
+                <i class="bi bi-file-pdf me-1"></i>Download SOA
+            </a>
+            <a href="@Url.Action("AssignLawyer", "Units", new { id = Model.UnitId })" class="btn btn-outline-info">
+                <i class="bi bi-briefcase me-2"></i>Assign Lawyer
+            </a>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-4">
+            <!-- Unit Info Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0"><i class="bi bi-house-door me-2 text-primary"></i>Unit Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted" style="width: 40%;">Unit Number</td>
+                            <td class="fw-bold">@Model.UnitNumber</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Type</td>
+                            <td>@Model.UnitType</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Bedrooms</td>
+                            <td>@Model.Bedrooms</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Bathrooms</td>
+                            <td>@Model.Bathrooms</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Size</td>
+                            <td>@Model.SquareFootage.ToString("N0") sq ft</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Purchase Price</td>
+                            <td class="fw-bold text-primary">$@Model.PurchasePrice.ToString("N0")</td>
+                        </tr>
+                        @if (Model.CurrentAppraisalValue.HasValue)
+                        {
+                            <tr>
+                                <td class="text-muted">Appraisal Value</td>
+                                <td>$@Model.CurrentAppraisalValue.Value.ToString("N0")</td>
+                            </tr>
+                        }
+                        <tr>
+                            <td class="text-muted">Occupancy Date</td>
+                            <td>@(Model.OccupancyDate?.ToString("MMM dd, yyyy") ?? "TBD")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Closing Date</td>
+                            <td>@(Model.ClosingDate?.ToString("MMM dd, yyyy") ?? "TBD")</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Status Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check me-2 text-primary"></i>Status</h5>
+                </div>
+                <div class="card-body">
+                    @{
+                        var statusBadge = Model.Status switch
+                        {
+                            PreConHub.Models.Entities.UnitStatus.ReadyToClose => "bg-success",
+                            PreConHub.Models.Entities.UnitStatus.NeedsDiscount => "bg-primary",
+                            PreConHub.Models.Entities.UnitStatus.NeedsVTB => "bg-warning text-dark",
+                            PreConHub.Models.Entities.UnitStatus.AtRisk => "bg-danger",
+                            _ => "bg-secondary"
+                        };
+                        var recBadge = Model.Recommendation switch
+                        {
+                            PreConHub.Models.Entities.ClosingRecommendation.ProceedToClose => "bg-success",
+                            PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount => "bg-primary",
+                            PreConHub.Models.Entities.ClosingRecommendation.VTBSecondMortgage => "bg-warning text-dark",
+                            PreConHub.Models.Entities.ClosingRecommendation.VTBFirstMortgage => "bg-orange",
+                            _ => "bg-danger"
+                        };
+                    }
+                    <div class="mb-3">
+                        <span class="text-muted small">Current Status</span>
+                        <div><span class="badge @statusBadge fs-6">@Model.Status</span></div>
+                    </div>
+                    @if (Model.Recommendation.HasValue)
+                    {
+                        <div class="mb-3">
+                            <span class="text-muted small">AI Recommendation</span>
+                            <div><span class="badge @recBadge fs-6">@Model.Recommendation</span></div>
+                        </div>
+                    }
+                    <div>
+                        <span class="text-muted small">Lawyer Confirmed</span>
+                        <div>
+                            @if (Model.IsConfirmedByLawyer)
+                            {
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Confirmed</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Pending</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Purchaser Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-person me-2 text-primary"></i>Purchaser</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.PrimaryPurchaser != null)
+                    {
+                        <div class="mb-3">
+                            <div class="fw-bold">@Model.PrimaryPurchaser.FullName</div>
+                            <div class="text-muted small">@Model.PrimaryPurchaser.Email</div>
+                            @if (!string.IsNullOrEmpty(Model.PrimaryPurchaser.Phone))
+                            {
+                                <div class="text-muted small">@Model.PrimaryPurchaser.Phone</div>
+                            }
+                        </div>
+                        <hr />
+                        <h6 class="text-muted small mb-2">MORTGAGE INFO</h6>
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr>
+                                <td class="text-muted">Approved</td>
+                                <td>
+                                    @if (Model.PrimaryPurchaser.HasMortgageApproval)
+                                    {
+                                        <span class="badge bg-success">Yes</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">No</span>
+                                    }
+                                </td>
+                            </tr>
+                            @if (Model.PrimaryPurchaser.HasMortgageApproval)
+                            {
+                                <tr>
+                                    <td class="text-muted">Provider</td>
+                                    <td>@(Model.PrimaryPurchaser.MortgageProvider ?? "—")</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Amount</td>
+                                    <td class="fw-bold">$@((Model.PrimaryPurchaser.MortgageAmount ?? 0).ToString("N0"))</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Type</td>
+                                    <td>@Model.PrimaryPurchaser.ApprovalType</td>
+                                </tr>
+                            }
+                            @if (Model.PrimaryPurchaser.AdditionalCashAvailable.HasValue)
+                            {
+                                <tr>
+                                    <td class="text-muted">Cash Available</td>
+                                    <td>$@Model.PrimaryPurchaser.AdditionalCashAvailable.Value.ToString("N0")</td>
+                                </tr>
+                            }
+                        </table>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-person-plus fs-1"></i>
+                            <p class="mb-2">No purchaser assigned</p>
+                            <a href="@Url.Action("AddPurchaser", "Units", new { id = Model.UnitId })" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-person-plus me-1"></i>Add Purchaser
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* ===== LAWYER ASSIGNMENTS SECTION ===== *@
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-briefcase me-2"></i>Assigned Lawyers
+                        @if (Model.TotalUnreadLawyerNotes > 0)
+
+                        {
+                            <span class="badge bg-danger ms-2">@Model.TotalUnreadLawyerNotes new</span>
+                        }
+                    </h5>
+                    <a asp-action="AssignLawyer" asp-route-id="@Model.UnitId" class="btn btn-sm btn-outline-light">
+                        <i class="bi bi-plus-circle me-1"></i>Assign Lawyer
+                    </a>
+                </div>
+                <div class="card-body">
+                    @if (Model.LawyerAssignments.Any())
+
+                    {
+                        @* Mark All as Read Button *@
+                        @if (Model.TotalUnreadLawyerNotes > 0)
+
+                        {
+                            <form asp-action="MarkAllNotesAsRead" asp-route-unitId="@Model.UnitId" method="post" class="mb-3">
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-check-all me-1"></i>Mark All Notes as Read
+                                </button>
+                            </form>
+                        }
+
+                        <div class="row">
+                            @foreach (var lawyer in Model.LawyerAssignments)
+
+                            {
+                                <div class="col-lg-6 mb-3">
+                                    <div class="card h-100 @(lawyer.UnreadNotesCount > 0 ? "border-warning" : "")">
+                                        <div class="card-header d-flex justify-content-between align-items-center py-2">
+                                            <div>
+                                                <strong>@lawyer.LawyerName</strong>
+                                                <span class="badge @lawyer.StatusBadgeClass ms-2">@lawyer.ReviewStatus</span>
+                                                @if (lawyer.UnreadNotesCount > 0)
+
+                                                {
+                                                    <span class="badge bg-danger ms-1">@lawyer.UnreadNotesCount unread</span>
+                                                }
+                                            </div>
+                                            <span class="badge bg-secondary">@lawyer.RoleDisplay</span>
+                                        </div>
+                                        <div class="card-body py-2">
+                                            @* Lawyer Contact Info *@
+                                            <div class="small text-muted mb-2">
+                                                @if (!string.IsNullOrEmpty(lawyer.LawFirm))
+
+                                                {
+                                                    <div><i class="bi bi-building me-1"></i>@lawyer.LawFirm</div>
+                                                }
+                                                <div><i class="bi bi-envelope me-1"></i><a href="mailto:@lawyer.LawyerEmail">@lawyer.LawyerEmail</a></div>
+                                                @if (!string.IsNullOrEmpty(lawyer.LawyerPhone))
+
+                                                {
+                                                    <div><i class="bi bi-telephone me-1"></i><a href="tel:@lawyer.LawyerPhone">@lawyer.LawyerPhone</a></div>
+                                                }
+                                            </div>
+
+                                            @* Timeline Info *@
+                                            <div class="small text-muted border-top pt-2">
+                                                <div><i class="bi bi-calendar-plus me-1"></i>Assigned: @lawyer.AssignedAt.ToString("MMM dd, yyyy")</div>
+                                                @if (lawyer.ReviewedAt.HasValue)
+
+                                                {
+                                                    <div><i class="bi bi-calendar-check me-1"></i>Last Review: @lawyer.ReviewedAt.Value.ToString("MMM dd, yyyy h:mm tt")</div>
+                                                }
+                                            </div>
+
+                                            @* Notes Section *@
+                                            @if (lawyer.BuilderNotes.Any())
+
+                                            {
+                                                <div class="mt-3 border-top pt-2">
+                                                    <h6 class="small fw-bold mb-2">
+                                                        <i class="bi bi-chat-left-text me-1"></i>Notes for You
+                                                    </h6>
+                                                    <div class="lawyer-notes-list" style="max-height: 200px; overflow-y: auto;">
+                                                        @foreach (var note in lawyer.BuilderNotes.Take(5))
+
+                                                        {
+                                                            <div class="note-item p-2 mb-2 rounded @(note.IsRead ? "bg-light" : "bg-warning bg-opacity-10 border border-warning")">
+                                                                <div class="d-flex justify-content-between align-items-start">
+                                                                    <span class="@note.NoteTypeColor">
+                                                                        <i class="bi @note.NoteTypeIcon me-1"></i>
+                                                                        <strong>@note.NoteTypeDisplay</strong>
+                                                                    </span>
+                                                                    <small class="text-muted">@note.CreatedAt.ToString("MMM dd, h:mm tt")</small>
+                                                                </div>
+                                                                <p class="mb-1 small">@note.Note</p>
+                                                                @if (!note.IsRead)
+
+                                                                {
+                                                                    <form asp-action="MarkNoteAsRead" asp-route-noteId="@note.NoteId" asp-route-unitId="@Model.UnitId" method="post" class="d-inline">
+                                                                        @Html.AntiForgeryToken()
+                                                                        <button type="submit" class="btn btn-link btn-sm p-0 text-primary">
+                                                                            <i class="bi bi-check2 me-1"></i>Mark as Read
+                                                                        </button>
+                                                                    </form>
+                                                                }
+                                                            </div>
+                                                        }
+                                                        @if (lawyer.BuilderNotes.Count > 5)
+
+                                                        {
+                                                            <button class="btn btn-sm btn-outline-secondary w-100"
+                                                                    type="button"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#lawyerNotesModal-@lawyer.AssignmentId">
+                                                                View All @lawyer.BuilderNotes.Count Notes
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+
+                                            else
+
+                                            {
+                                                <div class="text-muted small mt-2 border-top pt-2">
+                                                    <i class="bi bi-info-circle me-1"></i>No notes from this lawyer yet.
+                                                </div>
+                                            }
+                                        </div>
+                                        <div class="card-footer py-2 bg-transparent">
+                                            <div class="btn-group btn-group-sm w-100">
+                                                <a href="mailto:@lawyer.LawyerEmail?subject=Re: Unit @Model.UnitNumber - @Model.ProjectName"
+                                                   class="btn btn-outline-primary">
+                                                    <i class="bi bi-envelope me-1"></i>Email
+                                                </a>
+                                                @if (!string.IsNullOrEmpty(lawyer.LawyerPhone))
+
+                                                {
+                                                    <a href="tel:@lawyer.LawyerPhone" class="btn btn-outline-success">
+                                                        <i class="bi bi-telephone me-1"></i>Call
+                                                    </a>
+                                                }
+                                                <form asp-action="RemoveLawyerAssignment" asp-route-id="@lawyer.AssignmentId" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <button type="submit" class="btn btn-outline-danger"
+                                                            onclick="return confirm('Remove this lawyer assignment?');">
+                                                        <i class="bi bi-x-circle me-1"></i>Remove
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                @* Modal for All Notes *@
+                                @if (lawyer.BuilderNotes.Count > 5)
+
+                                {
+                                    <div class="modal fade" id="lawyerNotesModal-@lawyer.AssignmentId" tabindex="-1">
+                                        <div class="modal-dialog modal-lg">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">
+                                                        <i class="bi bi-chat-left-text me-2"></i>All Notes from @lawyer.LawyerName
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body" style="max-height: 60vh; overflow-y: auto;">
+                                                    @foreach (var note in lawyer.BuilderNotes)
+
+                                                    {
+                                                        <div class="note-item p-3 mb-2 rounded @(note.IsRead ? "bg-light" : "bg-warning bg-opacity-10 border border-warning")">
+                                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                                <span class="@note.NoteTypeColor">
+                                                                    <i class="bi @note.NoteTypeIcon me-1"></i>
+                                                                    <strong>@note.NoteTypeDisplay</strong>
+                                                                </span>
+                                                                <small class="text-muted">@note.CreatedAt.ToString("MMMM dd, yyyy h:mm tt")</small>
+                                                            </div>
+                                                            <p class="mb-2">@note.Note</p>
+                                                            @if (!note.IsRead)
+
+                                                            {
+                                                                <form asp-action="MarkNoteAsRead" asp-route-noteId="@note.NoteId" asp-route-unitId="@Model.UnitId" method="post">
+                                                                    @Html.AntiForgeryToken()
+                                                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                                                        <i class="bi bi-check2 me-1"></i>Mark as Read
+                                                                    </button>
+                                                                </form>
+                                                            }
+
+                                                            else
+
+                                                            {
+                                                                <span class="badge bg-secondary"><i class="bi bi-check me-1"></i>Read</span>
+                                                            }
+                                                        </div>
+                                                    }
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+
+                    else
+
+                    {
+                        <div class="text-center py-4">
+                            <i class="bi bi-briefcase display-4 text-muted"></i>
+                            <p class="text-muted mt-2">No lawyers assigned to this unit yet.</p>
+                            <a asp-action="AssignLawyer" asp-route-id="@Model.UnitId" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Assign a Lawyer
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* ===== STATUS LEGEND ===== *@
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body py-2">
+                    <div class="d-flex flex-wrap gap-3 align-items-center">
+                        <small class="text-muted"><strong>Review Status:</strong></small>
+                        <span class="badge bg-secondary">Pending</span>
+                        <span class="badge bg-info">Under Review</span>
+                        <span class="badge bg-success">Approved</span>
+                        <span class="badge bg-warning text-dark">Needs Revision</span>
+                    </div>
+                </div>
+            </div>
+
+
+
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-8">
+            <!-- Deposits Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-cash-stack me-2 text-primary"></i>Deposits</h5>
+                    <a href="@Url.Action("AddDeposit", "Units", new { id = Model.UnitId })" class="btn btn-sm btn-success">
+                        <i class="bi bi-plus me-1"></i>Add Deposit
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.Deposits.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Deposit</th>
+                                        <th class="text-end">Amount</th>
+                                        <th>Due Date</th>
+                                        <th>Paid Date</th>
+                                        <th class="text-center">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var deposit in Model.Deposits)
+                                    {
+                                        <tr>
+                                            <td>@deposit.DepositName</td>
+                                            <td class="text-end fw-bold">$@deposit.Amount.ToString("N0")</td>
+                                            <td>@deposit.DueDate.ToString("MMM dd, yyyy")</td>
+                                            <td>@(deposit.PaidDate?.ToString("MMM dd, yyyy") ?? "—")</td>
+                                            <td class="text-center">
+                                                @if (deposit.IsPaid)
+                                                {
+                                                    <span class="badge bg-success">Paid</span>
+                                                }
+                                                else if (deposit.DueDate < DateTime.Now)
+                                                {
+                                                    <span class="badge bg-danger">Overdue</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark">Pending</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr>
+                                        <td class="fw-bold">Total</td>
+                                        <td class="text-end fw-bold">$@Model.Deposits.Sum(d => d.Amount).ToString("N0")</td>
+                                        <td colspan="2"></td>
+                                        <td class="text-center">
+                                            <span class="text-success fw-bold">$@Model.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount).ToString("N0")</span>
+                                            <span class="text-muted small">paid</span>
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-cash-stack fs-1"></i>
+                            <p class="mb-2">No deposits recorded</p>
+                            <a href="@Url.Action("AddDeposit", "Units", new { id = Model.UnitId })" class="btn btn-sm btn-success">
+                                <i class="bi bi-plus me-1"></i>Add First Deposit
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- SOA Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0"><i class="bi bi-file-text me-2 text-primary"></i>Statement of Adjustments (SOA)</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.SOA != null)
+                    {
+                        <div class="row">
+                            <!-- Debits -->
+                            <div class="col-md-6">
+                                <h6 class="text-danger mb-3">DEBITS (Amounts Owing)</h6>
+                                <table class="table table-sm table-borderless">
+                                    <tr><td>Purchase Price</td><td class="text-end">$@Model.SOA.PurchasePrice.ToString("N2")</td></tr>
+                                    <tr><td>Land Transfer Tax (ON)</td><td class="text-end">$@Model.SOA.LandTransferTax.ToString("N2")</td></tr>
+                                    @if (Model.SOA.TorontoLandTransferTax > 0)
+                                    {
+                                        <tr><td>Toronto LTT</td><td class="text-end">$@Model.SOA.TorontoLandTransferTax.ToString("N2")</td></tr>
+                                    }
+                                    <tr><td>Development Charges</td><td class="text-end">$@Model.SOA.DevelopmentCharges.ToString("N2")</td></tr>
+                                    <tr><td>Tarion Fee</td><td class="text-end">$@Model.SOA.TarionFee.ToString("N2")</td></tr>
+                                    <tr><td>Utility Connection</td><td class="text-end">$@Model.SOA.UtilityConnectionFees.ToString("N2")</td></tr>
+                                    <tr><td>Property Tax Adj.</td><td class="text-end">$@Model.SOA.PropertyTaxAdjustment.ToString("N2")</td></tr>
+                                    <tr><td>Common Expense Adj.</td><td class="text-end">$@Model.SOA.CommonExpenseAdjustment.ToString("N2")</td></tr>
+                                    @if (Model.SOA.OccupancyFeesOwing > 0)
+                                    {
+                                        <tr><td>Occupancy Fees Owing</td><td class="text-end">$@Model.SOA.OccupancyFeesOwing.ToString("N2")</td></tr>
+                                    }
+                                    @if (Model.SOA.ParkingPrice > 0)
+                                    {
+                                        <tr><td>Parking</td><td class="text-end">$@Model.SOA.ParkingPrice.ToString("N2")</td></tr>
+                                    }
+                                    @if (Model.SOA.LockerPrice > 0)
+                                    {
+                                        <tr><td>Locker</td><td class="text-end">$@Model.SOA.LockerPrice.ToString("N2")</td></tr>
+                                    }
+                                    <tr><td>Legal Fees (Est.)</td><td class="text-end">$@Model.SOA.LegalFeesEstimate.ToString("N2")</td></tr>
+                                    <tr class="border-top fw-bold">
+                                        <td>TOTAL DEBITS</td>
+                                        <td class="text-end text-danger">$@Model.SOA.TotalDebits.ToString("N2")</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <!-- Credits -->
+                            <div class="col-md-6">
+                                <h6 class="text-success mb-3">CREDITS (Amounts Paid)</h6>
+                                <table class="table table-sm table-borderless">
+                                    <tr><td>Deposits Paid</td><td class="text-end">$@Model.SOA.DepositsPaid.ToString("N2")</td></tr>
+                                    <tr><td>Deposit Interest</td><td class="text-end">$@Model.SOA.DepositInterest.ToString("N2")</td></tr>
+                                    <tr><td>Builder Credits</td><td class="text-end">$@Model.SOA.BuilderCredits.ToString("N2")</td></tr>
+                                    <tr><td>Other Credits</td><td class="text-end">$@Model.SOA.OtherCredits.ToString("N2")</td></tr>
+                                    <tr class="border-top fw-bold">
+                                        <td>TOTAL CREDITS</td>
+                                        <td class="text-end text-success">$@Model.SOA.TotalCredits.ToString("N2")</td>
+                                    </tr>
+                                </table>
+
+                                <hr class="my-3" />
+
+                                <!-- Final Calculations -->
+                                <table class="table table-sm table-borderless">
+                                    <tr class="fw-bold">
+                                        <td>Balance Due on Closing</td>
+                                        <td class="text-end">$@Model.SOA.BalanceDueOnClosing.ToString("N2")</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Less: Mortgage Amount</td>
+                                        <td class="text-end">($@Model.SOA.MortgageAmount.ToString("N2"))</td>
+                                    </tr>
+                                    <tr class="border-top fs-5 fw-bold">
+                                        <td>CASH REQUIRED TO CLOSE</td>
+                                        <td class="text-end text-primary">$@Model.SOA.CashRequiredToClose.ToString("N2")</td>
+                                    </tr>
+                                </table>
+
+                                <div class="text-muted small mt-3">
+                                    <i class="bi bi-clock me-1"></i>
+                                    Calculated: @Model.SOA.CalculatedAt.ToString("MMM dd, yyyy h:mm tt")
+                                </div>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-calculator fs-1"></i>
+                            <p class="mb-2">SOA has not been calculated yet</p>
+                            <form asp-action="CalculateSOA" asp-route-id="@Model.UnitId" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-calculator me-1"></i>Calculate SOA Now
+                                </button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Shortfall Analysis Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0">
+                    <h5 class="mb-0"><i class="bi bi-graph-down me-2 text-primary"></i>Shortfall Analysis</h5>
+                </div>
+                <div class="card-body">
+                    @if (Model.Shortfall != null)
+                    {
+                        <div class="row mb-4">
+                            <div class="col-md-3 text-center">
+                                <div class="text-muted small">SOA Amount</div>
+                                <div class="h5">$@Model.Shortfall.SOAAmount.ToString("N0")</div>
+                            </div>
+                            <div class="col-md-3 text-center">
+                                <div class="text-muted small">Mortgage Approved</div>
+                                <div class="h5">$@Model.Shortfall.MortgageApproved.ToString("N0")</div>
+                            </div>
+                            <div class="col-md-3 text-center">
+                                <div class="text-muted small">Cash Available</div>
+                                <div class="h5">$@Model.Shortfall.AdditionalCashAvailable.ToString("N0")</div>
+                            </div>
+                            <div class="col-md-3 text-center">
+                                @{
+                                    var shortfallColor = Model.Shortfall.ShortfallAmount <= 0 ? "text-success" :
+                                                         Model.Shortfall.ShortfallPercentage < 10 ? "text-warning" : "text-danger";
+                                }
+                                <div class="text-muted small">Shortfall</div>
+                                <div class="h5 @shortfallColor">$@Model.Shortfall.ShortfallAmount.ToString("N0")</div>
+                                <div class="small @shortfallColor">(@Model.Shortfall.ShortfallPercentage%)</div>
+                            </div>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(Model.Shortfall.RecommendationReasoning))
+                        {
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading"><i class="bi bi-robot me-2"></i>AI Analysis</h6>
+                                <pre class="mb-0 small" style="white-space: pre-wrap; font-family: inherit;">@Model.Shortfall.RecommendationReasoning</pre>
+                            </div>
+                        }
+
+                        @if (Model.Shortfall.SuggestedDiscount.HasValue && Model.Shortfall.SuggestedDiscount > 0)
+                        {
+                            <div class="alert alert-primary">
+                                <strong>Suggested Discount:</strong> $@Model.Shortfall.SuggestedDiscount.Value.ToString("N0")
+                            </div>
+                        }
+
+                        @if (Model.Shortfall.SuggestedVTBAmount.HasValue && Model.Shortfall.SuggestedVTBAmount > 0)
+                        {
+                            <div class="alert alert-warning">
+                                <strong>Suggested VTB Amount:</strong> $@Model.Shortfall.SuggestedVTBAmount.Value.ToString("N0")
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-graph-down fs-1"></i>
+                            <p class="mb-2">Shortfall analysis not yet calculated</p>
+                            <p class="small">Click "Calculate SOA" to generate the analysis</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .bg-orange { background-color: #f97316 !important; }
+</style>
+}

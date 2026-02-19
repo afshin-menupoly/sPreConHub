@@ -1,0 +1,186 @@
+@{
+    ViewData["Title"] = "Contact Us - PreConHub";
+    ViewData["Description"] = "Get in touch with PreConHub. Schedule a demo or learn how we can help streamline your preconstruction closings.";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/preconhub-marketing.css" asp-append-version="true" />
+    <style>
+        /* Remove gap at top */
+        .marketing-page { margin: 0 !important; padding: 0 !important; }
+        .marketing-hero { 
+            margin-top: -1rem !important; 
+            margin-bottom: 0 !important;
+            padding-top: 0 !important;
+        }
+        
+        /* Scroll to top button */
+        .scroll-to-top {
+            position: fixed;
+            bottom: 30px;
+            left: 30px;
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #0066ff, #00a8ff);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 20px rgba(0, 102, 255, 0.4);
+            transition: all 0.3s ease;
+            z-index: 9999;
+        }
+        
+        .scroll-to-top:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 30px rgba(0, 102, 255, 0.6);
+        }
+        
+        .scroll-to-top.show {
+            display: flex;
+        }
+    </style>
+}
+
+<div class="marketing-page">
+    <!-- Hero Section -->
+    <section class="marketing-hero" style="min-height: 50vh;">
+        <div class="marketing-hero-overlay"></div>
+        <div class="marketing-hero-content" style="text-align: center;">
+            <span class="marketing-section-badge" style="background: rgba(255, 255, 255, 0.1); color: white;">Get In Touch</span>
+            <h1 class="marketing-hero-title" style="color: white;">Let's Transform Your Closings</h1>
+            <p class="marketing-hero-subtitle" style="max-width: 700px; margin: 0 auto;">
+                Schedule a personalized demo or contact us with any questions. Our team is here to help you streamline your preconstruction process.
+            </p>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="marketing-section" style="background: white;">
+        <div class="marketing-contact-container">
+            <!-- Contact Information -->
+            <div>
+                <h2 style="margin-bottom: 1.5rem; color: #0f172a;">We're Here to Help</h2>
+                <p style="color: #64748b; line-height: 1.8; margin-bottom: 2rem;">
+                    Whether you're ready to get started or just have questions about PreConHub, we'd love to hear from you.
+                </p>
+                
+                <div class="marketing-contact-info-item">
+                    <div class="marketing-contact-icon">📧</div>
+                    <div>
+                        <h3 style="margin-bottom: 0.5rem; color: #0f172a;">Email Us</h3>
+                        <p style="color: #64748b; margin-bottom: 0.25rem;"><a href="mailto:info@preconhub.com">info@preconhub.com</a></p>
+                        <p style="font-size: 0.9rem; color: #94a3b8; margin-bottom: 0;">We'll respond within 24 hours</p>
+                    </div>
+                </div>
+                
+                <div class="marketing-contact-info-item">
+                    <div class="marketing-contact-icon">📞</div>
+                    <div>
+                        <h3 style="margin-bottom: 0.5rem; color: #0f172a;">Call Us</h3>
+                        <p style="color: #64748b; margin-bottom: 0.25rem;"><a href="tel:+14165551234">+1 (416) 555-1234</a></p>
+                        <p style="font-size: 0.9rem; color: #94a3b8; margin-bottom: 0;">Mon-Fri, 9AM-6PM EST</p>
+                    </div>
+                </div>
+                
+                <div class="marketing-contact-info-item">
+                    <div class="marketing-contact-icon">📍</div>
+                    <div>
+                        <h3 style="margin-bottom: 0.5rem; color: #0f172a;">Visit Us</h3>
+                        <p style="color: #64748b; margin-bottom: 0;">Toronto, ON<br>Canada</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contact Form -->
+            <div class="marketing-contact-form">
+                <h3 style="margin-bottom: 1rem;">Schedule a Demo</h3>
+                <p style="color: #64748b; margin-bottom: 2rem;">
+                    Fill out the form and we'll get back to you within 24 hours.
+                </p>
+                
+                <form asp-action="SubmitContact" asp-controller="Home" method="post">
+                    <div class="marketing-form-group">
+                        <label for="fullName">Full Name <span style="color: red;">*</span></label>
+                        <input type="text" id="fullName" name="FullName" class="marketing-form-control" placeholder="John Smith" required>
+                    </div>
+                    
+                    <div class="marketing-form-group">
+                        <label for="email">Email <span style="color: red;">*</span></label>
+                        <input type="email" id="email" name="Email" class="marketing-form-control" placeholder="john@company.com" required>
+                    </div>
+                    
+                    <div class="marketing-form-group">
+                        <label for="phone">Phone</label>
+                        <input type="tel" id="phone" name="Phone" class="marketing-form-control" placeholder="+1 (416) 555-1234">
+                    </div>
+                    
+                    <div class="marketing-form-group">
+                        <label for="company">Company <span style="color: red;">*</span></label>
+                        <input type="text" id="company" name="Company" class="marketing-form-control" placeholder="ABC Developments" required>
+                    </div>
+                    
+                    <div class="marketing-form-group">
+                        <label for="message">Message</label>
+                        <textarea id="message" name="Message" class="marketing-form-control" rows="4" placeholder="Tell us about your needs..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="marketing-btn-primary" style="width: 100%; justify-content: center;">
+                        Schedule Demo
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M4.16669 10H15.8334M15.8334 10L10 4.16669M15.8334 10L10 15.8334" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="marketing-footer">
+        <div class="marketing-footer-content">
+            <div class="marketing-footer-logo">PreConHub</div>
+            <p style="margin-bottom: 2rem;">The complete preconstruction closing platform for builders.</p>
+            
+            <div class="marketing-footer-links">
+                <a asp-controller="Home" asp-action="About" class="marketing-footer-link">About</a>
+                <a asp-controller="Home" asp-action="Contact" class="marketing-footer-link">Contact</a>
+                <a asp-controller="Home" asp-action="Privacy" class="marketing-footer-link">Privacy</a>
+            </div>
+            
+            <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1.5rem; font-size: 0.875rem; margin-top: 2rem;">
+                <p>&copy; @DateTime.Now.Year PreConHub. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Scroll to Top Button -->
+    <button class="scroll-to-top" id="scrollToTop" onclick="scrollToTop()">
+        ↑
+    </button>
+</div>
+
+@section Scripts {
+<script>
+    // Scroll to top functionality
+    window.addEventListener('scroll', function() {
+        const scrollBtn = document.getElementById('scrollToTop');
+        if (window.pageYOffset > 300) {
+            scrollBtn.classList.add('show');
+        } else {
+            scrollBtn.classList.remove('show');
+        }
+    });
+    
+    function scrollToTop() {
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+</script>
+}

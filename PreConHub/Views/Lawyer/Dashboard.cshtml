@@ -1,0 +1,247 @@
+@model PreConHub.Models.ViewModels.LawyerDashboardViewModel
+@{
+    ViewData["Title"] = "Lawyer Dashboard";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h3 mb-1">
+            <i class="bi bi-briefcase text-primary me-2"></i>Welcome, @Model.LawyerName
+        </h1>
+        @if (!string.IsNullOrEmpty(Model.LawyerFirm))
+        {
+            <p class="text-muted mb-0">@Model.LawyerFirm</p>
+        }
+    </div>
+
+    <!-- Success/Error Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-primary">@Model.TotalAssigned</div>
+                    <div class="text-muted">Total Assigned</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-warning">@Model.PendingReview</div>
+                    <div class="text-muted">Pending Review</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-info border-4">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-info">@Model.UnderReview</div>
+                    <div class="text-muted">Under Review</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 col-6 mb-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body text-center">
+                    <div class="display-6 fw-bold text-success">@Model.Approved</div>
+                    <div class="text-muted">Approved</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.NeedsAttention > 0)
+    {
+        <div class="alert alert-danger mb-4">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>@Model.NeedsAttention unit(s)</strong> need attention or have been flagged for revision.
+        </div>
+    }
+
+    <!-- Units Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-list-ul me-2"></i>Assigned Units
+            </h5>
+            <div class="btn-group btn-group-sm" role="group">
+                <input type="radio" class="btn-check" name="statusFilter" id="filterAll" autocomplete="off" checked onchange="filterUnits('all')">
+                <label class="btn btn-outline-secondary" for="filterAll">All</label>
+                
+                <input type="radio" class="btn-check" name="statusFilter" id="filterPending" autocomplete="off" onchange="filterUnits('pending')">
+                <label class="btn btn-outline-warning" for="filterPending">Pending</label>
+                
+                <input type="radio" class="btn-check" name="statusFilter" id="filterReview" autocomplete="off" onchange="filterUnits('underreview')">
+                <label class="btn btn-outline-info" for="filterReview">Under Review</label>
+                
+                <input type="radio" class="btn-check" name="statusFilter" id="filterApproved" autocomplete="off" onchange="filterUnits('approved')">
+                <label class="btn btn-outline-success" for="filterApproved">Approved</label>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            @if (Model.Units.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Unit / Project</th>
+                                <th>Purchaser</th>
+                                <th>Closing Date</th>
+                                <th>Purchase Price</th>
+                                <th>Mortgage</th>
+                                <th>Cash to Close</th>
+                                <th>Review Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var unit in Model.Units.OrderBy(u => u.ClosingDate))
+                            {
+                                <tr class="unit-row" data-status="@unit.ReviewStatus.ToString().ToLower()">
+                                    <td>
+                                        <strong>Unit @unit.UnitNumber</strong><br />
+                                        <small class="text-muted">@unit.ProjectName</small>
+                                    </td>
+                                    <td>
+                                        @unit.PurchaserName
+                                        @if (!string.IsNullOrEmpty(unit.PurchaserEmail))
+                                        {
+                                            <br /><small class="text-muted">@unit.PurchaserEmail</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (unit.ClosingDate.HasValue)
+                                        {
+                                            @unit.ClosingDate.Value.ToString("MMM dd, yyyy")
+                                            @if (unit.DaysUntilClosing <= 30 && unit.DaysUntilClosing > 0)
+                                            {
+                                                <br /><span class="badge bg-warning text-dark">@unit.DaysUntilClosing days</span>
+                                            }
+                                            else if (unit.DaysUntilClosing <= 0)
+                                            {
+                                                <br /><span class="badge bg-danger">Overdue</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">TBD</span>
+                                        }
+                                    </td>
+                                    <td>$@unit.PurchasePrice.ToString("N0")</td>
+                                    <td>
+                                        @if (unit.HasMortgageApproval)
+                                        {
+                                            <span class="text-success">
+                                                <i class="bi bi-check-circle me-1"></i>$@unit.MortgageAmount.ToString("N0")
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-danger">
+                                                <i class="bi bi-x-circle me-1"></i>None
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (unit.HasSOA)
+                                        {
+                                            <strong>$@unit.CashRequiredToClose.ToString("N0")</strong>
+                                            @if (unit.ShortfallAmount > 0)
+                                            {
+                                                <br /><small class="text-danger">Shortfall: $@unit.ShortfallAmount.ToString("N0")</small>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">Not calculated</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-@unit.ReviewStatusClass">
+                                            @unit.ReviewStatus
+                                        </span>
+                                        @if (unit.ReviewedAt.HasValue)
+                                        {
+                                            <br /><small class="text-muted">@unit.ReviewedAt.Value.ToString("MMM dd")</small>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        @{
+                                            var buttonText = unit.ReviewStatus switch
+
+                                            {
+
+                                                PreConHub.Models.Entities.LawyerReviewStatus.Pending => "Start Review",
+
+                                                PreConHub.Models.Entities.LawyerReviewStatus.Approved => "View",
+
+                                                _ => "Continue"
+
+                                            };
+
+                                            var buttonIcon = unit.ReviewStatus switch
+
+                                            {
+
+                                                PreConHub.Models.Entities.LawyerReviewStatus.Pending => "bi-play-circle",
+
+                                                PreConHub.Models.Entities.LawyerReviewStatus.Approved => "bi-eye",
+
+                                                _ => "bi-pencil"
+
+                                            };
+
+                                            var buttonClass = unit.ReviewStatus == PreConHub.Models.Entities.LawyerReviewStatus.Pending
+                                            ? "btn-primary"
+                                            : "btn-outline-primary";
+                                        }
+                                        <a href="@Url.Action("ReviewUnit", "Lawyer", new { id = unit.AssignmentId })"
+                                           class="btn btn-sm @buttonClass">
+                                            <i class="bi @buttonIcon me-1"></i>@buttonText
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+                    <h5 class="mt-3">No Units Assigned</h5>
+                    <p class="text-muted">You don't have any units assigned for review yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function filterUnits(status) {
+        var rows = document.querySelectorAll('.unit-row');
+        rows.forEach(function(row) {
+            if (status === 'all') {
+                row.style.display = '';
+            } else if (row.dataset.status === status) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+</script>
+}

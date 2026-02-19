@@ -1,0 +1,213 @@
+@model PreConHub.Models.ViewModels.UserListViewModel
+@{
+    ViewData["Title"] = "Manage Users";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a asp-action="Dashboard">Admin</a></li>
+                    <li class="breadcrumb-item active">Users</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0"><i class="bi bi-people me-2"></i>Manage Users</h1>
+        </div>
+        <span class="badge bg-secondary fs-6">@Model.TotalCount users</span>
+    </div>
+
+    <!-- Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Search</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" name="search" class="form-control" 
+                               placeholder="Name, email, or company..." value="@Model.Search">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">User Type</label>
+                    <select name="userType" class="form-select">
+                        <option value="">All Types</option>
+                        <option value="Builder" selected="@(Model.UserTypeFilter == "Builder")">Builders</option>
+                        <option value="Purchaser" selected="@(Model.UserTypeFilter == "Purchaser")">Purchasers</option>
+                        <option value="Lawyer" selected="@(Model.UserTypeFilter == "Lawyer")">Lawyers</option>
+                        <option value="PlatformAdmin" selected="@(Model.UserTypeFilter == "PlatformAdmin")">Admins</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">All Status</option>
+                        <option value="active" selected="@(Model.StatusFilter == "active")">Active</option>
+                        <option value="inactive" selected="@(Model.StatusFilter == "inactive")">Inactive</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-1"></i>Filter
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (Model.Users.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>User</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Registered</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in Model.Users)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle me-3 @(user.IsActive ? "bg-primary" : "bg-secondary") text-white">
+                                                @(user.FullName.Length > 0 ? user.FullName[0].ToString().ToUpper() : "?")
+                                            </div>
+                                            <div>
+                                                <strong>@user.FullName</strong>
+                                                <br>
+                                                <small class="text-muted">@user.Email</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge @user.UserTypeBadgeClass">@user.UserType</span>
+                                    </td>
+                                    <td>
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>Inactive</span>
+                                        }
+                                        @if (!user.EmailConfirmed)
+                                        {
+                                            <br><small class="text-warning"><i class="bi bi-envelope-exclamation me-1"></i>Email not verified</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="@(user.LastLoginAt.HasValue ? "" : "text-muted")">
+                                            @user.LastLoginDisplay
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @user.CreatedAt.ToString("MMM dd, yyyy")
+                                    </td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <a asp-action="UserDetail" asp-route-id="@user.UserId" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            @if (user.UserType != PreConHub.Models.Entities.UserType.PlatformAdmin)
+                                            {
+                                                <form asp-action="ImpersonateUser" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="userId" value="@user.UserId" />
+                                                    <button type="submit" class="btn btn-outline-warning" title="Login As"
+                                                            onclick="return confirm('Login as @user.Email?');">
+                                                        <i class="bi bi-box-arrow-in-right"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                @if (Model.TotalPages > 1)
+                {
+                    <div class="card-footer bg-white">
+                        <nav>
+                            <ul class="pagination justify-content-center mb-0">
+                                <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                                    <a class="page-link" asp-action="Users" 
+                                       asp-route-page="@(Model.CurrentPage - 1)"
+                                       asp-route-search="@Model.Search"
+                                       asp-route-userType="@Model.UserTypeFilter"
+                                       asp-route-status="@Model.StatusFilter">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                                @for (int i = 1; i <= Model.TotalPages; i++)
+                                {
+                                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                                        <a class="page-link" asp-action="Users" 
+                                           asp-route-page="@i"
+                                           asp-route-search="@Model.Search"
+                                           asp-route-userType="@Model.UserTypeFilter"
+                                           asp-route-status="@Model.StatusFilter">@i</a>
+                                    </li>
+                                }
+                                <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                                    <a class="page-link" asp-action="Users" 
+                                       asp-route-page="@(Model.CurrentPage + 1)"
+                                       asp-route-search="@Model.Search"
+                                       asp-route-userType="@Model.UserTypeFilter"
+                                       asp-route-status="@Model.StatusFilter">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            </ul>
+                        </nav>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-people display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No users found matching your criteria.</p>
+                    <a asp-action="Users" class="btn btn-outline-primary">Clear Filters</a>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<style>
+    .avatar-circle {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+</style>

@@ -1,0 +1,391 @@
+@model PreConHub.Models.ViewModels.AdminUserDetailViewModel
+@using PreConHub.Models.Entities
+@{
+    ViewData["Title"] = $"User: {Model.FullName}";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a asp-action="Dashboard">Admin</a></li>
+                    <li class="breadcrumb-item"><a asp-action="Users">Users</a></li>
+                    <li class="breadcrumb-item active">@Model.FullName</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-person-circle me-2"></i>@Model.FullName
+            </h1>
+            <p class="text-muted mb-0">@Model.Email</p>
+        </div>
+        <div>
+            @if (Model.UserType != UserType.PlatformAdmin)
+            {
+                <form asp-action="ImpersonateUser" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="userId" value="@Model.UserId" />
+                    <button type="submit" class="btn btn-warning"
+                            onclick="return confirm('Login as @Model.Email? You will see exactly what they see.');">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Login As This User
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <!-- Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Left Column: User Info -->
+        <div class="col-lg-4">
+            <!-- Basic Info Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-person me-2 text-primary"></i>User Information</h5>
+                    <span class="badge @Model.UserTypeBadgeClass">@Model.UserType</span>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted" style="width: 40%;">Full Name</td>
+                            <td><strong>@Model.FullName</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Email</td>
+                            <td>
+                                @Model.Email
+                                @if (Model.EmailConfirmed)
+                                {
+                                    <i class="bi bi-check-circle-fill text-success ms-1" title="Verified"></i>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-exclamation-circle-fill text-warning ms-1" title="Not Verified"></i>
+                                }
+                            </td>
+                        </tr>
+                        @if (!string.IsNullOrEmpty(Model.Phone))
+                        {
+                            <tr>
+                                <td class="text-muted">Phone</td>
+                                <td>@Model.Phone</td>
+                            </tr>
+                        }
+                        <tr>
+                            <td class="text-muted">Roles</td>
+                            <td>
+                                @foreach (var role in Model.Roles)
+                                {
+                                    <span class="badge bg-secondary me-1">@role</span>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Status</td>
+                            <td>
+                                @if (Model.IsActive)
+                                {
+                                    <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>Inactive</span>
+                                }
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Registered</td>
+                            <td>@Model.CreatedAt.ToString("MMM dd, yyyy h:mm tt")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Last Login</td>
+                            <td>
+                                @if (Model.LastLoginAt.HasValue)
+                                {
+                                    @Model.LastLoginAt.Value.ToString("MMM dd, yyyy h:mm tt")
+                                }
+                                else
+                                {
+                                    <span class="text-muted">Never</span>
+                                }
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Admin Actions Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-gear me-2 text-secondary"></i>Admin Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <!-- Toggle Status -->
+                        <form asp-action="ToggleUserStatus" method="post">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="userId" value="@Model.UserId" />
+                            @if (Model.IsActive)
+                            {
+                                <button type="submit" class="btn btn-outline-danger w-100"
+                                        onclick="return confirm('Deactivate this user?');">
+                                    <i class="bi bi-person-x me-2"></i>Deactivate User
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="submit" class="btn btn-outline-success w-100">
+                                    <i class="bi bi-person-check me-2"></i>Activate User
+                                </button>
+                            }
+                        </form>
+
+                        <!-- Reset Password -->
+                        <a asp-action="ResetPassword" asp-route-id="@Model.UserId" class="btn btn-outline-warning">
+                            <i class="bi bi-key me-2"></i>Reset Password
+                        </a>
+
+                        @if (!Model.EmailConfirmed)
+                        {
+                            <!-- Resend Invitation -->
+                            <form asp-action="ResendInvitation" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="userId" value="@Model.UserId" />
+                                <button type="submit" class="btn btn-outline-info w-100">
+                                    <i class="bi bi-envelope me-2"></i>Resend Invitation
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Middle Column: User's Data -->
+        <div class="col-lg-4">
+            @if (Model.UserType == UserType.Builder)
+            {
+                <!-- Builder Projects -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-buildings me-2 text-primary"></i>Projects</h5>
+                        <span class="badge bg-primary">@Model.TotalProjects</span>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (Model.BuilderProjects.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var project in Model.BuilderProjects)
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong>@project.ProjectName</strong>
+                                                <br><small class="text-muted">@project.Address</small>
+                                            </div>
+                                            <span class="badge bg-secondary">@project.TotalUnits units</span>
+                                        </div>
+                                        <div class="mt-2">
+                                            <span class="badge bg-warning text-dark me-1">@project.PendingUnits pending</span>
+                                            @if (project.AtRiskUnits > 0)
+                                            {
+                                                <span class="badge bg-danger me-1">@project.AtRiskUnits at risk</span>
+                                            }
+                                            <span class="badge bg-success">@project.ClosedUnits closed</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4 text-muted">
+                                No projects created yet.
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (Model.UserType == UserType.Purchaser)
+            {
+                <!-- Purchaser Units -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-house me-2 text-success"></i>Units</h5>
+                        <span class="badge bg-success">@Model.PurchaserUnits.Count</span>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (Model.PurchaserUnits.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var unit in Model.PurchaserUnits)
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong>Unit @unit.UnitNumber</strong>
+                                                @if (unit.IsPrimary)
+                                                {
+                                                    <span class="badge bg-primary ms-1">Primary</span>
+                                                }
+                                                <br><small class="text-muted">@unit.ProjectName</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <strong>$@unit.PurchasePrice.ToString("N0")</strong>
+                                                <br>
+                                                @{
+                                                    var statusClass = unit.Status switch
+                                                    {
+                                                        UnitStatus.Pending => "bg-warning text-dark",
+                                                        UnitStatus.Closed => "bg-success",
+                                                        UnitStatus.AtRisk => "bg-danger",
+                                                        _ => "bg-secondary"
+                                                    };
+                                                }
+                                                <span class="badge @statusClass">@unit.Status</span>
+                                            </div>
+                                        </div>
+                                        <div class="mt-2 small">
+                                            @if (unit.HasMortgageApproval)
+                                            {
+                                                <span class="text-success"><i class="bi bi-check-circle me-1"></i>Mortgage: $@unit.MortgageAmount.ToString("N0")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-danger"><i class="bi bi-x-circle me-1"></i>No mortgage approval</span>
+                                            }
+                                            @if (unit.ClosingDate.HasValue)
+                                            {
+                                                <br><span class="text-muted">Closing: @unit.ClosingDate.Value.ToString("MMM dd, yyyy")</span>
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4 text-muted">
+                                No units assigned to this purchaser.
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (Model.UserType == UserType.Lawyer)
+            {
+                <!-- Lawyer Assignments -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-briefcase me-2 text-info"></i>Assignments</h5>
+                        <span class="badge bg-info">@Model.LawyerAssignments.Count</span>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (Model.LawyerAssignments.Any())
+                        {
+                            <div class="list-group list-group-flush">
+                                @foreach (var assignment in Model.LawyerAssignments)
+                                {
+                                    <div class="list-group-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <strong>Unit @assignment.UnitNumber</strong>
+                                                <br><small class="text-muted">@assignment.ProjectName</small>
+                                            </div>
+                                            <span class="badge @assignment.StatusBadgeClass">@assignment.ReviewStatus</span>
+                                        </div>
+                                        <div class="mt-1 small text-muted">
+                                            <i class="bi bi-person-badge me-1"></i>@assignment.Role
+                                            <span class="ms-2"><i class="bi bi-calendar me-1"></i>@assignment.AssignedAt.ToString("MMM dd")</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4 text-muted">
+                                No active assignments.
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Right Column: Activity -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-activity me-2 text-secondary"></i>Recent Activity</h5>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.RecentActivity.Any())
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var activity in Model.RecentActivity)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex">
+                                        <div class="me-3">
+                                            <i class="bi @activity.Icon text-muted"></i>
+                                        </div>
+                                        <div class="flex-grow-1">
+                                            <p class="mb-0 small">@activity.Action</p>
+                                            <small class="text-muted">@activity.TimeAgo</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-clock-history display-6"></i>
+                            <p class="mt-2 small">No recent activity recorded.</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            @if (Model.UserType == UserType.Builder)
+            {
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6 mb-3">
+                                <h3 class="mb-0">@Model.TotalProjects</h3>
+                                <small class="text-muted">Projects</small>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <h3 class="mb-0">@Model.TotalUnits</h3>
+                                <small class="text-muted">Total Units</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

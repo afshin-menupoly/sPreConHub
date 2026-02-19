@@ -1,0 +1,52 @@
+## ASP.NET Core / Visual Studio
+
+# Build output
+**/bin/
+**/obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# User-specific files
+*.rsuser
+
+# NuGet
+.nuget/
+*.nupkg
+**/packages/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Rider
+.idea/
+
+# VS Code
+.vscode/
+
+# Sensitive config overrides (keep appsettings.json, ignore environment overrides)
+**/appsettings.Development.json
+**/appsettings.Production.json
+**/appsettings.Local.json
+
+# Uploaded files (runtime data)
+**/wwwroot/uploads/
+
+# Large video files (exceed GitHub 100 MB limit)
+**/wwwroot/videos/
+
+# Logs
+*.log
+logs/
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Temp / scratch file created during session
+**/nul

@@ -1,0 +1,179 @@
+@{
+    ViewData["Title"] = "Lawyer Assigned";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Success Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <div class="bg-success bg-opacity-10 rounded-circle d-inline-flex p-4">
+                            <i class="bi bi-briefcase text-success" style="font-size: 3rem;"></i>
+                        </div>
+                    </div>
+                    
+                    <h2 class="mb-3">Lawyer Assigned Successfully!</h2>
+                    
+                    <p class="text-muted mb-4">
+                        <strong>@ViewBag.LawyerName</strong> has been assigned to review 
+                        <strong>Unit @ViewBag.UnitNumber</strong>.
+                    </p>
+
+                    @if (TempData["EmailSent"] != null && (bool)TempData["EmailSent"])
+                    {
+                        <div class="alert alert-success">
+                            <i class="bi bi-envelope-check me-2"></i>
+                            Invitation email sent successfully!
+                        </div>
+                    }
+                    else if (TempData["EmailSent"] != null && !(bool)TempData["EmailSent"])
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-envelope-x me-2"></i>
+                            Email could not be sent. Please share the invitation link manually.
+                        </div>
+                    }
+
+                    @if (ViewBag.InvitationLink != null)
+                    {
+                        <div class="alert alert-info text-start mb-4">
+                            <h6 class="alert-heading">
+                                <i class="bi bi-envelope me-2"></i>Invitation Link
+                            </h6>
+                            <p class="small mb-2">
+                                Share this link with the lawyer so they can access the review portal:
+                            </p>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control form-control-sm" id="invitationLink" 
+                                       value="@ViewBag.InvitationLink" readonly />
+                                <button class="btn btn-outline-primary btn-sm" type="button" onclick="copyLink()">
+                                    <i class="bi bi-clipboard"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="card bg-light border-0 text-start mb-4">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="bi bi-envelope-paper me-2"></i>Sample Email:</h6>
+                                <div class="bg-white border rounded p-3 small" id="emailTemplate">
+                                    <p><strong>Subject:</strong> PreConHub Review Assignment - Unit @ViewBag.UnitNumber</p>
+                                    <hr />
+                                    <p>Dear @ViewBag.LawyerName,</p>
+                                    <p>You have been assigned to review <strong>Unit @ViewBag.UnitNumber</strong> at <strong>@ViewBag.ProjectName</strong>.</p>
+                                    <p>Please click the link below to access the review portal:</p>
+                                    <p><a href="@ViewBag.InvitationLink">@ViewBag.InvitationLink</a></p>
+                                    <p>Once logged in, you will be able to:</p>
+                                    <ul>
+                                        <li>Review the Statement of Adjustments</li>
+                                        <li>View purchaser mortgage and financial details</li>
+                                        <li>Add notes and approve the unit for closing</li>
+                                    </ul>
+                                    <p>Best regards,<br />@ViewBag.ProjectName Team</p>
+                                </div>
+                                <button class="btn btn-sm btn-outline-secondary mt-2" onclick="copyEmail()">
+                                    <i class="bi bi-clipboard me-1"></i>Copy Email Text
+                                </button>
+                            </div>
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="@Url.Action("Details", "Units", new { id = ViewBag.UnitId })" class="btn btn-primary">
+                            <i class="bi bi-arrow-left me-2"></i>Back to Unit
+                        </a>
+                        <a href="@Url.Action("Dashboard", "Projects", new { id = ViewBag.ProjectId })" class="btn btn-outline-secondary">
+                            <i class="bi bi-grid me-2"></i>Project Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Review Process Card -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-body">
+                    <h5><i class="bi bi-list-check me-2 text-primary"></i>Review Process</h5>
+                    <div class="mt-3">
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-success rounded-circle p-2">1</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong>Lawyer Receives Invitation</strong>
+                                <p class="text-muted small mb-0">Copy the link and send it to the lawyer</p>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-secondary rounded-circle p-2">2</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong>Lawyer Reviews Unit</strong>
+                                <p class="text-muted small mb-0">Reviews SOA, mortgage info, and deposits</p>
+                            </div>
+                        </div>
+                        <div class="d-flex mb-3">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-secondary rounded-circle p-2">3</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong>Lawyer Approves or Requests Changes</strong>
+                                <p class="text-muted small mb-0">Can add notes and flag any issues</p>
+                            </div>
+                        </div>
+                        <div class="d-flex">
+                            <div class="flex-shrink-0">
+                                <span class="badge bg-secondary rounded-circle p-2">4</span>
+                            </div>
+                            <div class="flex-grow-1 ms-3">
+                                <strong>Unit Marked Ready</strong>
+                                <p class="text-muted small mb-0">Approved units show "Lawyer Confirmed" status</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function copyLink() {
+        var input = document.getElementById('invitationLink');
+        input.select();
+        document.execCommand('copy');
+        
+        var btn = event.target.closest('button');
+        var originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        btn.classList.replace('btn-outline-primary', 'btn-success');
+        
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+            btn.classList.replace('btn-success', 'btn-outline-primary');
+        }, 2000);
+    }
+    
+    function copyEmail() {
+        var template = document.getElementById('emailTemplate');
+        var range = document.createRange();
+        range.selectNode(template);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        window.getSelection().removeAllRanges();
+        
+        var btn = event.target.closest('button');
+        var originalHtml = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        btn.classList.replace('btn-outline-secondary', 'btn-success');
+        
+        setTimeout(function() {
+            btn.innerHTML = originalHtml;
+            btn.classList.replace('btn-success', 'btn-outline-secondary');
+        }, 2000);
+    }
+</script>
+}

@@ -1,0 +1,48 @@
+@* 
+    _ImpersonationBanner.cshtml
+    
+    Add this to your _Layout.cshtml right after <body> tag:
+    <partial name="_ImpersonationBanner" />
+    
+    This shows a warning banner when an admin is impersonating another user.
+*@
+
+@{
+    var isImpersonating = Context.Session.GetString("OriginalAdminId") != null;
+    var impersonatingEmail = Context.Session.GetString("ImpersonatingUserEmail");
+}
+
+@if (isImpersonating)
+{
+    <div class="impersonation-banner">
+        <div class="container-fluid">
+            <div class="d-flex justify-content-between align-items-center py-2">
+                <div>
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>ADMIN MODE:</strong> You are viewing as <strong>@impersonatingEmail</strong>
+                </div>
+                <form asp-controller="Admin" asp-action="StopImpersonation" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-light">
+                        <i class="bi bi-box-arrow-left me-1"></i>Stop Impersonation
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .impersonation-banner {
+        background: linear-gradient(90deg, #dc3545, #fd7e14);
+        color: white;
+        position: sticky;
+        top: 0;
+        z-index: 9999;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .impersonation-banner .btn-light {
+        font-weight: 600;
+    }
+</style>

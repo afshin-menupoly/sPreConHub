@@ -1,0 +1,137 @@
+@model PreConHub.Models.ViewModels.ReportsHubViewModel
+@{
+    ViewData["Title"] = "Reports & Analytics";
+}
+
+<style>
+    .reports-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 12px; padding: 2rem; margin-bottom: 1.5rem; }
+    .reports-header h2, .reports-header p { color: #fff; }
+    .stat-card { background: rgba(255,255,255,0.12); border-radius: 8px; padding: 1rem; text-align: center; }
+    .stat-card .value { font-size: 1.8rem; font-weight: 700; color: #fff; }
+    .stat-card .label { font-size: 0.8rem; color: rgba(255,255,255,0.7); }
+    .report-card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 1.5rem; transition: all 0.25s; height: 100%; }
+    .report-card:hover { transform: translateY(-4px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); border-color: var(--bs-primary); }
+    .report-card .icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: #fff; margin-bottom: 1rem; }
+    .export-btn-sm { font-size: 0.7rem; padding: 2px 8px; }
+</style>
+
+<div class="reports-header">
+    <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1" style="--bs-breadcrumb-divider-color: rgba(255,255,255,0.5);">
+                    <li class="breadcrumb-item"><a href="/" class="text-white-50">Home</a></li>
+                    <li class="breadcrumb-item active text-white">Reports</li>
+                </ol>
+            </nav>
+            <h2 class="mb-1"><i class="bi bi-graph-up-arrow me-2"></i>Reports & Analytics</h2>
+            <p class="mb-0 opacity-75">Enterprise intelligence for your pre-construction portfolio</p>
+        </div>
+    </div>
+    <div class="row g-3">
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="stat-card">
+                <div class="value">@Model.TotalProjects</div>
+                <div class="label">Projects</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="stat-card">
+                <div class="value">@Model.TotalUnits</div>
+                <div class="label">Total Units</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="stat-card">
+                <div class="value text-success">@Model.UnitsClosingClean</div>
+                <div class="label">Closing Clean</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="stat-card">
+                <div class="value text-danger">@Model.UnitsAtRisk</div>
+                <div class="label">At Risk</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="stat-card">
+                <div class="value">@Model.TotalSalesValue.ToString("C0")</div>
+                <div class="label">Total Sales</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+            <div class="stat-card">
+                <div class="value text-warning">@Model.TotalExposure.ToString("C0")</div>
+                <div class="label">Total Exposure</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (Model.Projects.Count > 1)
+{
+    <div class="mb-4">
+        <label class="form-label fw-bold">Select Project:</label>
+        <select id="projectSelector" class="form-select" style="max-width: 400px;">
+            @foreach (var p in Model.Projects)
+            {
+                <option value="@p.Id">@p.Name (@p.UnitCount units)</option>
+            }
+        </select>
+    </div>
+}
+
+<div class="row g-4 mb-4">
+    @{
+        var firstProjectId = Model.Projects.FirstOrDefault()?.Id ?? 0;
+        var reports = new[]
+        {
+            new { Title = "Project Dashboard", Desc = "Comprehensive project overview with charts, metrics, and full unit table.", Icon = "bi-bar-chart-fill", Color = "#0f3460", Action = "ProjectReport", HasExport = true },
+            new { Title = "Financial Exposure", Desc = "Risk analysis with scenario modeling, exposure brackets, and category breakdown.", Icon = "bi-shield-exclamation", Color = "#dc3545", Action = "FinancialExposure", HasExport = false },
+            new { Title = "Closing Timeline", Desc = "Units grouped by closing urgency with countdown tracking and alerts.", Icon = "bi-calendar-event", Color = "#f97316", Action = "ClosingTimeline", HasExport = false },
+            new { Title = "Mortgage Tracking", Desc = "Approval status, lender breakdown, and urgent attention identification.", Icon = "bi-bank", Color = "#198754", Action = "MortgageTracking", HasExport = false },
+            new { Title = "Unit Cards", Desc = "Visual card view of all units with status indicators and quick filters.", Icon = "bi-grid-3x3-gap-fill", Color = "#6f42c1", Action = "UnitCards", HasExport = false },
+            new { Title = "All Projects", Desc = "Cross-project comparison with aggregate metrics and health indicators.", Icon = "bi-building", Color = "#0d6efd", Action = "AllProjects", HasExport = false },
+        };
+    }
+
+    @foreach (var report in reports)
+    {
+        <div class="col-md-6 col-lg-4">
+            <div class="report-card">
+                <div class="icon" style="background: @report.Color;">
+                    <i class="bi @report.Icon"></i>
+                </div>
+                <h5 class="mb-2">@report.Title</h5>
+                <p class="text-muted small mb-3">@report.Desc</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a href="@Url.Action(report.Action, new { projectId = firstProjectId })" class="btn btn-sm btn-primary project-link" data-action="@report.Action">
+                        <i class="bi bi-eye me-1"></i>View Report
+                    </a>
+                    @if (report.HasExport)
+                    {
+                        <a href="@Url.Action("ExportPDF", new { projectId = firstProjectId })" class="btn btn-sm btn-outline-danger export-link" data-action="ExportPDF"><i class="bi bi-filetype-pdf"></i></a>
+                        <a href="@Url.Action("ExportExcel", new { projectId = firstProjectId })" class="btn btn-sm btn-outline-success export-link" data-action="ExportExcel"><i class="bi bi-filetype-xlsx"></i></a>
+                        <a href="@Url.Action("ExportCSV", new { projectId = firstProjectId })" class="btn btn-sm btn-outline-secondary export-link" data-action="ExportCSV"><i class="bi bi-filetype-csv"></i></a>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('projectSelector')?.addEventListener('change', function() {
+            const pid = this.value;
+            document.querySelectorAll('.project-link').forEach(link => {
+                const action = link.dataset.action;
+                link.href = `@Url.Action("Index")`.replace('Index', action) + '?projectId=' + pid;
+            });
+            document.querySelectorAll('.export-link').forEach(link => {
+                const action = link.dataset.action;
+                link.href = `@Url.Action("Index")`.replace('Index', action) + '?projectId=' + pid;
+            });
+        });
+    </script>
+}

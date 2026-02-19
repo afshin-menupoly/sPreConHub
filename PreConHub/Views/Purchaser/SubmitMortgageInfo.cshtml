@@ -1,0 +1,246 @@
+@model PreConHub.Models.ViewModels.SubmitMortgageInfoViewModel
+@{
+    ViewData["Title"] = "Submit Mortgage Information";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="mb-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Purchaser")">My Dashboard</a></li>
+                        <li class="breadcrumb-item active">Mortgage Information</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">
+                    <i class="bi bi-bank text-primary me-2"></i>Mortgage Information
+                </h1>
+                <p class="text-muted">Unit @Model.UnitNumber at @Model.ProjectName</p>
+            </div>
+
+            <!-- Info Banner -->
+            <div class="alert alert-info mb-4">
+                <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>Why We Need This</h6>
+                <p class="mb-0 small">
+                    Your mortgage information helps us calculate your closing requirements and ensure everything is 
+                    in order before your closing date. Please provide accurate details from your mortgage approval letter.
+                </p>
+            </div>
+
+            <!-- Form -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form asp-action="SubmitMortgageInfo" method="post">
+                        <input type="hidden" asp-for="UnitId" />
+                        <input type="hidden" asp-for="UnitNumber" />
+                        <input type="hidden" asp-for="ProjectName" />
+                        <input type="hidden" asp-for="PurchasePrice" />
+
+                        <!-- Mortgage Approval Status -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Do you have a mortgage approval? <span class="text-danger">*</span></label>
+                            <div class="form-check">
+                                <input type="radio" class="form-check-input" id="hasMortgageYes" name="HasMortgageApproval" value="true" 
+                                       @(Model.HasMortgageApproval ? "checked" : "") onchange="toggleMortgageDetails(true)" />
+                                <label class="form-check-label" for="hasMortgageYes">Yes, I have a mortgage approval</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" class="form-check-input" id="hasMortgageNo" name="HasMortgageApproval" value="false" 
+                                       @(!Model.HasMortgageApproval ? "checked" : "") onchange="toggleMortgageDetails(false)" />
+                                <label class="form-check-label" for="hasMortgageNo">No, I don't have a mortgage approval yet</label>
+                            </div>
+                        </div>
+
+                        <!-- Mortgage Details (shown if approved) -->
+                        <div id="mortgageDetails" style="display: @(Model.HasMortgageApproval ? "block" : "none");">
+                            
+                            <!-- Approval Type -->
+                            <div class="mb-3">
+                                <label asp-for="ApprovalType" class="form-label">Approval Type <span class="text-danger">*</span></label>
+                                <select asp-for="ApprovalType" class="form-select" asp-items="Html.GetEnumSelectList<PreConHub.Models.Entities.MortgageApprovalType>()">
+                                    <option value="">-- Select Type --</option>
+                                </select>
+                                <div class="form-text">
+                                    <strong>Pre-Approval:</strong> Preliminary approval based on your financial situation.<br/>
+                                    <strong>Firm Approval:</strong> Final approval for a specific property.
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label asp-for="MortgageProvider" class="form-label">Lender / Bank <span class="text-danger">*</span></label>
+                                    <input asp-for="MortgageProvider" class="form-control" placeholder="e.g., TD Bank, Scotiabank, CMLS" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="ApprovedAmount" class="form-label">Approved Amount <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input asp-for="ApprovedAmount" type="number" step="1000" class="form-control" placeholder="450000" />
+                                    </div>
+                                    <div class="form-text">
+                                        Suggested: $@Model.SuggestedMortgageAmount.ToString("N0") (80% of purchase price)
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label asp-for="InterestRate" class="form-label">Interest Rate</label>
+                                    <div class="input-group">
+                                        <input asp-for="InterestRate" type="number" step="0.01" class="form-control" placeholder="5.25" />
+                                        <span class="input-group-text">%</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label asp-for="AmortizationYears" class="form-label">Amortization</label>
+                                    <div class="input-group">
+                                        <input asp-for="AmortizationYears" type="number" class="form-control" value="25" />
+                                        <span class="input-group-text">years</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label asp-for="ApprovalExpiryDate" class="form-label">Expiry Date</label>
+                                    <input asp-for="ApprovalExpiryDate" type="date" class="form-control" />
+                                </div>
+                            </div>
+
+                            <!-- Conditions -->
+                            <div class="mb-3">
+                                <div class="form-check">
+                                    <input asp-for="HasConditions" class="form-check-input" type="checkbox" id="hasConditions" onchange="toggleConditions()" />
+                                    <label class="form-check-label" for="hasConditions">
+                                        My approval has conditions
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div id="conditionsSection" style="display: @(Model.HasConditions ? "block" : "none");" class="mb-3">
+                                <label asp-for="Conditions" class="form-label">Conditions</label>
+                                <textarea asp-for="Conditions" class="form-control" rows="3"
+                                          placeholder="e.g., Subject to satisfactory appraisal, proof of employment, etc."></textarea>
+                            </div>
+
+                            <!-- Additional Mortgage Details -->
+                            <h6 class="mt-4 mb-3 pb-2 border-bottom text-muted">
+                                <i class="bi bi-info-circle me-1"></i>Additional Details
+                            </h6>
+
+                            <!-- Blanket Mortgage + Appraisal Value -->
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <div class="form-check mt-2">
+                                        <input asp-for="IsBlanketMortgage" class="form-check-input" type="checkbox"
+                                               id="isBlanketMortgage" onchange="toggleAppraisal()" />
+                                        <label class="form-check-label" for="isBlanketMortgage">
+                                            This is a blanket mortgage
+                                        </label>
+                                    </div>
+                                    <div class="form-text">A blanket mortgage covers multiple properties.</div>
+                                </div>
+                                <div class="col-md-6" id="appraisalValueDiv" style="display: @(!Model.IsBlanketMortgage ? "block" : "none");">
+                                    <label asp-for="PurchaserAppraisalValue" class="form-label">
+                                        Appraised Value
+                                        <i class="bi bi-question-circle text-muted" data-bs-toggle="tooltip"
+                                           title="The value from your independent appraisal report for this unit."></i>
+                                    </label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input asp-for="PurchaserAppraisalValue" type="number" step="1000" class="form-control"
+                                               placeholder="e.g., 620000" />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Estimated Funding Date / Credit Score / Credit Bureau -->
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label asp-for="EstimatedFundingDate" class="form-label">Estimated Funding Date</label>
+                                    <input asp-for="EstimatedFundingDate" type="date" class="form-control" />
+                                    <div class="form-text">Expected mortgage funding / closing date.</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label asp-for="CreditScore" class="form-label">Credit Score</label>
+                                    <input asp-for="CreditScore" type="number" min="300" max="900" class="form-control"
+                                           placeholder="e.g., 720" />
+                                </div>
+                                <div class="col-md-4">
+                                    <label asp-for="CreditBureau" class="form-label">Credit Bureau</label>
+                                    <select asp-for="CreditBureau" class="form-select">
+                                        <option value="">-- Select --</option>
+                                        <option value="TransUnion">TransUnion</option>
+                                        <option value="Equifax">Equifax</option>
+                                        <option value="Both">Both</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- No Mortgage Message -->
+                        <div id="noMortgageMessage" style="display: @(!Model.HasMortgageApproval ? "block" : "none");">
+                            <div class="alert alert-warning">
+                                <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>No Mortgage Approval</h6>
+                                <p class="mb-0">
+                                    Without a mortgage approval, you will need to provide the full closing amount in cash. 
+                                    We recommend speaking with a mortgage broker to explore your options.
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Comments (always visible) -->
+                        <div class="mb-4">
+                            <label asp-for="Comments" class="form-label fw-bold">Comments / Notes</label>
+                            <textarea asp-for="Comments" class="form-control" rows="3"
+                                      placeholder="Any additional notes for your builder or lawyer (e.g., financing challenges, special circumstances, questions)..."></textarea>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="@Url.Action("Dashboard", "Purchaser")" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-lg me-2"></i>Save Mortgage Information
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Tips -->
+            <div class="card border-0 shadow-sm mt-4 bg-light">
+                <div class="card-body">
+                    <h6><i class="bi bi-lightbulb me-2 text-warning"></i>Tips</h6>
+                    <ul class="small mb-0">
+                        <li>Make sure your mortgage approval amount covers at least 80% of your purchase price</li>
+                        <li>Check your approval expiry date — you may need to renew before closing</li>
+                        <li>If your approval has conditions, work with your lender to satisfy them early</li>
+                        <li>Keep a copy of your approval letter for your records</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function toggleMortgageDetails(hasApproval) {
+        document.getElementById('mortgageDetails').style.display = hasApproval ? 'block' : 'none';
+        document.getElementById('noMortgageMessage').style.display = hasApproval ? 'none' : 'block';
+    }
+
+    function toggleConditions() {
+        var checkbox = document.getElementById('hasConditions');
+        document.getElementById('conditionsSection').style.display = checkbox.checked ? 'block' : 'none';
+    }
+
+    function toggleAppraisal() {
+        var checkbox = document.getElementById('isBlanketMortgage');
+        document.getElementById('appraisalValueDiv').style.display = checkbox.checked ? 'none' : 'block';
+    }
+</script>
+}

@@ -1,0 +1,439 @@
+@model PreConHub.Models.ViewModels.ProjectDashboardViewModel
+@{
+    ViewData["Title"] = "Project Closing Overview";
+}
+
+<div class="container-fluid py-4">
+    <!-- Dashboard Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                    <li class="breadcrumb-item active">@Model.ProjectName</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1">Project Closing Overview</h1>
+            <p class="text-muted mb-0">@Model.ProjectName — @Model.ProjectAddress</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="@Url.Action("Create", "Units", new { id = Model.ProjectId })" class="btn btn-success">
+                <i class="bi bi-plus-lg me-1"></i>Add Unit
+            </a>
+            <a href="@Url.Action("BulkImport", "Units", new { id = Model.ProjectId })" class="btn btn-outline-success">
+                <i class="bi bi-upload me-1"></i>Bulk Import
+            </a>
+            <a href="@Url.Action("ExportExcel", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-primary">
+                <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+            </a>
+            <a href="@Url.Action("RefreshAnalysis", "Projects", new { id = Model.ProjectId })" class="btn btn-primary" 
+               onclick="return confirm('This will recalculate all SOA and shortfall analyses. Continue?')">
+                <i class="bi bi-arrow-clockwise me-1"></i>Refresh Analysis
+            </a>
+            <a href="@Url.Action("Purchasers", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-info">
+                <i class="bi bi-people me-2"></i>Manage Purchasers
+            </a>
+            <a href="@Url.Action("Lawyers", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-secondary">
+                <i class="bi bi-briefcase me-2"></i>Manage Lawyers
+            </a>
+            <a href="@Url.Action("UploadAps", "Units", new { id = Model.ProjectId })"
+               class="btn btn-info">
+                <i class="bi bi-file-earmark-text me-2"></i>Upload APS
+            </a>
+        </div>
+    </div>
+
+    <!-- Project Reports Buttons - Beside Dashboard Button -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div></div>
+        <div class="d-flex gap-2">
+            <a href="@Url.Action("ProjectReport", "Reports", new { projectId = Model.ProjectId })" class="btn btn-outline-primary">
+                <i class="bi bi-bar-chart me-1"></i>Project Dashboard
+            </a>
+            <a href="@Url.Action("UnitCards", "Reports", new { projectId = Model.ProjectId })" class="btn btn-outline-primary">
+                <i class="bi bi-grid-3x3 me-1"></i>Unit Cards
+            </a>
+            <button class="btn btn-dark">
+                <i class="bi bi-bar-chart-fill me-1"></i>Dashboard
+            </button>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Total Units</div>
+                    <div class="h2 mb-0">@Model.Summary.TotalUnits</div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Ready to Close</div>
+                    <div class="h2 mb-0 text-success">
+                        @Model.Summary.UnitsReadyToClose
+                        <small class="text-muted fs-6">(@Model.Summary.PercentReadyToClose%)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Closing with Discounts</div>
+                    <div class="h2 mb-0 text-primary">
+                        @Model.Summary.UnitsNeedingDiscount
+                        <small class="text-muted fs-6">(@Model.Summary.PercentNeedingDiscount%)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Closing with VTB</div>
+                    <div class="h2 mb-0 text-warning">
+                        @Model.Summary.UnitsNeedingVTB
+                        <small class="text-muted fs-6">(@Model.Summary.PercentNeedingVTB%)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">At Risk of Default</div>
+                    <div class="h2 mb-0 text-danger">
+                        @Model.Summary.UnitsAtRisk
+                        <small class="text-muted fs-6">(@Model.Summary.PercentAtRisk%)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Financial Summary Bar -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 bg-light">
+                <div class="card-body py-3">
+                    <span class="text-muted">Total Discounts Required:</span>
+                    <span class="h5 text-primary ms-2">$@Model.Summary.TotalDiscountRequired.ToString("N0")</span>
+                    <span class="text-muted small">(@Model.Summary.DiscountPercentOfSales% of Total Sales)</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 bg-light">
+                <div class="card-body py-3">
+                    <span class="text-muted">Total Additional Investment Needed:</span>
+                    <span class="h5 text-danger ms-2">$@Model.Summary.TotalShortfall.ToString("N0")</span>
+                    <span class="text-muted small">
+                        (@(Model.Summary.TotalSalesValue > 0 ? Math.Round(Model.Summary.TotalShortfall / Model.Summary.TotalSalesValue * 100, 1) : 0)% of Total Invested)
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Reports & Analytics Card -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <div class="card-body py-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-graph-up-arrow text-white me-3" style="font-size: 2.5rem;"></i>
+                                <div>
+                                    <h5 class="text-white mb-1">
+                                        <i class="bi bi-graph-up text-white"></i> Reports & Analytics
+                                    </h5>
+                                    <p class="text-white-50 mb-0">View comprehensive project reports with AI-powered insights and exportable formats</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group">
+                                <a href="@Url.Action("ProjectReport", "Reports", new { projectId = Model.ProjectId })" class="btn btn-light">
+                                    <i class="bi bi-bar-chart-fill me-1"></i>Dashboard
+                                </a>
+                                <a href="@Url.Action("UnitCards", "Reports", new { projectId = Model.ProjectId })" class="btn btn-outline-light">
+                                    <i class="bi bi-grid-3x3 me-1"></i>Cards View
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Filter Bar -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Search by unit number..." onkeyup="filterTable()">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="statusFilter" onchange="filterTable()">
+                        <option value="">All Recommendations</option>
+                        <option value="rec-proceed">Proceed to Close</option>
+                        <option value="rec-discount">Offer Discount</option>
+                        <option value="rec-vtb-second">VTB Second Mortgage</option>
+                        <option value="rec-vtb-first">VTB First Mortgage</option>
+                        <option value="rec-default">Potential Default</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="mortgageFilter" onchange="filterTable()">
+                        <option value="">All Mortgage Status</option>
+                        <option value="yes">Mortgage Approved</option>
+                        <option value="no">No Mortgage</option>
+                    </select>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="text-muted small">Showing <span id="visibleCount">@Model.Units.Count</span> of @Model.Units.Count units</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unit Closing Summary Table -->
+    @if (Model.Units.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="unitTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Unit</th>
+                            <th class="text-center">Mortgage Approved</th>
+                            <th class="text-end">Appraisal Value</th>
+                            <th>Mortgage Provider</th>
+                            <th class="text-end">Mortgage Amount</th>
+                            <th class="text-center">Approved at Closing</th>
+                            <th class="text-end">SOA Amount</th>
+                            <th class="text-end">Total Paid</th>
+                            <th class="text-end">Shortfall</th>
+                            <th class="text-center">Shortfall %</th>
+                            <th class="text-center">AI Recommendation</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Units.Count; i++)
+                        {
+                            var unit = Model.Units[i];
+                            <tr data-unit-id="@unit.UnitId" 
+                                data-recommendation="@unit.RecommendationClass"
+                                data-mortgage="@(unit.HasMortgageApproval ? "yes" : "no")">
+                                <td>@(i + 1)</td>
+                                <td><a href="@Url.Action("Details", "Units", new { id = unit.UnitId })" class="fw-bold text-decoration-none">@unit.UnitNumber</a></td>
+                                <td class="text-center">
+                                    @if (unit.HasMortgageApproval)
+                                    {
+                                        <span class="badge bg-success-subtle text-success">Yes</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger">No</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (unit.AppraisalValue.HasValue)
+                                    {
+                                        <span>$@unit.AppraisalValue.Value.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">N/A</span>
+                                    }
+                                </td>
+                                <td>@(unit.MortgageProvider ?? "—")</td>
+                                <td class="text-end">
+                                    @if (unit.MortgageAmount > 0)
+                                    {
+                                        <span>$@unit.MortgageAmount.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (unit.IsApprovedAtClosing)
+                                    {
+                                        <span class="badge bg-success-subtle text-success">Yes</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger">No</span>
+                                    }
+                                </td>
+                                <td class="text-end"><strong>$@unit.SOAAmount.ToString("N0")</strong></td>
+                                <td class="text-end">$@unit.TotalPaid.ToString("N0")</td>
+                                <td class="text-end">
+                                    @if (unit.ShortfallAmount > 0)
+                                    {
+                                        <span class="text-danger fw-bold">$@unit.ShortfallAmount.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success">$0</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @{
+                                        var pctClass = unit.ShortfallPercent <= 0 ? "text-success" :
+                                                      unit.ShortfallPercent < 10 ? "text-success" :
+                                                      unit.ShortfallPercent < 20 ? "text-warning" :
+                                                      unit.ShortfallPercent < 30 ? "text-orange" : "text-danger";
+                                    }
+                                    <span class="fw-bold @pctClass">@unit.ShortfallPercent%</span>
+                                </td>
+                                <td class="text-center">
+                                    @{
+                                        var badgeClass = unit.Recommendation switch
+                                        {
+                                            PreConHub.Models.Entities.ClosingRecommendation.ProceedToClose => "bg-success",
+                                            PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount => "bg-primary",
+                                            PreConHub.Models.Entities.ClosingRecommendation.VTBSecondMortgage => "bg-warning text-dark",
+                                            PreConHub.Models.Entities.ClosingRecommendation.VTBFirstMortgage => "bg-orange",
+                                            _ => "bg-danger"
+                                        };
+                                    }
+                                    <span class="badge @badgeClass">@unit.RecommendationText</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="@Url.Action("Details", "Units", new { id = unit.UnitId })" class="btn btn-outline-secondary" title="View Details">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="@Url.Action("Edit", "Units", new { id = unit.UnitId })" class="btn btn-outline-secondary" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a href="@Url.Action("DownloadSOA", "Units", new { id = unit.UnitId })" class="btn btn-outline-secondary" title="Download SOA">
+                                            <i class="bi bi-file-pdf"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Empty State -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <div class="mb-4">
+                    <i class="bi bi-house-door text-muted" style="font-size: 4rem;"></i>
+                </div>
+                <h4>No Units Yet</h4>
+                <p class="text-muted mb-4">
+                    Add units to this project to start tracking closings and calculate shortfalls.
+                </p>
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="@Url.Action("Create", "Units", new { id = Model.ProjectId })" class="btn btn-success">
+                        <i class="bi bi-plus-lg me-2"></i>Add Unit
+                    </a>
+                    <a href="@Url.Action("BulkImport", "Units", new { id = Model.ProjectId })" class="btn btn-outline-primary">
+                        <i class="bi bi-upload me-2"></i>Bulk Import CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Footer Summary -->
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <i class="bi bi-graph-up text-primary me-2"></i>
+                    <span class="text-muted">Total Income Due Closing:</span>
+                    <span class="h5 ms-2">$@Model.TotalIncomeDueClosing.ToString("N0")</span>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>
+                    <span class="text-muted">Total Additional Investment Needed:</span>
+                    <span class="h5 text-danger ms-2">$@Model.Summary.TotalShortfall.ToString("N0")</span>
+                </div>
+            </div>
+            <div class="text-center mt-3 pt-3 border-top">
+                <strong>Total Units: @Model.Summary.TotalUnits</strong> | 
+                Closing Probability: <span class="text-success fw-bold">@Model.Summary.ClosingProbabilityPercent%</span> of Units Can Close
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .bg-orange { background-color: #f97316 !important; }
+    .text-orange { color: #f97316 !important; }
+    .table th { font-size: 0.8rem; white-space: nowrap; }
+    .table td { font-size: 0.875rem; vertical-align: middle; }
+</style>
+}
+
+@section Scripts {
+<script>
+    function filterTable() {
+        const searchInput = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const mortgageFilter = document.getElementById('mortgageFilter').value;
+        const table = document.getElementById('unitTable');
+        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+        let visibleCount = 0;
+
+        for (let row of rows) {
+            const unitNumber = row.cells[1].textContent.toLowerCase();
+            const recommendation = row.getAttribute('data-recommendation');
+            const mortgage = row.getAttribute('data-mortgage');
+            
+            let showRow = true;
+
+            if (searchInput && !unitNumber.includes(searchInput)) {
+                showRow = false;
+            }
+
+            if (statusFilter && recommendation !== statusFilter) {
+                showRow = false;
+            }
+
+            if (mortgageFilter && mortgage !== mortgageFilter) {
+                showRow = false;
+            }
+
+            row.style.display = showRow ? '' : 'none';
+            if (showRow) visibleCount++;
+        }
+
+        document.getElementById('visibleCount').textContent = visibleCount;
+    }
+</script>
+}

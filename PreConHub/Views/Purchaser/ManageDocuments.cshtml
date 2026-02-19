@@ -1,0 +1,485 @@
+@* ============================================================
+   FILE: Views/Purchaser/ManageDocuments.cshtml
+   DESCRIPTION: Document upload and management page for purchasers
+   ============================================================ *@
+
+@model PreConHub.Models.ViewModels.ManageDocumentsViewModel
+@{
+    ViewData["Title"] = "Manage Documents";
+}
+
+<div class="container py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Purchaser")">Dashboard</a></li>
+            <li class="breadcrumb-item active">Manage Documents</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="bi bi-folder2-open text-primary me-2"></i>Manage Documents
+            </h2>
+            <p class="text-muted mb-0">
+                Unit @Model.UnitNumber &bull; @Model.ProjectName
+            </p>
+        </div>
+        <a href="@Url.Action("Dashboard", "Purchaser")" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="alertContainer"></div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Left Column: Upload Form & Required Documents -->
+        <div class="col-lg-5 mb-4">
+            <!-- Completion Status Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="mb-0 text-muted">Document Completion</h6>
+                        <span class="badge @(Model.IsComplete ? "bg-success" : "bg-warning text-dark") fs-6">
+                            @Model.TotalUploaded / @Model.TotalRequired Required
+                        </span>
+                    </div>
+                    <div class="progress mb-2" style="height: 12px;">
+                        <div class="progress-bar @(Model.IsComplete ? "bg-success" : "bg-info")" 
+                             role="progressbar" 
+                             style="width: @Model.CompletionPercentage%"
+                             aria-valuenow="@Model.CompletionPercentage" 
+                             aria-valuemin="0" 
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        @if (Model.IsComplete)
+                        {
+                            <i class="bi bi-check-circle text-success me-1"></i>
+                            @:All required documents uploaded!
+                        }
+                        else
+                        {
+                            <i class="bi bi-info-circle text-info me-1"></i>
+                            @:Upload the required documents to complete your profile
+                        }
+                    </small>
+                </div>
+            </div>
+
+            <!-- Upload Form Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cloud-upload me-2"></i>Upload New Document
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="UnitId" value="@Model.UnitId" />
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Document Type <span class="text-danger">*</span></label>
+                            <select name="DocumentType" id="documentType" class="form-select" required>
+                                <option value="">-- Select Document Type --</option>
+                                <option value="3">Mortgage Approval Letter</option>
+                                <option value="5">Government ID (Front)</option>
+                                <option value="6">Government ID (Back)</option>
+                                <option value="7">Bank Statement</option>
+                                <option value="8">Employment Letter</option>
+                                <option value="9">Notice of Assessment (NOA)</option>
+                                <option value="99">Other Document</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Select File <span class="text-danger">*</span></label>
+                            <input type="file" name="File" id="fileInput" class="form-control" 
+                                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required />
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Allowed: PDF, JPG, PNG, DOC, DOCX (Max 10MB)
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description (Optional)</label>
+                            <input type="text" name="Description" id="description" class="form-control" 
+                                   placeholder="e.g., Mortgage approval from RBC" maxlength="500" />
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" id="uploadBtn" class="btn btn-primary">
+                                <i class="bi bi-upload me-2"></i>Upload Document
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Upload Progress -->
+                    <div id="uploadProgress" class="mt-3 d-none">
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-info" 
+                                 role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <small class="text-muted">Uploading...</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Required Documents Checklist -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-list-check me-2 text-primary"></i>Required Documents Checklist
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var req in Model.RequiredDocuments.Where(r => r.IsRequired))
+                        {
+                            <li class="list-group-item d-flex align-items-start">
+                                @if (req.IsUploaded)
+                                {
+                                    <i class="bi bi-check-circle-fill text-success me-3 mt-1"></i>
+                                    <div>
+                                        <span class="text-muted text-decoration-line-through">@req.Name</span>
+                                        <br/>
+                                        <small class="text-success">
+                                            <i class="bi bi-file-earmark-check me-1"></i>Uploaded
+                                        </small>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-circle text-warning me-3 mt-1"></i>
+                                    <div>
+                                        <span class="fw-medium">@req.Name</span>
+                                        <span class="badge bg-danger ms-1">Required</span>
+                                        <br/>
+                                        <small class="text-muted">@req.Description</small>
+                                    </div>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Optional Documents -->
+            <div class="card border-0 shadow-sm mt-4">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0">
+                        <i class="bi bi-plus-circle me-2 text-secondary"></i>Optional Documents
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <ul class="list-group list-group-flush">
+                        @foreach (var req in Model.RequiredDocuments.Where(r => !r.IsRequired))
+                        {
+                            <li class="list-group-item d-flex align-items-start">
+                                @if (req.IsUploaded)
+                                {
+                                    <i class="bi bi-check-circle-fill text-success me-3 mt-1"></i>
+                                    <div>
+                                        <span class="text-muted text-decoration-line-through">@req.Name</span>
+                                        <br/>
+                                        <small class="text-success">
+                                            <i class="bi bi-file-earmark-check me-1"></i>Uploaded
+                                        </small>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-circle text-secondary me-3 mt-1"></i>
+                                    <div>
+                                        <span>@req.Name</span>
+                                        <span class="badge bg-secondary ms-1">Optional</span>
+                                        <br/>
+                                        <small class="text-muted">@req.Description</small>
+                                    </div>
+                                }
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Uploaded Documents List -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-files me-2 text-primary"></i>Your Uploaded Documents
+                    </h5>
+                    <span class="badge bg-primary">@Model.TotalUploaded documents</span>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.UploadedDocuments.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0" id="documentsTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40%;">Document</th>
+                                        <th>Type</th>
+                                        <th>Size</th>
+                                        <th>Uploaded</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var doc in Model.UploadedDocuments.OrderByDescending(d => d.UploadedAt))
+                                    {
+                                        <tr id="doc-row-@doc.Id">
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    @{
+                                                        var iconClass = doc.FileName.EndsWith(".pdf") ? "bi-file-earmark-pdf text-danger" :
+                                                                        doc.FileName.EndsWith(".doc") || doc.FileName.EndsWith(".docx") ? "bi-file-earmark-word text-primary" :
+                                                                        "bi-file-earmark-image text-success";
+                                                    }
+                                                    <i class="bi @iconClass fs-4 me-2"></i>
+                                                    <div>
+                                                        <span class="fw-medium text-truncate d-block" style="max-width: 200px;" 
+                                                              title="@doc.FileName">@doc.FileName</span>
+                                                        @if (!string.IsNullOrEmpty(doc.Description))
+                                                        {
+                                                            <small class="text-muted">@doc.Description</small>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-light text-dark">@doc.DocumentTypeName</span>
+                                            </td>
+                                            <td class="text-muted">@doc.FileSizeFormatted</td>
+                                            <td>
+                                                <small class="text-muted">@doc.UploadedAtFormatted</small>
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="btn-group btn-group-sm">
+                                                    <a href="@Url.Action("DownloadDocument", "Purchaser", new { id = doc.Id })" 
+                                                       class="btn btn-outline-primary" title="Download">
+                                                        <i class="bi bi-download"></i>
+                                                    </a>
+                                                    <button type="button" class="btn btn-outline-danger delete-doc-btn" 
+                                                            data-doc-id="@doc.Id" data-doc-name="@doc.FileName" title="Delete">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-5">
+                            <i class="bi bi-cloud-upload display-4 text-muted mb-3"></i>
+                            <h5 class="text-muted">No Documents Uploaded Yet</h5>
+                            <p class="text-muted mb-0">
+                                Use the form on the left to upload your first document.
+                            </p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Privacy Notice -->
+            <div class="card border-0 bg-light mt-4">
+                <div class="card-body">
+                    <h6><i class="bi bi-shield-check text-success me-2"></i>Document Security</h6>
+                    <p class="text-muted small mb-0">
+                        Your documents are stored securely and encrypted. Only you, your assigned lawyer, 
+                        and the builder's representatives can access these documents. Documents are used 
+                        solely for the purpose of completing your pre-construction purchase closing.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>Confirm Delete
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this document?</p>
+                <p class="fw-bold mb-0" id="deleteDocName"></p>
+                <p class="text-muted small">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="bi bi-trash me-1"></i>Delete Document
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const alertContainer = document.getElementById('alertContainer');
+        let deleteDocId = null;
+
+        // Handle form submission
+        uploadForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = new FormData(uploadForm);
+
+            // Validate
+            const docType = document.getElementById('documentType').value;
+            const fileInput = document.getElementById('fileInput');
+
+            if (!docType) {
+                showAlert('danger', 'Please select a document type.');
+                return;
+            }
+
+            if (!fileInput.files.length) {
+                showAlert('danger', 'Please select a file to upload.');
+                return;
+            }
+
+            // Check file size (10MB max)
+            const file = fileInput.files[0];
+            if (file.size > 10 * 1024 * 1024) {
+                showAlert('danger', 'File size cannot exceed 10MB.');
+                return;
+            }
+
+            // Show progress
+            uploadBtn.disabled = true;
+            uploadProgress.classList.remove('d-none');
+
+            try {
+                const response = await fetch('@Url.Action("UploadDocument", "Purchaser")', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert('success', result.message);
+                    // Reload page to show new document
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showAlert('danger', result.message || 'Upload failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Upload error:', error);
+                showAlert('danger', 'An error occurred. Please try again.');
+            } finally {
+                uploadBtn.disabled = false;
+                uploadProgress.classList.add('d-none');
+            }
+        });
+
+        // Handle delete button clicks
+        document.querySelectorAll('.delete-doc-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                deleteDocId = this.dataset.docId;
+                document.getElementById('deleteDocName').textContent = this.dataset.docName;
+                new bootstrap.Modal(document.getElementById('deleteModal')).show();
+            });
+        });
+
+        // Handle delete confirmation
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async function () {
+            if (!deleteDocId) return;
+
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
+
+            try {
+                const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+                
+                const response = await fetch('@Url.Action("DeleteDocument", "Purchaser")?id=' + deleteDocId, {
+                    method: 'POST',
+                    headers: {
+                        'RequestVerificationToken': token
+                    }
+                });
+
+                const result = await response.json();
+
+                bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+
+                if (result.success) {
+                    // Remove row from table
+                    const row = document.getElementById('doc-row-' + deleteDocId);
+                    if (row) row.remove();
+                    showAlert('success', result.message);
+                    // Reload after a moment to update counts
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert('danger', result.message || 'Delete failed.');
+                }
+            } catch (error) {
+                console.error('Delete error:', error);
+                showAlert('danger', 'An error occurred. Please try again.');
+            } finally {
+                this.disabled = false;
+                this.innerHTML = '<i class="bi bi-trash me-1"></i>Delete Document';
+                deleteDocId = null;
+            }
+        });
+
+        function showAlert(type, message) {
+            alertContainer.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                const alert = alertContainer.querySelector('.alert');
+                if (alert) {
+                    alert.classList.remove('show');
+                    setTimeout(() => alert.remove(), 150);
+                }
+            }, 5000);
+        }
+    });
+</script>
+}

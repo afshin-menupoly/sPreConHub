@@ -1,0 +1,88 @@
+@model List<PreConHub.Models.Entities.AuditLog>
+@{
+    ViewData["Title"] = "My Activity Log";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="mb-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Purchaser")">My Dashboard</a></li>
+                        <li class="breadcrumb-item active">Activity Log</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">
+                    <i class="bi bi-clock-history text-primary me-2"></i>My Activity Log
+                </h1>
+                <p class="text-muted">A record of all actions you have taken in PreConHub.</p>
+            </div>
+
+            @if (!Model.Any())
+            {
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>No activity recorded yet.
+                </div>
+            }
+            else
+            {
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date / Time</th>
+                                        <th>Action</th>
+                                        <th>Record Type</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var log in Model)
+                                    {
+                                        <tr>
+                                            <td class="text-nowrap text-muted small">
+                                                @log.Timestamp.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")
+                                            </td>
+                                            <td>
+                                                @{
+                                                    var badgeClass = log.Action switch
+                                                    {
+                                                        "Submit" => "bg-primary",
+                                                        "Upload" => "bg-info",
+                                                        "Delete" => "bg-danger",
+                                                        "Edit" => "bg-warning text-dark",
+                                                        _ => "bg-secondary"
+                                                    };
+                                                }
+                                                <span class="badge @badgeClass">@log.Action</span>
+                                            </td>
+                                            <td>@log.EntityType</td>
+                                            <td class="small text-muted">
+                                                @if (!string.IsNullOrWhiteSpace(log.NewValues))
+                                                {
+                                                    @log.NewValues
+                                                }
+                                                else if (!string.IsNullOrWhiteSpace(log.Comments))
+                                                {
+                                                    @log.Comments
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-muted small mt-3">
+                    Showing @Model.Count record(s). Contact support if you notice unexpected activity.
+                </p>
+            }
+        </div>
+    </div>
+</div>

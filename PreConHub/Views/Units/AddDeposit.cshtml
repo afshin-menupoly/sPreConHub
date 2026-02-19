@@ -1,0 +1,131 @@
+@{
+    ViewData["Title"] = "Add Deposit";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <!-- Header -->
+            <div class="mb-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                        <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = ViewBag.ProjectId })">@ViewBag.ProjectName</a></li>
+                        <li class="breadcrumb-item"><a href="@Url.Action("Details", "Units", new { id = ViewBag.UnitId })">Unit @ViewBag.UnitNumber</a></li>
+                        <li class="breadcrumb-item active">Add Deposit</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">Add Deposit</h1>
+                <p class="text-muted">Record a deposit payment for Unit @ViewBag.UnitNumber</p>
+            </div>
+
+            <!-- Form Card -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form asp-action="AddDeposit" method="post">
+                        <input type="hidden" name="unitId" value="@ViewBag.UnitId" />
+
+                        <div class="mb-3">
+                            <label class="form-label">Deposit Name <span class="text-danger">*</span></label>
+                            <input type="text" name="depositName" class="form-control" placeholder="e.g., First Deposit, Second Deposit" required />
+                            <div class="form-text">Common names: First Deposit, Second Deposit, Third Deposit, Balance Deposit</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Amount <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" name="amount" step="0.01" min="0" class="form-control" placeholder="25000" required />
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Due Date <span class="text-danger">*</span></label>
+                            <input type="date" name="dueDate" class="form-control" required />
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="isPaid" value="true" class="form-check-input" id="isPaid" onchange="togglePaidDate()">
+                                <label class="form-check-label" for="isPaid">Already Paid</label>
+                            </div>
+                        </div>
+
+                        <div class="mb-4" id="paidDateSection" style="display: none;">
+                            <label class="form-label">Paid Date</label>
+                            <input type="date" name="paidDate" class="form-control" />
+                        </div>
+
+                        <hr />
+
+                        <!-- Quick Add Options -->
+                        <div class="mb-4">
+                            <label class="form-label text-muted">Quick Add (Ontario Standard)</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDeposit('First Deposit', 5)">
+                                    1st (5%)
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDeposit('Second Deposit', 5)">
+                                    2nd (5%)
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDeposit('Third Deposit', 5)">
+                                    3rd (5%)
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setDeposit('Fourth Deposit', 5)">
+                                    4th (5%)
+                                </button>
+                            </div>
+                            <div class="form-text">Click to auto-fill deposit name and typical amount (based on 20% total deposits)</div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="@Url.Action("Details", "Units", new { id = ViewBag.UnitId })" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-plus-lg me-2"></i>Add Deposit
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Info Card -->
+            <div class="card border-0 shadow-sm mt-4 bg-light">
+                <div class="card-body">
+                    <h6><i class="bi bi-info-circle me-2 text-primary"></i>Ontario Deposit Schedule</h6>
+                    <p class="small text-muted mb-2">Typical pre-construction deposit structure:</p>
+                    <ul class="small mb-0">
+                        <li><strong>1st Deposit:</strong> 5% on signing (within 30 days)</li>
+                        <li><strong>2nd Deposit:</strong> 5% at 90 days</li>
+                        <li><strong>3rd Deposit:</strong> 5% at 180 days</li>
+                        <li><strong>4th Deposit:</strong> 5% at 270 days or occupancy</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function togglePaidDate() {
+        var checkbox = document.getElementById('isPaid');
+        var section = document.getElementById('paidDateSection');
+        section.style.display = checkbox.checked ? 'block' : 'none';
+        
+        if (checkbox.checked) {
+            // Default to today's date
+            var today = new Date().toISOString().split('T')[0];
+            document.querySelector('input[name="paidDate"]').value = today;
+        }
+    }
+
+    function setDeposit(name, percentage) {
+        document.querySelector('input[name="depositName"]').value = name;
+        // You could calculate based on purchase price if available
+        // For now, just set the name
+    }
+</script>
+}

@@ -1,0 +1,155 @@
+@model PreConHub.Models.ViewModels.FinancialExposureViewModel
+@{
+    ViewData["Title"] = $"Financial Exposure — {Model.ProjectName}";
+}
+<style>
+    .report-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; color: #fff; }
+    .exposure-card { border-radius: 8px; padding: 1rem; text-align: center; border-left: 4px solid; background: #fff; }
+    .scenario-box { border-radius: 8px; padding: 1rem; text-align: center; }
+    .bg-orange { background-color: #f97316 !important; color: #fff !important; }
+    .border-orange { border-color: #f97316 !important; }
+</style>
+
+<div class="report-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1" style="--bs-breadcrumb-divider-color: rgba(255,255,255,0.5);">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index")" class="text-white-50">Reports</a></li>
+                    <li class="breadcrumb-item active text-white">Financial Exposure</li>
+                </ol>
+            </nav>
+            <h3 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Financial Exposure — @Model.ProjectName</h3>
+        </div>
+        @if (Model.AllProjects.Count > 1)
+        {
+            <select class="form-select form-select-sm bg-transparent text-white border-light" style="max-width: 220px;"
+                    onchange="window.location.href='@Url.Action("FinancialExposure")?projectId=' + this.value">
+                @foreach (var p in Model.AllProjects)
+                {
+                    <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name</option>
+                }
+            </select>
+        }
+    </div>
+</div>
+
+<!-- Exposure Categories -->
+<div class="row g-3 mb-3">
+    <div class="col"><div class="exposure-card" style="border-color: #28a745;"><div class="fs-4 fw-bold text-success">@Model.NoExposureCount</div><div class="small text-muted">No Exposure</div><div class="fw-bold text-success">$0</div></div></div>
+    <div class="col"><div class="exposure-card" style="border-color: #007bff;"><div class="fs-4 fw-bold text-primary">@Model.DiscountExposureCount</div><div class="small text-muted">Discount</div><div class="fw-bold text-primary">@Model.DiscountExposureValue.ToString("C0")</div></div></div>
+    <div class="col"><div class="exposure-card" style="border-color: #ffc107;"><div class="fs-4 fw-bold text-warning">@Model.VTBSecondCount</div><div class="small text-muted">VTB 2nd</div><div class="fw-bold text-warning">@Model.VTBSecondValue.ToString("C0")</div></div></div>
+    <div class="col"><div class="exposure-card" style="border-color: #f97316;"><div class="fs-4 fw-bold" style="color:#f97316">@Model.VTBFirstCount</div><div class="small text-muted">VTB 1st</div><div class="fw-bold" style="color:#f97316">@Model.VTBFirstValue.ToString("C0")</div></div></div>
+    <div class="col"><div class="exposure-card" style="border-color: #dc3545;"><div class="fs-4 fw-bold text-danger">@Model.DefaultRiskCount</div><div class="small text-muted">Default Risk</div><div class="fw-bold text-danger">@Model.DefaultRiskValue.ToString("C0")</div></div></div>
+</div>
+
+<div class="alert alert-dark text-center mb-4">
+    <strong>Total Exposure: @Model.TotalExposure.ToString("C0")</strong> across @Model.TotalUnits units
+</div>
+
+<!-- Scenario Analysis -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="scenario-box bg-success bg-opacity-10 border border-success">
+            <div class="small text-success fw-bold">Best Case</div>
+            <div class="fs-4 fw-bold text-success">@Model.BestCaseRecovery.ToString("C0")</div>
+            <div class="small text-muted">All close with discounts only</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="scenario-box bg-warning bg-opacity-10 border border-warning">
+            <div class="small text-warning fw-bold">Expected</div>
+            <div class="fs-4 fw-bold text-warning">@Model.ExpectedRecovery.ToString("C0")</div>
+            <div class="small text-muted">Weighted probability</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="scenario-box bg-danger bg-opacity-10 border border-danger">
+            <div class="small text-danger fw-bold">Worst Case</div>
+            <div class="fs-4 fw-bold text-danger">@Model.WorstCaseRecovery.ToString("C0")</div>
+            <div class="small text-muted">All shortfalls realized</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts + Brackets -->
+<div class="row g-4 mb-4">
+    <div class="col-md-5">
+        <div class="card h-100"><div class="card-body">
+            <h6>Exposure by Category</h6>
+            <canvas id="exposureChart" style="max-height:280px"></canvas>
+        </div></div>
+    </div>
+    <div class="col-md-7">
+        <div class="card h-100"><div class="card-body">
+            <h6>Exposure Brackets</h6>
+            <div class="row g-2">
+                @foreach (var b in Model.Brackets)
+                {
+                    <div class="col">
+                        <div class="text-center p-2 rounded bg-@(b.ColorClass) bg-opacity-10 border border-@(b.ColorClass)">
+                            <div class="fw-bold fs-5">@b.Count</div>
+                            <div class="small">@b.Label</div>
+                            <div class="fw-bold small">@b.TotalExposure.ToString("C0")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div></div>
+    </div>
+</div>
+
+<!-- Unit Table -->
+<div class="card">
+    <div class="card-header"><h5 class="mb-0"><i class="bi bi-table me-2"></i>Exposure Details</h5></div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table id="exposureTable" class="table table-sm table-hover" style="font-size: 0.82rem;">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Unit</th><th>Purchase Price</th><th>SOA Amount</th><th>Funds Available</th>
+                        <th>Shortfall</th><th>%</th><th>Deposit at Risk</th><th>Category</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var u in Model.Units)
+                    {
+                        <tr>
+                            <td><a href="@Url.Action("Details", "Projects", new { id = u.UnitId })">@u.UnitNumber</a></td>
+                            <td>@u.PurchasePrice.ToString("C0")</td>
+                            <td>@u.SOAAmount.ToString("C0")</td>
+                            <td>@u.TotalFundsAvailable.ToString("C0")</td>
+                            <td class="@(u.ShortfallAmount > 0 ? "text-danger fw-bold" : "text-success")">
+                                @(u.ShortfallAmount > 0 ? $"-{u.ShortfallAmount:C0}" : "$0")
+                            </td>
+                            <td>@u.ShortfallPercentage.ToString("F1")%</td>
+                            <td>@u.DepositAtRisk.ToString("C0")</td>
+                            <td><span class="badge @u.CategoryBadgeClass">@u.ExposureCategory</span></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" />
+}
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+    <script>
+        $('#exposureTable').DataTable({ pageLength: 25, order: [[4, 'desc']] });
+        new Chart(document.getElementById('exposureChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['No Exposure', 'Discount', 'VTB 2nd', 'VTB 1st', 'Default Risk'],
+                datasets: [{ data: [@Model.NoExposureCount, @Model.DiscountExposureCount, @Model.VTBSecondCount, @Model.VTBFirstCount, @Model.DefaultRiskCount],
+                    backgroundColor: ['#28a745', '#007bff', '#ffc107', '#f97316', '#dc3545'] }]
+            },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
+        });
+    </script>
+}

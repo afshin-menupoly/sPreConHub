@@ -1,0 +1,300 @@
+@model PreConHub.Models.ViewModels.PurchaserDashboardViewModel
+@{
+    ViewData["Title"] = "My Dashboard";
+}
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="mb-4">
+        <h1 class="h3 mb-1">Welcome back, @Model.PurchaserName! 👋</h1>
+        <p class="text-muted">Track your pre-construction purchase progress</p>
+    </div>
+
+    <!-- Success/Error Messages -->
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @foreach (var unit in Model.Units)
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <!-- Unit Header -->
+            <div class="card-header bg-white border-0 pb-0">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h4 class="mb-1">
+                            <i class="bi bi-building text-primary me-2"></i>
+                            Unit @unit.UnitNumber
+                        </h4>
+                        <p class="text-muted mb-0">@unit.ProjectName</p>
+                        <small class="text-muted">@unit.ProjectAddress</small>
+                    </div>
+                    <div class="text-end">
+                        @if (unit.ClosingDate.HasValue)
+                        {
+                            var daysLeft = unit.DaysUntilClosing;
+                            var badgeClass = daysLeft > 90 ? "bg-success" : daysLeft > 30 ? "bg-warning text-dark" : "bg-danger";
+                            <span class="badge @badgeClass fs-6">
+                                @if (daysLeft > 0)
+                                {
+                                    @:@daysLeft days until closing
+                                }
+                                else
+                                {
+                                    @:Closing date passed
+                                }
+                            </span>
+                            <div class="small text-muted mt-1">@unit.ClosingDate?.ToString("MMMM dd, yyyy")</div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-body">
+                <div class="row">
+                    <!-- Left: Progress & Actions -->
+                    <div class="col-lg-4 border-end">
+                        <!-- Completion Progress -->
+                        <h6 class="text-muted mb-3">YOUR PROGRESS</h6>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between small mb-1">
+                                <span>Profile Completion</span>
+                                <span class="fw-bold">@unit.CompletionPercentage%</span>
+                            </div>
+                            <div class="progress" style="height: 10px;">
+                                <div class="progress-bar bg-success" style="width: @unit.CompletionPercentage%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Checklist -->
+                        <div class="mb-4">
+                            @foreach (var step in unit.CompletionSteps)
+                            {
+                                <div class="d-flex align-items-center mb-2">
+                                    @if (step.IsComplete)
+                                    {
+                                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                        <span class="text-muted text-decoration-line-through">@step.Name</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="bi bi-circle text-secondary me-2"></i>
+                                        <span>@step.Name</span>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2">
+                            @if (!unit.HasMortgageInfo)
+                            {
+                                <a href="@Url.Action("SubmitMortgageInfo", "Purchaser", new { id = unit.UnitId })" class="btn btn-primary">
+                                    <i class="bi bi-bank me-2"></i>Submit Mortgage Info
+                                </a>
+                            }
+                            else
+                            {
+                                <a href="@Url.Action("SubmitMortgageInfo", "Purchaser", new { id = unit.UnitId })" class="btn btn-outline-primary">
+                                    <i class="bi bi-pencil me-2"></i>Update Mortgage Info
+                                </a>
+                            }
+
+                            @if (!unit.HasFinancialsSubmitted)
+                            {
+                                <a href="@Url.Action("SubmitFinancials", "Purchaser", new { id = unit.UnitId })" class="btn btn-success">
+                                    <i class="bi bi-wallet2 me-2"></i>Submit Financial Info
+                                </a>
+                            }
+                            else
+                            {
+                                <a href="@Url.Action("SubmitFinancials", "Purchaser", new { id = unit.UnitId })" class="btn btn-outline-success">
+                                    <i class="bi bi-pencil me-2"></i>Update Financial Info
+                                </a>
+                            }
+                            <!-- Upload Documents Button -->
+                            @if (!unit.HasDocumentsUploaded)
+
+                            {
+                                <a href="@Url.Action("ManageDocuments", "Purchaser", new { id = unit.UnitId })"
+                                   class="btn btn-info text-white">
+                                    <i class="bi bi-cloud-upload me-2"></i>Upload Documents
+                                </a>
+                            }
+
+                            else
+
+                            {
+                                <a href="@Url.Action("ManageDocuments", "Purchaser", new { id = unit.UnitId })"
+                                   class="btn btn-outline-info">
+                                    <i class="bi bi-folder-check me-2"></i>Manage Documents
+                                    <span class="badge bg-success ms-1">@unit.DocumentsUploadedCount</span>
+                                </a>
+                            }
+                            @if (unit.HasSOA)
+                            {
+                                <a href="@Url.Action("ViewSOA", "Purchaser", new { id = unit.UnitId })" class="btn btn-outline-secondary">
+                                    <i class="bi bi-file-text me-2"></i>View Statement of Adjustments
+                                </a>
+                                <a href="@Url.Action("DownloadSOA", "Purchaser", new { id = unit.UnitId })" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-download"></i> PDF
+                                </a>
+                            }
+                        </div>
+                    </div>
+
+                    <!-- Middle: Financial Summary -->
+                    <div class="col-lg-4 border-end">
+                        <h6 class="text-muted mb-3">FINANCIAL SUMMARY</h6>
+                        
+                        <table class="table table-sm table-borderless">
+                            <tr>
+                                <td class="text-muted">Purchase Price</td>
+                                <td class="text-end fw-bold">$@unit.PurchasePrice.ToString("N0")</td>
+                            </tr>
+                            <tr>
+                                <td class="text-muted">Deposits Paid</td>
+                                <td class="text-end text-success">$@unit.DepositsPaid.ToString("N0")</td>
+                            </tr>
+                            @if (unit.HasMortgageInfo && unit.MortgageApproved)
+                            {
+                                <tr>
+                                    <td class="text-muted">Mortgage Approved</td>
+                                    <td class="text-end">$@unit.MortgageAmount.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (unit.HasFinancialsSubmitted && unit.AdditionalCashAvailable > 0)
+                            {
+                                <tr>
+                                    <td class="text-muted">Additional Funds</td>
+                                    <td class="text-end">$@unit.AdditionalCashAvailable.ToString("N0")</td>
+                                </tr>
+                            }
+                            @if (unit.HasSOA)
+                            {
+                                <tr class="border-top">
+                                    <td class="text-muted">Balance Due at Closing</td>
+                                    <td class="text-end fw-bold">$@unit.BalanceDueOnClosing.ToString("N0")</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-muted">Cash Required to Close</td>
+                                    <td class="text-end fw-bold text-primary">$@unit.CashRequiredToClose.ToString("N0")</td>
+                                </tr>
+                            }
+                        </table>
+
+                        @if (!unit.HasMortgageInfo)
+                        {
+                            <div class="alert alert-warning small">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                Please submit your mortgage information to see your complete financial picture.
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Right: Status & Analysis -->
+                    <div class="col-lg-4">
+                        <h6 class="text-muted mb-3">CLOSING STATUS</h6>
+
+                        @if (unit.HasSOA && unit.HasMortgageInfo)
+                        {
+                            <!-- Status Badge -->
+                                var statusBadge = unit.Recommendation switch
+                                {
+                                    PreConHub.Models.Entities.ClosingRecommendation.ProceedToClose => ("bg-success", "Ready to Close", "bi-check-circle"),
+                                    PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount => ("bg-primary", "Eligible for Discount", "bi-tag"),
+                                    PreConHub.Models.Entities.ClosingRecommendation.VTBSecondMortgage => ("bg-warning text-dark", "VTB Option Available", "bi-bank"),
+                                    PreConHub.Models.Entities.ClosingRecommendation.VTBFirstMortgage => ("bg-orange", "VTB Required", "bi-bank2"),
+                                    _ => ("bg-danger", "Action Required", "bi-exclamation-circle")
+                                };
+                            <div class="text-center mb-3">
+                                <span class="badge @statusBadge.Item1 fs-6 p-2">
+                                    <i class="bi @statusBadge.Item3 me-1"></i>@statusBadge.Item2
+                                </span>
+                            </div>
+
+                            @if (unit.ShortfallAmount > 0)
+                            {
+                                <div class="alert alert-info">
+                                    <strong>Shortfall Amount:</strong> $@unit.ShortfallAmount.ToString("N0")
+                                    <br/>
+                                    <small class="text-muted">(@unit.ShortfallPercentage.ToString("N1")% of purchase price)</small>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle me-2"></i>
+                                    <strong>No shortfall!</strong> You have sufficient funds to close.
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center text-muted py-4">
+                                <i class="bi bi-hourglass-split fs-1 mb-3 d-block"></i>
+                                <p>Complete your profile to see your closing status and analysis.</p>
+                            </div>
+                        }
+
+                        <!-- Mortgage Info Summary -->
+                        @if (unit.HasMortgageInfo)
+                        {
+                            <div class="border rounded p-3 mt-3">
+                                <h6 class="small text-muted mb-2">MORTGAGE INFO</h6>
+                                @if (unit.MortgageApproved)
+                                {
+                                    <p class="mb-1">
+                                        <i class="bi bi-check-circle text-success me-1"></i>
+                                        <strong>Approved:</strong> $@unit.MortgageAmount.ToString("N0")
+                                    </p>
+                                    @if (!string.IsNullOrEmpty(unit.MortgageProvider))
+                                    {
+                                        <p class="mb-0 small text-muted">via @unit.MortgageProvider</p>
+                                    }
+                                }
+                                else
+                                {
+                                    <p class="mb-0">
+                                        <i class="bi bi-x-circle text-danger me-1"></i>
+                                        No mortgage approval on file
+                                    </p>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <!-- Help Card -->
+    <div class="card border-0 shadow-sm bg-light">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h5><i class="bi bi-question-circle me-2 text-primary"></i>Need Help?</h5>
+                    <p class="mb-0 text-muted">
+                        If you have questions about your closing, mortgage requirements, or the Statement of Adjustments, 
+                        please contact your builder representative or lawyer.
+                    </p>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <a href="mailto:support@@preconhub.ca" class="btn btn-outline-primary">
+                        <i class="bi bi-envelope me-2"></i>Contact Support
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .bg-orange { background-color: #fd7e14 !important; }
+</style>
+}

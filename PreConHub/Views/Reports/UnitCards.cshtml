@@ -1,0 +1,446 @@
+@using PreConHub.Models.ViewModels
+@using PreConHub.Models.Entities
+@model ProjectReportViewModel
+@{
+    ViewData["Title"] = "Unit Status Cards";
+
+
+
+    var projectId = Model.ProjectId;
+
+    var projectName = Model.ProjectName ?? "Project";
+
+
+
+    var units = Model.Units ?? new List<ReportUnitItem>();
+
+
+
+    string StatusGroup(ReportUnitItem u) => u.Recommendation switch
+
+    {
+
+        ClosingRecommendation.ProceedToClose => "success",
+
+        ClosingRecommendation.HighRiskDefault => "danger",
+
+        ClosingRecommendation.PotentialDefault => "danger",
+
+        _ => "warning"
+
+    };
+
+
+
+    string StatusLabel(ReportUnitItem u) => StatusGroup(u) switch
+
+    {
+
+        "success" => "Closing Clean",
+
+        "danger" => "High Risk",
+
+        _ => "Needs Support"
+
+    };
+
+
+
+    string StatusIcon(ReportUnitItem u) => StatusGroup(u) switch
+
+    {
+
+        "success" => "check-circle",
+
+        "danger" => "x-circle",
+
+        _ => "exclamation-triangle"
+
+    };
+
+
+
+    var totalCount = units.Count;
+
+    var cleanCount = units.Count(u => StatusGroup(u) == "success");
+
+    var supportCount = units.Count(u => StatusGroup(u) == "warning");
+
+    var riskCount = units.Count(u => StatusGroup(u) == "danger");
+}
+
+<style>
+    .units-container {
+        background: #f8f9fa;
+        min-height: 100vh;
+        padding: 2rem 0;
+    }
+
+    .unit-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.25rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        transition: all 0.2s;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+        .unit-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        .unit-card.status-success {
+            border-left: 4px solid #28a745;
+        }
+
+        .unit-card.status-warning {
+            border-left: 4px solid #ffc107;
+        }
+
+        .unit-card.status-danger {
+            border-left: 4px solid #dc3545;
+        }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.35rem 0.75rem;
+        border-radius: 20px;
+        margin-bottom: 0.75rem;
+    }
+
+    .badge-success {
+        background: rgba(40, 167, 69, 0.1);
+        color: #28a745;
+    }
+
+    .badge-warning {
+        background: rgba(255, 193, 7, 0.15);
+        color: #856404;
+    }
+
+    .badge-danger {
+        background: rgba(220, 53, 69, 0.1);
+        color: #dc3545;
+    }
+
+    .unit-title {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .unit-price {
+        font-size: 1.2rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+    }
+
+    .shortfall-info {
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+
+    .shortfall-negative {
+        color: #dc3545;
+    }
+
+    .shortfall-positive {
+        color: #28a745;
+    }
+
+    .recommendation {
+        background: #f8f9fa;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        margin-top: 0.75rem;
+    }
+
+    .controls-bar {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+    }
+
+    .pagination-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: white;
+        border-radius: 8px;
+        padding: 1rem 1.5rem;
+        margin-top: 2rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+</style>
+
+<div class="units-container">
+    <div class="container-fluid">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-2">
+                        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                        <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = projectId })">Dashboard</a></li>
+                        <li class="breadcrumb-item active">Unit Cards</li>
+                    </ol>
+                </nav>
+                <h2>Unit Status Cards</h2>
+                <p class="text-muted">@totalCount total units • <strong>@projectName</strong></p>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-primary active">
+                    <i class="bi bi-grid-3x3"></i> Card View
+                </button>
+                <a href="@Url.Action("ProjectReport", new { projectId = projectId })" class="btn btn-outline-primary">
+                    <i class="bi bi-table"></i> Table View
+                </a>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-bar">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Filter by Status</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="all">All Units (@totalCount)</option>
+                        <option value="success">Closing Clean (@cleanCount)</option>
+                        <option value="warning">Needs Support (@supportCount)</option>
+                        <option value="danger">High Risk (@riskCount)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Sort By</label>
+                    <select class="form-select" id="sortBy">
+                        <option value="unit-asc">Unit Number (A-Z)</option>
+                        <option value="unit-desc">Unit Number (Z-A)</option>
+                        <option value="price-asc">Price (Low to High)</option>
+                        <option value="price-desc">Price (High to Low)</option>
+                        <option value="shortfall-asc">Shortfall (Low to High)</option>
+                        <option value="shortfall-desc" selected>Shortfall (High to Low)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Items per Page</label>
+                    <select class="form-select" id="itemsPerPage">
+                        <option value="20" selected>20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="500">500</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted mb-1">Search</label>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Search unit number...">
+                </div>
+            </div>
+        </div>
+
+        <!-- Units Grid -->
+        <div class="row g-3" id="unitsGrid">
+            @foreach (var unit in units)
+            {
+                <div class="col-lg-4 col-md-6 col-12 unit-item"
+                     data-status="@StatusGroup(unit)"
+                     data-unit="@unit.UnitNumber"
+                     data-price="@unit.PurchasePrice"
+                     data-shortfall="@Math.Abs(unit.ShortfallAmount)">
+                    <div class="unit-card status-@StatusGroup(unit)">
+                        <div class="status-badge badge-@StatusGroup(unit)">
+                            <i class="bi bi-@StatusIcon(unit) me-1"></i>
+                            @StatusLabel(unit)
+                        </div>
+
+                        <div class="unit-title">@projectName</div>
+                        <div><strong>Unit @unit.UnitNumber</strong></div>
+
+                        <div class="unit-price">@unit.PurchasePrice.ToString("C0")</div>
+
+                        @if (unit.ShortfallAmount <= 0)
+
+                        {
+                            <div class="shortfall-info shortfall-positive">
+                                <i class="bi bi-check-circle-fill"></i> Ready to Close
+                            </div>
+                        }
+
+                        else
+
+                        {
+                            <div class="shortfall-info shortfall-negative">
+                                -@unit.ShortfallAmount.ToString("C0")
+                            </div>
+                            <small class="text-muted">
+                                <i class="bi bi-exclamation-triangle"></i> @unit.ShortfallPercentage.ToString("F1")% shortfall
+                            </small>
+                        }
+
+                        <div class="recommendation">
+                            <i class="bi bi-lightbulb"></i> @unit.RecommendationText
+                        </div>
+
+                        <div class="mt-2 d-flex gap-2">
+                            <a href="@Url.Action("Details", "Units", new { id = unit.UnitId })" class="btn btn-sm btn-outline-primary flex-fill">
+                                <i class="bi bi-eye"></i> Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-controls">
+            <div>
+                <span class="text-muted">Showing <strong id="showingStart">1</strong> to <strong id="showingEnd">20</strong> of <strong id="totalItems">@totalCount</strong> units</span>
+            </div>
+            <nav>
+                <ul class="pagination mb-0" id="pagination">
+                    <!-- Pagination will be generated by JavaScript -->
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+    let itemsPerPage = 20;
+    let filteredItems = [];
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function () {
+        filteredItems = Array.from(document.querySelectorAll('.unit-item'));
+        updateDisplay();
+    });
+
+    // Status Filter
+    document.getElementById('statusFilter').addEventListener('change', function () {
+        const filter = this.value;
+        const allItems = Array.from(document.querySelectorAll('.unit-item'));
+
+        if (filter === 'all') {
+            filteredItems = allItems;
+        } else {
+            filteredItems = allItems.filter(item => item.dataset.status === filter);
+        }
+
+        currentPage = 1;
+        updateDisplay();
+    });
+
+    // Sort
+    document.getElementById('sortBy').addEventListener('change', function () {
+        const sort = this.value;
+
+        filteredItems.sort((a, b) => {
+            switch (sort) {
+                case 'unit-asc':
+                    return a.dataset.unit.localeCompare(b.dataset.unit);
+                case 'unit-desc':
+                    return b.dataset.unit.localeCompare(a.dataset.unit);
+                case 'price-asc':
+                    return parseFloat(a.dataset.price) - parseFloat(b.dataset.price);
+                case 'price-desc':
+                    return parseFloat(b.dataset.price) - parseFloat(a.dataset.price);
+                case 'shortfall-asc':
+                    return parseFloat(a.dataset.shortfall) - parseFloat(b.dataset.shortfall);
+                case 'shortfall-desc':
+                    return parseFloat(b.dataset.shortfall) - parseFloat(a.dataset.shortfall);
+            }
+        });
+
+        updateDisplay();
+    });
+
+    // Items Per Page
+    document.getElementById('itemsPerPage').addEventListener('change', function () {
+        itemsPerPage = parseInt(this.value);
+        currentPage = 1;
+        updateDisplay();
+    });
+
+    // Search
+    document.getElementById('searchInput').addEventListener('input', function () {
+        const search = this.value.toLowerCase();
+        const allItems = Array.from(document.querySelectorAll('.unit-item'));
+
+        filteredItems = allItems.filter(item =>
+            item.dataset.unit.toLowerCase().includes(search)
+        );
+
+        currentPage = 1;
+        updateDisplay();
+    });
+
+    // Update Display
+    function updateDisplay() {
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+
+        // Hide all items first
+        document.querySelectorAll('.unit-item').forEach(item => {
+            item.style.display = 'none';
+        });
+
+        // Show only filtered items for current page
+        filteredItems.slice(start, end).forEach(item => {
+            item.style.display = 'block';
+        });
+
+        // Update pagination info
+        document.getElementById('showingStart').textContent = filteredItems.length > 0 ? start + 1 : 0;
+        document.getElementById('showingEnd').textContent = Math.min(end, filteredItems.length);
+        document.getElementById('totalItems').textContent = filteredItems.length;
+
+        // Render pagination
+        renderPagination();
+    }
+
+    // Render Pagination
+    function renderPagination() {
+        const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+
+        if (totalPages <= 1) return;
+
+        // Previous button
+        const prevLi = document.createElement('li');
+        prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">Previous</a>`;
+        pagination.appendChild(prevLi);
+
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>`;
+            pagination.appendChild(li);
+        }
+
+        // Next button
+        const nextLi = document.createElement('li');
+        nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">Next</a>`;
+        pagination.appendChild(nextLi);
+    }
+
+    // Change page
+    function changePage(page) {
+        const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        updateDisplay();
+    }
+</script>

@@ -1,0 +1,143 @@
+@model PreConHub.Models.ViewModels.ClosingTimelineViewModel
+@{
+    ViewData["Title"] = $"Closing Timeline — {Model.ProjectName}";
+}
+<style>
+    .report-header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border-radius: 12px; padding: 1.5rem 2rem; margin-bottom: 1.5rem; color: #fff; }
+    .urgency-card { border-radius: 8px; padding: 0.8rem; text-align: center; border: 1px solid #e0e0e0; }
+    .urgency-card .count { font-size: 1.5rem; font-weight: 700; }
+    .timeline-group-header { cursor: pointer; border-radius: 8px; padding: 0.8rem 1rem; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .timeline-unit { display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem; border-bottom: 1px solid #f0f0f0; }
+    .timeline-unit:last-child { border-bottom: none; }
+    .date-badge { min-width: 50px; text-align: center; border-radius: 6px; padding: 4px 8px; background: #f0f0f0; }
+    .date-badge .month { font-size: 0.65rem; text-transform: uppercase; color: #6c757d; }
+    .date-badge .day { font-size: 1.1rem; font-weight: 700; }
+    .countdown { font-size: 0.75rem; font-weight: 600; }
+    .bg-orange { background-color: #f97316 !important; color: #fff !important; }
+</style>
+
+<div class="report-header">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1" style="--bs-breadcrumb-divider-color: rgba(255,255,255,0.5);">
+                    <li class="breadcrumb-item"><a href="@Url.Action("Index")" class="text-white-50">Reports</a></li>
+                    <li class="breadcrumb-item active text-white">Closing Timeline</li>
+                </ol>
+            </nav>
+            <h3 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Closing Timeline — @Model.ProjectName</h3>
+        </div>
+        @if (Model.AllProjects.Count > 1)
+        {
+            <select class="form-select form-select-sm bg-transparent text-white border-light" style="max-width: 220px;"
+                    onchange="window.location.href='@Url.Action("ClosingTimeline")?projectId=' + this.value">
+                @foreach (var p in Model.AllProjects) { <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name</option> }
+            </select>
+        }
+    </div>
+</div>
+
+<!-- Urgency Summary -->
+<div class="row g-2 mb-4">
+    <div class="col"><div class="urgency-card"><div class="count text-danger">@Model.OverdueCount</div><div class="small">Overdue</div></div></div>
+    <div class="col"><div class="urgency-card"><div class="count" style="color:#f97316">@Model.ThisWeekCount</div><div class="small">This Week</div></div></div>
+    <div class="col"><div class="urgency-card"><div class="count text-warning">@Model.ThisMonthCount</div><div class="small">This Month</div></div></div>
+    <div class="col"><div class="urgency-card"><div class="count text-info">@Model.Next3MonthsCount</div><div class="small">Next 3 Months</div></div></div>
+    <div class="col"><div class="urgency-card"><div class="count text-secondary">@Model.BeyondCount</div><div class="small">Beyond</div></div></div>
+    <div class="col"><div class="urgency-card"><div class="count text-dark">@Model.NoDateCount</div><div class="small">No Date</div></div></div>
+</div>
+
+<!-- Timeline Groups -->
+@foreach (var group in Model.Groups.Where(g => g.Count > 0))
+{
+    <div class="mb-3">
+        <div class="timeline-group-header bg-@group.ColorClass bg-opacity-10 border border-@group.ColorClass"
+             data-bs-toggle="collapse" data-bs-target="#group-@group.Label.Replace(" ", "")">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi @group.Icon text-@group.ColorClass"></i>
+                <strong>@group.Label</strong>
+                <span class="badge bg-@group.ColorClass">@group.Count units</span>
+                @if (group.ReadyCount > 0) { <span class="badge bg-success">@group.ReadyCount ready</span> }
+                @if (group.AttentionCount > 0) { <span class="badge bg-warning text-dark">@group.AttentionCount need attention</span> }
+            </div>
+            <div class="text-end small">
+                <span class="text-muted">Value:</span> <strong>@group.TotalValue.ToString("C0")</strong>
+                @if (group.TotalExposure > 0)
+                {
+                    <span class="ms-2 text-muted">Exposure:</span> <strong class="text-danger">@group.TotalExposure.ToString("C0")</strong>
+                }
+            </div>
+        </div>
+
+        <div class="collapse show" id="group-@group.Label.Replace(" ", "")">
+            <div class="card card-body p-0">
+                @foreach (var u in group.Units)
+                {
+                    <div class="timeline-unit">
+                        @if (u.ClosingDate.HasValue)
+                        {
+                            <div class="date-badge">
+                                <div class="month">@u.ClosingDate.Value.ToString("MMM")</div>
+                                <div class="day">@u.ClosingDate.Value.Day</div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="date-badge"><div class="day">—</div></div>
+                        }
+
+                        <div class="flex-grow-1">
+                            <a href="@Url.Action("Details", "Projects", new { id = u.UnitId })" class="fw-bold text-decoration-none">@u.UnitNumber</a>
+                            <span class="badge @(u.StatusColorClass == "orange" ? "bg-orange" : $"bg-{u.StatusColorClass}") ms-1" style="font-size:0.65rem;">@u.RecommendationText</span>
+                            @if (!string.IsNullOrEmpty(u.PurchaserName))
+                            {
+                                <span class="text-muted ms-1 small">@u.PurchaserName</span>
+                            }
+                        </div>
+
+                        <div class="text-center" style="min-width: 70px;">
+                            @if (u.HasMortgageApproval)
+                            {
+                                <span class="badge bg-success" style="font-size:0.65rem;"><i class="bi bi-check-circle"></i> Mortgage</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger" style="font-size:0.65rem;"><i class="bi bi-x-circle"></i> No Mortgage</span>
+                            }
+                        </div>
+
+                        <div class="text-end" style="min-width: 80px;">
+                            @if (u.ClosingDate.HasValue)
+                            {
+                                var absD = Math.Abs(u.DaysUntilClosing);
+                                var cls = u.DaysUntilClosing < 0 ? "danger" : u.DaysUntilClosing <= 7 ? "danger" : u.DaysUntilClosing <= 30 ? "warning" : "secondary";
+                                <span class="countdown badge bg-@cls">
+                                    @(u.DaysUntilClosing < 0 ? $"{absD}d overdue" : $"{absD}d")
+                                </span>
+                            }
+                        </div>
+
+                        <div class="text-end" style="min-width: 90px;">
+                            @if (u.ShortfallAmount > 0)
+                            {
+                                <span class="text-danger fw-bold small">-@u.ShortfallAmount.ToString("C0")</span>
+                            }
+                            else
+                            {
+                                <span class="text-success small">$0</span>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@if (!Model.Groups.Any(g => g.Count > 0))
+{
+    <div class="text-center text-muted py-5">
+        <i class="bi bi-calendar-x fs-1"></i>
+        <p class="mt-2">No units found for this project.</p>
+    </div>
+}
