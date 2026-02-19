@@ -286,6 +286,10 @@ namespace PreConHub.Models.Entities
         public DateTime? InterimOccupancyStartDate { get; set; }
         public bool IsFirstTimeBuyer { get; set; } = false;
         public bool IsPrimaryResidence { get; set; } = true;
+        /// <summary>Actual annual municipal land tax paid by builder — used for accurate SOA land tax adjustment.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? ActualAnnualLandTax { get; set; }
+        /// <summary>Actual monthly common expense/maintenance fee — used for accurate SOA common expense adjustment.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? ActualMonthlyMaintenanceFee { get; set; }
         public virtual ICollection<ClosingExtensionRequest> ExtensionRequests { get; set; } = new List<ClosingExtensionRequest>();
     }
 
@@ -577,6 +581,19 @@ namespace PreConHub.Models.Entities
         [Column(TypeName = "decimal(5,3)")]
         public decimal? InterestRate { get; set; }
         public InterestCompoundingType CompoundingType { get; set; } = InterestCompoundingType.Simple;
+        public virtual ICollection<DepositInterestPeriod> InterestPeriods { get; set; } = new List<DepositInterestPeriod>();
+    }
+
+    /// <summary>Government-published semi-annual interest rate period for a deposit (daily simple interest per period).</summary>
+    public class DepositInterestPeriod
+    {
+        [Key] public int Id { get; set; }
+        public int DepositId { get; set; }
+        [ForeignKey("DepositId")] public virtual Deposit Deposit { get; set; } = null!;
+        public DateTime PeriodStart { get; set; }
+        public DateTime PeriodEnd { get; set; }
+        /// <summary>Annual rate as a percentage, e.g. 1.500 = 1.5% per annum.</summary>
+        [Column(TypeName = "decimal(6,3)")] public decimal AnnualRate { get; set; }
     }
 
     public enum DepositStatus
@@ -814,6 +831,31 @@ namespace PreConHub.Models.Entities
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal CashBackIncentives { get; set; }
+
+        // =====================================
+        // Priority 6 — Real-World SOA Alignment Fields
+        // =====================================
+
+        /// <summary>HCRA Regulatory Oversight Fee (Credit Vendor) — loaded from SystemFeeConfig.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal HCRAFee { get; set; }
+        /// <summary>Electronic Registration Fee / Teranet (Credit Vendor) — loaded from SystemFeeConfig.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal ElectronicRegFee { get; set; }
+        /// <summary>Status Certificate fee (Credit Vendor) — loaded from SystemFeeConfig.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal StatusCertFee { get; set; }
+        /// <summary>Transaction Levy Surcharge / LAWPRO (Credit Vendor) — loaded from SystemFeeConfig.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal TransactionLevyFee { get; set; }
+        /// <summary>Security deposit refund to purchaser (Credit Purchaser).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal SecurityDepositRefund { get; set; }
+        /// <summary>Occupancy fees chargeable to purchaser from occupancy to day before closing (Credit Vendor).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal OccupancyFeesChargeable { get; set; }
+        /// <summary>Occupancy fees actually paid by purchaser during the occupancy period (Credit Purchaser).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal OccupancyFeesPaid { get; set; }
+        /// <summary>Interest earned on the total deposit interest, from OccupancyDate to ClosingDate (Credit Purchaser).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal InterestOnDepositInterest { get; set; }
+        /// <summary>Sum of all Credit Vendor items — replaces TotalDebits in the two-column SOA model.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal TotalVendorCredits { get; set; }
+        /// <summary>Sum of all Credit Purchaser items — replaces TotalCredits in the two-column SOA model.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal TotalPurchaserCredits { get; set; }
 
         // =====================================
         // NEW: Locking & Audit Fields
@@ -1464,6 +1506,29 @@ namespace PreConHub.Models.Entities
         Pending = 0,
         Approved = 1,
         Rejected = 2
+    }
+
+    #endregion
+
+    #region System Fee Configuration
+
+    /// <summary>Admin-editable flat fee schedule for Ontario closing costs.
+    /// Stores province-wide flat fees (HCRA, Electronic Registration, Status Certificate, Transaction Levy).
+    /// Admin can update amounts without a code deploy when Ontario changes the rates.</summary>
+    public class SystemFeeConfig
+    {
+        [Key] public int Id { get; set; }
+        /// <summary>Unique key: "HCRA", "ElectronicReg", "StatusCert", "TransactionLevy"</summary>
+        [Required][StringLength(50)] public string Key { get; set; } = "";
+        [Required][StringLength(100)] public string DisplayName { get; set; } = "";
+        [Column(TypeName = "decimal(18,2)")] public decimal Amount { get; set; }
+        /// <summary>If true, 13% HST is added on top of Amount at closing.</summary>
+        public bool HSTApplicable { get; set; } = false;
+        /// <summary>If true, Amount already includes all taxes — no additional HST charged.</summary>
+        public bool HSTIncluded { get; set; } = false;
+        [StringLength(500)] public string? Notes { get; set; }
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public string? UpdatedByUserId { get; set; }
     }
 
     #endregion

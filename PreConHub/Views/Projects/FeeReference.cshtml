@@ -1,0 +1,329 @@
+@model List<PreConHub.Models.Entities.SystemFeeConfig>
+@{
+    ViewData["Title"] = "Ontario Closing Fee Reference";
+}
+
+<div class="container-fluid py-4">
+
+    <div class="d-flex align-items-center mb-4 gap-3">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-book text-primary me-2"></i>Ontario Closing Fee Reference
+            </h1>
+            <p class="text-muted mb-0">
+                Province-wide rates researched from official Ontario government sources (as of Feb 2026).
+                <span class="badge bg-warning text-dark ms-1">
+                    <i class="bi bi-exclamation-triangle me-1"></i>Review annually for fee updates
+                </span>
+            </p>
+        </div>
+        <div class="ms-auto">
+            <a href="@Url.Action("Index", "Projects")" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i>Back to Projects
+            </a>
+        </div>
+    </div>
+
+    @* ─── LAND TRANSFER TAX ─────────────────────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex align-items-center">
+            <i class="bi bi-percent me-2 fs-5"></i>
+            <h5 class="mb-0">Ontario Land Transfer Tax (LTT)</h5>
+            <span class="badge bg-white text-primary ms-auto">Province-wide · Formula-based</span>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-6">
+                    <h6 class="fw-semibold mb-3">Marginal Rate Brackets</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-3">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Purchase Price Range</th>
+                                    <th>Marginal Rate</th>
+                                    <th>Quick Formula</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>$0 – $55,000</td>
+                                    <td><span class="badge bg-success">0.5%</span></td>
+                                    <td class="font-monospace small">Price × 0.005</td>
+                                </tr>
+                                <tr>
+                                    <td>$55,001 – $250,000</td>
+                                    <td><span class="badge bg-success">1.0%</span></td>
+                                    <td class="font-monospace small">(Price × 0.01) − $275</td>
+                                </tr>
+                                <tr>
+                                    <td>$250,001 – $400,000</td>
+                                    <td><span class="badge bg-warning text-dark">1.5%</span></td>
+                                    <td class="font-monospace small">(Price × 0.015) − $1,525</td>
+                                </tr>
+                                <tr>
+                                    <td>$400,001 – $2,000,000</td>
+                                    <td><span class="badge bg-warning text-dark">2.0%</span></td>
+                                    <td class="font-monospace small">(Price × 0.02) − $3,525</td>
+                                </tr>
+                                <tr>
+                                    <td>Over $2,000,000</td>
+                                    <td><span class="badge bg-danger">2.5%</span></td>
+                                    <td class="font-monospace small">(Price × 0.025) − $13,525</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info py-2 mb-0">
+                        <i class="bi bi-calculator me-2"></i>
+                        <strong>Example:</strong> $600,000 condo → ($600,000 × 0.02) − $3,525 = <strong>$8,475</strong>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <h6 class="fw-semibold mb-3">First-Time Home Buyer (FTHB) Rebate</h6>
+                    <table class="table table-sm table-bordered mb-3">
+                        <thead class="table-light">
+                            <tr><th>Rebate</th><th>Max Amount</th><th>Full Rebate Up To</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Ontario Provincial</td>
+                                <td><strong class="text-success">$4,000</strong></td>
+                                <td>~$368,000</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="alert alert-light border mb-0">
+                        <strong>Eligibility:</strong> Canadian citizen or PR, 18+, never owned a home anywhere in the world,
+                        must occupy as principal residence within 9 months, apply within 18 months of registration.
+                        <br><small class="text-muted">Co-purchaser rule: if only one of two buyers qualifies, only 50% of rebate applies.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-3">
+                <small class="text-muted">
+                    <i class="bi bi-link-45deg me-1"></i>Source: Ontario Government — Land Transfer Tax Act.
+                    LTT is paid by the purchaser's lawyer at land registration and appears as an <strong>informational item</strong> on the SOA (not included in the Balance Due calculation).
+                </small>
+            </div>
+        </div>
+    </div>
+
+    @* ─── TORONTO MLTT ──────────────────────────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-danger text-white d-flex align-items-center">
+            <i class="bi bi-geo-alt me-2 fs-5"></i>
+            <h5 class="mb-0">Toronto Municipal Land Transfer Tax (MLTT)</h5>
+            <span class="badge bg-white text-danger ms-auto">City of Toronto ONLY · In addition to Ontario LTT</span>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-6">
+                    <h6 class="fw-semibold mb-3">Marginal Rate Brackets</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-3">
+                            <thead class="table-light">
+                                <tr><th>Purchase Price Range</th><th>Marginal Rate</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>$0 – $55,000</td><td><span class="badge bg-success">0.5%</span></td></tr>
+                                <tr><td>$55,001 – $250,000</td><td><span class="badge bg-success">1.0%</span></td></tr>
+                                <tr><td>$250,001 – $400,000</td><td><span class="badge bg-warning text-dark">1.5%</span></td></tr>
+                                <tr><td>$400,001 – $2,000,000</td><td><span class="badge bg-warning text-dark">2.0%</span></td></tr>
+                                <tr><td>$2,000,001 – $3,000,000</td><td><span class="badge bg-danger">2.5%</span></td></tr>
+                                <tr><td>$3,000,001 – $4,000,000</td><td><span class="badge bg-danger">3.5%</span></td></tr>
+                                <tr><td>$4,000,001 – $5,000,000</td><td><span class="badge bg-danger">4.5%</span></td></tr>
+                                <tr><td>$5,000,001 – $10,000,000</td><td><span class="badge bg-danger">5.5%</span></td></tr>
+                                <tr><td>$10,000,001 – $20,000,000</td><td><span class="badge bg-danger">6.5%</span></td></tr>
+                                <tr><td>Over $20,000,000</td><td><span class="badge bg-dark">7.5%</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="alert alert-danger mb-3">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Toronto buyers pay <strong>both</strong> the Ontario LTT and the Toronto MLTT.
+                        For a $600,000 Toronto condo, combined LTT is <strong>$16,950</strong>.
+                    </div>
+                    <h6 class="fw-semibold mb-2">Toronto FTHB Rebate</h6>
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr><th>Rebate</th><th>Max Amount</th><th>Full Rebate Up To</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Toronto MLTT</td>
+                                <td><strong class="text-success">$4,475</strong></td>
+                                <td>$400,000</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="alert alert-light border mt-2 mb-0">
+                        Combined Ontario + Toronto FTHB rebate: up to <strong class="text-success">$8,475</strong>
+                        <br><small class="text-muted">Luxury brackets above $3M took effect Jan 1, 2024. Further increases proposed for April 2026.</small>
+                    </div>
+                </div>
+            </div>
+            <small class="text-muted">
+                <i class="bi bi-link-45deg me-1"></i>Source: City of Toronto — Municipal Land Transfer Tax. Applies only within City of Toronto boundaries.
+            </small>
+        </div>
+    </div>
+
+    @* ─── FLAT FEE SCHEDULE (from DB) ───────────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white d-flex align-items-center">
+            <i class="bi bi-table me-2 fs-5"></i>
+            <h5 class="mb-0">Ontario Flat Fee Schedule</h5>
+            <span class="badge bg-white text-secondary ms-auto">Province-wide · Admin-editable</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:22%">Fee</th>
+                            <th style="width:13%">Base Amount</th>
+                            <th style="width:13%">HST Treatment</th>
+                            <th style="width:15%">Total at Closing</th>
+                            <th>Notes / Source</th>
+                            <th style="width:12%">Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var fee in Model)
+                        {
+                            var totalAtClosing = fee.HSTApplicable
+                                ? fee.Amount * 1.13m
+                                : fee.Amount;
+                            <tr>
+                                <td class="fw-semibold">@fee.DisplayName</td>
+                                <td class="font-monospace">@fee.Amount.ToString("C")</td>
+                                <td>
+                                    @if (fee.HSTIncluded)
+                                    {
+                                        <span class="badge bg-success">HST included</span>
+                                    }
+                                    else if (fee.HSTApplicable)
+                                    {
+                                        <span class="badge bg-warning text-dark">+13% HST</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">No HST</span>
+                                    }
+                                </td>
+                                <td class="font-monospace fw-bold text-primary">@totalAtClosing.ToString("C")</td>
+                                <td class="small text-muted">@fee.Notes</td>
+                                <td class="small text-muted">@fee.UpdatedAt.ToString("MMM yyyy")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer text-muted small">
+            <i class="bi bi-shield-lock me-1"></i>
+            These amounts are admin-editable. Contact your platform administrator to update fees when Ontario publishes revised rates.
+            @if (User.IsInRole("Admin"))
+            {
+                <a asp-controller="Admin" asp-action="FeeSchedule" class="ms-2 text-primary">
+                    <i class="bi bi-pencil-square me-1"></i>Edit Fee Schedule
+                </a>
+            }
+        </div>
+    </div>
+
+    @* ─── DEPOSIT INTEREST NOTE ─────────────────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-info text-white d-flex align-items-center">
+            <i class="bi bi-bank me-2 fs-5"></i>
+            <h5 class="mb-0">Deposit Interest Rates</h5>
+            <span class="badge bg-white text-info ms-auto">Per-project · Builder-entered</span>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-8">
+                    <p class="mb-2">
+                        Deposit interest is calculated using <strong>government-published semi-annual rate schedules</strong>.
+                        Each project may have its own rate periods (PeriodStart, PeriodEnd, Annual Rate %).
+                    </p>
+                    <p class="mb-2">
+                        <strong>Formula per period:</strong>
+                        <code class="ms-1">DepositAmount × (AnnualRate / 100) × (DaysInPeriod / 365)</code>
+                        <br>
+                        <small class="text-muted">Where DaysInPeriod = MIN(ClosingDate, PeriodEnd) − MAX(DepositDate, PeriodStart)</small>
+                    </p>
+                    <div class="alert alert-light border mb-0">
+                        <strong>Example from a real SOA (Suite 1607):</strong>
+                        <table class="table table-sm mt-2 mb-0">
+                            <thead class="table-light">
+                                <tr><th>Period</th><th>Days</th><th>Annual Rate</th><th>Interest</th></tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Oct 1/22 – Mar 31/23</td><td>182</td><td>1.500%</td><td>Deposit × 0.015 × (182/365)</td></tr>
+                                <tr><td>Apr 1/23 – Sep 30/23</td><td>183</td><td>2.250%</td><td>Deposit × 0.0225 × (183/365)</td></tr>
+                                <tr><td>Oct 1/23 – Mar 31/24</td><td>183</td><td>5.000%</td><td>Deposit × 0.05 × (183/365)</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="alert alert-warning h-100 d-flex flex-column justify-content-center">
+                        <i class="bi bi-pencil-square fs-4 mb-2"></i>
+                        <strong>Builder Action Required</strong>
+                        <p class="mb-0 small mt-1">
+                            Enter deposit interest rate periods on each unit's deposit page.
+                            The rate schedule is provided by the Tarion/government and changes every 6 months.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ─── KEY INPUTS NEEDED FROM BUILDER ───────────────────────────── *@
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-warning text-dark d-flex align-items-center">
+            <i class="bi bi-clipboard-check me-2 fs-5"></i>
+            <h5 class="mb-0">Unit-Level Inputs Required for Accurate SOA</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-3 p-3 border rounded">
+                        <i class="bi bi-house-gear text-warning fs-4"></i>
+                        <div>
+                            <h6 class="fw-semibold mb-1">Actual Annual Land Tax</h6>
+                            <p class="text-muted small mb-0">
+                                Enter the actual annual municipal land tax for each unit.
+                                Used in the SOA Land Taxes adjustment:
+                                <code>Credit Vendor = AnnualTax × (PurchaserDays / 365)</code>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex align-items-start gap-3 p-3 border rounded">
+                        <i class="bi bi-building-gear text-warning fs-4"></i>
+                        <div>
+                            <h6 class="fw-semibold mb-1">Actual Monthly Maintenance Fee</h6>
+                            <p class="text-muted small mb-0">
+                                Enter the actual monthly common expense / maintenance fee.
+                                Used in the SOA Common Expenses adjustment:
+                                <code>Credit Vendor = Monthly × (VendorDays / DaysInMonth)</code>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="text-muted small mt-3 mb-0">
+                <i class="bi bi-info-circle me-1"></i>
+                These fields are entered on the unit Edit page.
+                If left blank, the SOA engine falls back to estimates (1% of price for land tax; $0.60/sqft for maintenance)
+                and will display a warning flag on the SOA.
+            </p>
+        </div>
+    </div>
+
+</div>

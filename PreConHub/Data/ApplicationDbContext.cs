@@ -32,6 +32,8 @@ namespace PreConHub.Data
         public DbSet<Notification> Notifications { get; set; }
         public DbSet<ProjectFinancials> ProjectFinancials { get; set; }
         public DbSet<ClosingExtensionRequest> ClosingExtensionRequests { get; set; }
+        public DbSet<DepositInterestPeriod> DepositInterestPeriods { get; set; }
+        public DbSet<SystemFeeConfig> SystemFeeConfigs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -372,6 +374,63 @@ namespace PreConHub.Data
 
                 entity.HasIndex(e => e.UnitId);
                 entity.HasIndex(e => e.Status);
+            });
+
+            // ============================================
+            // DepositInterestPeriod Configuration
+            // ============================================
+            builder.Entity<DepositInterestPeriod>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.AnnualRate).HasColumnType("decimal(6,3)");
+                entity.HasOne(e => e.Deposit)
+                    .WithMany(d => d.InterestPeriods)
+                    .HasForeignKey(e => e.DepositId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.DepositId);
+            });
+
+            // ============================================
+            // SystemFeeConfig Configuration + Seed Data
+            // ============================================
+            builder.Entity<SystemFeeConfig>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Key).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.DisplayName).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+                entity.HasIndex(e => e.Key).IsUnique();
+
+                entity.HasData(
+                    new SystemFeeConfig
+                    {
+                        Id = 1, Key = "HCRA", DisplayName = "HCRA Regulatory Oversight Fee",
+                        Amount = 170.00m, HSTApplicable = true, HSTIncluded = false,
+                        Notes = "Per unit. HST (13%) added on top at closing. Source: hcraontario.ca. Was $145 at HCRA launch (Feb 2021), increased to $170. Review annually for updates.",
+                        UpdatedAt = new DateTime(2026, 2, 19, 0, 0, 0, DateTimeKind.Utc)
+                    },
+                    new SystemFeeConfig
+                    {
+                        Id = 2, Key = "ElectronicReg", DisplayName = "Electronic Registration Fee (Teranet)",
+                        Amount = 85.00m, HSTApplicable = false, HSTIncluded = true,
+                        Notes = "Per instrument registered. Statutory fee + ELRSA fee + HST all included in flat rate. CPI-adjusted annually by Ontario government (last updated Nov 3, 2025). Source: teraview.ca.",
+                        UpdatedAt = new DateTime(2026, 2, 19, 0, 0, 0, DateTimeKind.Utc)
+                    },
+                    new SystemFeeConfig
+                    {
+                        Id = 3, Key = "StatusCert", DisplayName = "Status Certificate",
+                        Amount = 100.00m, HSTApplicable = false, HSTIncluded = true,
+                        Notes = "Regulated maximum under Ontario Condominium Act 1998 s.18(4). Tax-inclusive. Condo corporation must deliver within 10 calendar days of written request + fee payment.",
+                        UpdatedAt = new DateTime(2026, 2, 19, 0, 0, 0, DateTimeKind.Utc)
+                    },
+                    new SystemFeeConfig
+                    {
+                        Id = 4, Key = "TransactionLevy", DisplayName = "Transaction Levy Surcharge (LAWPRO)",
+                        Amount = 65.00m, HSTApplicable = true, HSTIncluded = false,
+                        Notes = "LAWPRO insurance levy. Base $65 + HST (13%) = ~$73.45 when disbursed to client. Flat province-wide rate. Source: lawpro.ca / Law Society of Ontario.",
+                        UpdatedAt = new DateTime(2026, 2, 19, 0, 0, 0, DateTimeKind.Utc)
+                    }
+                );
             });
         }
 

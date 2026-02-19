@@ -866,6 +866,16 @@ namespace PreConHub.Controllers
             return RedirectToAction(nameof(Dashboard), new { id });
         }
 
+        // GET: /Projects/FeeReference
+        // Ontario closing fee reference for builders — shows LTT rates and live flat fee schedule
+        public async Task<IActionResult> FeeReference()
+        {
+            var fees = await _context.SystemFeeConfigs
+                .OrderBy(f => f.Id)
+                .ToListAsync();
+            return View(fees);
+        }
+
         // Helper method to generate temporary password
         private string GenerateTemporaryPassword()
         {
