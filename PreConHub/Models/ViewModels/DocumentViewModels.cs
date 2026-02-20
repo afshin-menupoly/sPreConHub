@@ -102,4 +102,27 @@
         public string Message { get; set; } = string.Empty;
         public DocumentViewModel? Document { get; set; }
     }
+
+    /// <summary>
+    /// ViewModel for lawyer uploading their SOA document with balance due
+    /// </summary>
+    public class LawyerUploadSoaViewModel
+    {
+        public int AssignmentId { get; set; }
+        public int UnitId { get; set; }
+
+        [Required(ErrorMessage = "Please select an SOA document to upload")]
+        [Display(Name = "SOA Document (PDF)")]
+        public IFormFile SoaFile { get; set; } = null!;
+
+        [Required(ErrorMessage = "Please enter the balance due from the uploaded SOA")]
+        [Range(0, 99999999.99, ErrorMessage = "Balance due must be between $0 and $99,999,999.99")]
+        [DataType(DataType.Currency)]
+        [Display(Name = "Balance Due on Closing")]
+        public decimal LawyerBalanceDue { get; set; }
+
+        [StringLength(500)]
+        [Display(Name = "Notes (Optional)")]
+        public string? Description { get; set; }
+    }
 }

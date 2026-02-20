@@ -6,6 +6,7 @@ using PreConHub.Data;
 using PreConHub.Models.Entities;
 using PreConHub.Models.ViewModels;
 using PreConHub.Services;
+using System.Text.Json;
 
 namespace PreConHub.Controllers
 {
@@ -19,6 +20,7 @@ namespace PreConHub.Controllers
         private readonly IEmailService _emailService;
         private readonly IPdfService _pdfService;
         private readonly INotificationService _notificationService;
+        private readonly IWebHostEnvironment _environment;
 
 
         public LawyerController(
@@ -28,6 +30,7 @@ namespace PreConHub.Controllers
             IEmailService emailService,
             IPdfService pdfService,
             INotificationService notificationService,
+            IWebHostEnvironment environment,
             ILogger<LawyerController> logger)
         {
             _context = context;
@@ -36,6 +39,7 @@ namespace PreConHub.Controllers
             _emailService = emailService;
             _pdfService = pdfService;
             _notificationService = notificationService;
+            _environment = environment;
             _logger = logger;
         }
 
@@ -576,6 +580,116 @@ namespace PreConHub.Controllers
         public IActionResult InvalidInvitation()
         {
             return View();
+        }
+
+        // POST: /Lawyer/UploadSOA
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UploadSOA(LawyerUploadSoaViewModel model)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit)
+                    .ThenInclude(u => u.Project)
+                .Include(la => la.Unit)
+                    .ThenInclude(u => u.SOA)
+                .FirstOrDefaultAsync(la => la.Id == model.AssignmentId && la.LawyerId == userId);
+
+            if (assignment == null)
+                return NotFound();
+
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Please correct the errors and try again.";
+                return RedirectToAction(nameof(ReviewUnit), new { id = model.AssignmentId });
+            }
+
+            // Validate file extension
+            var ext = Path.GetExtension(model.SoaFile.FileName).ToLowerInvariant();
+            if (ext != ".pdf")
+            {
+                TempData["Error"] = "Only PDF files are accepted for SOA uploads.";
+                return RedirectToAction(nameof(ReviewUnit), new { id = model.AssignmentId });
+            }
+
+            // Validate file size (max 10 MB)
+            if (model.SoaFile.Length > 10 * 1024 * 1024)
+            {
+                TempData["Error"] = "File size cannot exceed 10 MB.";
+                return RedirectToAction(nameof(ReviewUnit), new { id = model.AssignmentId });
+            }
+
+            var unit = assignment.Unit;
+
+            // Save file to wwwroot/uploads/documents/{unitId}/{guid}.pdf
+            var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "documents", unit.Id.ToString());
+            Directory.CreateDirectory(uploadsDir);
+
+            var savedFileName = $"{Guid.NewGuid()}{ext}";
+            var filePath = Path.Combine(uploadsDir, savedFileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await model.SoaFile.CopyToAsync(stream);
+            }
+
+            // Create Document entity
+            var document = new Document
+            {
+                UnitId = unit.Id,
+                FileName = model.SoaFile.FileName,
+                FilePath = $"/uploads/documents/{unit.Id}/{savedFileName}",
+                FileSize = model.SoaFile.Length,
+                ContentType = "application/pdf",
+                DocumentType = DocumentType.SOA,
+                Source = DocumentSource.Lawyer,
+                Description = model.Description,
+                UploadedAt = DateTime.UtcNow,
+                UploadedById = userId!
+            };
+            _context.Documents.Add(document);
+
+            // Update SOA with lawyer's balance due
+            if (unit.SOA != null)
+            {
+                var oldBalance = unit.SOA.LawyerUploadedBalanceDue;
+                unit.SOA.LawyerUploadedBalanceDue = model.LawyerBalanceDue;
+
+                _context.AuditLogs.Add(new AuditLog
+                {
+                    EntityType = "StatementOfAdjustments",
+                    EntityId = unit.Id,
+                    Action = "LawyerUploadSOA",
+                    UserId = userId,
+                    UserName = User.Identity?.Name,
+                    UserRole = "Lawyer",
+                    OldValues = oldBalance.HasValue ? JsonSerializer.Serialize(new { LawyerUploadedBalanceDue = oldBalance }) : null,
+                    NewValues = JsonSerializer.Serialize(new { LawyerUploadedBalanceDue = model.LawyerBalanceDue, DocumentId = document.Id }),
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Notify builder
+            var lawyer = await _userManager.GetUserAsync(User);
+            var lawyerName = $"{lawyer?.FirstName} {lawyer?.LastName}".Trim();
+
+            await _notificationService.CreateAsync(
+                userId: unit.Project.BuilderId,
+                title: "Lawyer SOA Uploaded",
+                message: $"{lawyerName} uploaded a final SOA for Unit {unit.UnitNumber} in {unit.Project.Name}. Balance due: {model.LawyerBalanceDue:C}",
+                type: NotificationType.Info,
+                actionUrl: $"/Units/Details/{unit.Id}",
+                unitId: unit.Id
+            );
+
+            _logger.LogInformation("Lawyer {UserId} uploaded SOA for Unit {UnitId}, balance due: {Balance}",
+                userId, unit.Id, model.LawyerBalanceDue);
+
+            TempData["Success"] = "SOA document uploaded successfully.";
+            return RedirectToAction(nameof(ReviewUnit), new { id = model.AssignmentId });
         }
 
         // GET: /Lawyer/DownloadSOA/5 (AssignmentId)

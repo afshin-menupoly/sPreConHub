@@ -754,6 +754,9 @@ namespace PreConHub.Models.Entities
         [StringLength(1000)]
         public string? LawyerNotes { get; set; }
 
+        /// <summary>Balance due on closing entered by the lawyer from their uploaded SOA document. Null = not yet uploaded.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? LawyerUploadedBalanceDue { get; set; }
+
         // =====================================
         // NEW: HST & REBATE FIELDS (Critical)
         // =====================================
