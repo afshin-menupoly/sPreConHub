@@ -650,6 +650,7 @@ namespace PreConHub.Controllers
                 .Include(u => u.Project)
                 .Include(u => u.SOA)
                 .Include(u => u.Deposits)
+                    .ThenInclude(d => d.InterestPeriods)
                 .Include(u => u.Purchasers)
                     .ThenInclude(p => p.Purchaser)
                 .FirstOrDefaultAsync(u => u.Id == id);

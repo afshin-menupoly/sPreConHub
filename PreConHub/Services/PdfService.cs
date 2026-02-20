@@ -2,9 +2,8 @@
 // PDF SERVICE FOR PRECONHUB - STATEMENT OF ADJUSTMENTS
 // ============================================================
 // File: Services/PdfService.cs
-// 
-// REQUIRED NUGET PACKAGE:
-// Install-Package QuestPDF
+//
+// Two-column Ontario SOA layout: Credit Vendor / Credit Purchaser
 // ============================================================
 
 using QuestPDF.Fluent;
@@ -18,10 +17,10 @@ namespace PreConHub.Services
     public interface IPdfService
     {
         byte[] GenerateStatementOfAdjustments(
-            PreConHub.Models.Entities.Unit unit, 
-            StatementOfAdjustments soa, 
-            List<Deposit> deposits, 
-            string purchaserName, 
+            PreConHub.Models.Entities.Unit unit,
+            StatementOfAdjustments soa,
+            List<Deposit> deposits,
+            string purchaserName,
             string? coPurchaserNames = null);
     }
 
@@ -47,21 +46,20 @@ namespace PreConHub.Services
                 {
                     page.Size(PageSizes.Letter);
                     page.Margin(40);
-                    page.DefaultTextStyle(x => x.FontSize(10));
+                    page.DefaultTextStyle(x => x.FontSize(9));
 
-                    // Header
                     page.Header().Element(c => ComposeHeader(c, unit));
-
-                    // Content
                     page.Content().Element(c => ComposeContent(c, unit, soa, deposits, purchaserName, coPurchaserNames));
-
-                    // Footer
                     page.Footer().Element(ComposeFooter);
                 });
             });
 
             return document.GeneratePdf();
         }
+
+        // ───────────────────────────────────────────────────
+        // HEADER
+        // ───────────────────────────────────────────────────
 
         private void ComposeHeader(IContainer container, PreConHub.Models.Entities.Unit unit)
         {
@@ -72,9 +70,9 @@ namespace PreConHub.Services
                     row.RelativeItem().Column(col =>
                     {
                         col.Item().Text("STATEMENT OF ADJUSTMENTS")
-                            .FontSize(20).Bold().FontColor(Colors.Blue.Darken2);
+                            .FontSize(18).Bold().FontColor(Colors.Blue.Darken2);
                         col.Item().Text("Pre-Construction Closing Document")
-                            .FontSize(10).FontColor(Colors.Grey.Darken1);
+                            .FontSize(9).FontColor(Colors.Grey.Darken1);
                     });
 
                     row.ConstantItem(120).Column(col =>
@@ -86,9 +84,13 @@ namespace PreConHub.Services
                     });
                 });
 
-                column.Item().PaddingTop(10).LineHorizontal(2).LineColor(Colors.Blue.Darken2);
+                column.Item().PaddingTop(8).LineHorizontal(2).LineColor(Colors.Blue.Darken2);
             });
         }
+
+        // ───────────────────────────────────────────────────
+        // CONTENT (main layout)
+        // ───────────────────────────────────────────────────
 
         private void ComposeContent(
             IContainer container,
@@ -98,312 +100,530 @@ namespace PreConHub.Services
             string purchaserName,
             string? coPurchaserNames)
         {
-            container.PaddingVertical(20).Column(column =>
+            container.PaddingVertical(15).Column(column =>
             {
                 // Property & Purchaser Info
                 column.Item().Element(c => ComposePropertyInfo(c, unit, purchaserName, coPurchaserNames));
+                column.Item().PaddingVertical(8);
 
-                column.Item().PaddingVertical(15);
+                // Two-column SOA table
+                column.Item().Element(c => ComposeSOATable(c, unit, soa, deposits));
+                column.Item().PaddingVertical(8);
 
-                // Purchase Price Section
-                column.Item().Element(c => ComposePurchaseSection(c, unit, soa));
+                // Financing & Cash Required
+                column.Item().Element(c => ComposeFinancing(c, soa));
+                column.Item().PaddingVertical(8);
 
-                column.Item().PaddingVertical(10);
-
-                // Debits Section
-                column.Item().Element(c => ComposeDebitsSection(c, soa));
-
-                column.Item().PaddingVertical(10);
-
-                // Credits Section
-                column.Item().Element(c => ComposeCreditsSection(c, deposits, soa));
-
-                column.Item().PaddingVertical(10);
-
-                // Summary Section
-                column.Item().Element(c => ComposeSummarySection(c, soa));
-
-                column.Item().PaddingVertical(15);
-
-                // Mortgage & Cash Required
-                column.Item().Element(c => ComposeFinalSection(c, soa));
+                // Informational LTT section
+                column.Item().Element(c => ComposeLTTInfo(c, soa));
             });
         }
 
+        // ───────────────────────────────────────────────────
+        // PROPERTY & PURCHASER INFO
+        // ───────────────────────────────────────────────────
+
         private void ComposePropertyInfo(IContainer container, PreConHub.Models.Entities.Unit unit, string purchaserName, string? coPurchaserNames)
         {
-            container.Border(1).BorderColor(Colors.Grey.Lighten1).Padding(15).Column(column =>
+            container.Border(1).BorderColor(Colors.Grey.Lighten1).Padding(12).Column(column =>
             {
                 column.Item().Text("PROPERTY & PURCHASER INFORMATION")
-                    .FontSize(11).Bold().FontColor(Colors.Blue.Darken2);
+                    .FontSize(10).Bold().FontColor(Colors.Blue.Darken2);
 
-                column.Item().PaddingTop(10).Row(row =>
+                column.Item().PaddingTop(8).Row(row =>
                 {
                     // Left Column - Property
                     row.RelativeItem().Column(col =>
                     {
-                        col.Item().Text("Property Details").Bold().FontSize(9).FontColor(Colors.Grey.Darken2);
-                        col.Item().PaddingTop(5).Text($"Project: {unit.Project?.Name ?? "N/A"}").FontSize(10);
-                        col.Item().Text($"Unit: {unit.UnitNumber}").FontSize(10);
-                        col.Item().Text($"Type: {unit.UnitType} | {unit.Bedrooms} BR / {unit.Bathrooms} BA").FontSize(10);
-                        col.Item().Text($"Size: {unit.SquareFootage:N0} sq ft").FontSize(10);
-                        col.Item().Text($"Address: {unit.Project?.Address}, {unit.Project?.City}, ON").FontSize(10);
+                        col.Item().Text("Property Details").Bold().FontSize(8).FontColor(Colors.Grey.Darken2);
+                        col.Item().PaddingTop(4).Text($"Project: {unit.Project?.Name ?? "N/A"}").FontSize(9);
+                        col.Item().Text($"Unit: {unit.UnitNumber}").FontSize(9);
+                        col.Item().Text($"Type: {unit.UnitType} | {unit.Bedrooms} BR / {unit.Bathrooms} BA").FontSize(9);
+                        col.Item().Text($"Size: {unit.SquareFootage:N0} sq ft").FontSize(9);
+                        col.Item().Text($"Address: {unit.Project?.Address}, {unit.Project?.City}, ON").FontSize(9);
                     });
 
                     // Right Column - Purchaser & Dates
                     row.RelativeItem().Column(col =>
                     {
-                        col.Item().Text("Purchaser Information").Bold().FontSize(9).FontColor(Colors.Grey.Darken2);
-                        col.Item().PaddingTop(5).Text($"Purchaser: {purchaserName}").FontSize(10);
+                        col.Item().Text("Purchaser Information").Bold().FontSize(8).FontColor(Colors.Grey.Darken2);
+                        col.Item().PaddingTop(4).Text($"Purchaser: {purchaserName}").FontSize(9);
                         if (!string.IsNullOrEmpty(coPurchaserNames))
                         {
-                            col.Item().Text($"Co-Purchaser(s): {coPurchaserNames}").FontSize(10);
+                            col.Item().Text($"Co-Purchaser(s): {coPurchaserNames}").FontSize(9);
                         }
-                        col.Item().PaddingTop(10).Text("Important Dates").Bold().FontSize(9).FontColor(Colors.Grey.Darken2);
-                        col.Item().PaddingTop(5).Text($"Occupancy Date: {unit.OccupancyDate?.ToString("MMM dd, yyyy") ?? "TBD"}").FontSize(10);
-                        col.Item().Text($"Closing Date: {(unit.ClosingDate ?? unit.Project?.ClosingDate)?.ToString("MMM dd, yyyy") ?? "TBD"}").FontSize(10);
+                        col.Item().PaddingTop(8).Text("Important Dates").Bold().FontSize(8).FontColor(Colors.Grey.Darken2);
+                        col.Item().PaddingTop(4).Text($"Occupancy Date: {unit.OccupancyDate?.ToString("MMM dd, yyyy") ?? "TBD"}").FontSize(9);
+                        col.Item().Text($"Closing Date: {(unit.ClosingDate ?? unit.Project?.ClosingDate)?.ToString("MMM dd, yyyy") ?? "TBD"}").FontSize(9);
                     });
                 });
             });
         }
 
-        private void ComposePurchaseSection(IContainer container, PreConHub.Models.Entities.Unit unit, StatementOfAdjustments soa)
+        // ───────────────────────────────────────────────────
+        // TWO-COLUMN SOA TABLE
+        // ───────────────────────────────────────────────────
+
+        private void ComposeSOATable(
+            IContainer container,
+            PreConHub.Models.Entities.Unit unit,
+            StatementOfAdjustments soa,
+            List<Deposit> deposits)
         {
-            container.Column(column =>
+            var closingDate = unit.ClosingDate ?? DateTime.UtcNow;
+
+            container.Border(1).BorderColor(Colors.Grey.Lighten1).Table(table =>
             {
-                column.Item().Background(Colors.Blue.Darken2).Padding(8)
-                    .Text("PURCHASE PRICE").FontSize(11).Bold().FontColor(Colors.White);
-
-                column.Item().Border(1).BorderColor(Colors.Grey.Lighten1).Table(table =>
+                table.ColumnsDefinition(columns =>
                 {
-                    table.ColumnsDefinition(columns =>
-                    {
-                        columns.RelativeColumn(3);
-                        columns.RelativeColumn(1);
-                    });
-
-                    // Purchase Price
-                    table.Cell().Padding(8).Text("Base Purchase Price").FontSize(10);
-                    table.Cell().Padding(8).AlignRight().Text($"${unit.PurchasePrice:N2}").FontSize(10).Bold();
+                    columns.RelativeColumn(5);  // Description
+                    columns.RelativeColumn(2);  // Credit Vendor
+                    columns.RelativeColumn(2);  // Credit Purchaser
                 });
-            });
-        }
 
-        private void ComposeDebitsSection(IContainer container, StatementOfAdjustments soa)
-        {
-            container.Column(column =>
-            {
-                column.Item().Background(Colors.Red.Darken2).Padding(8)
-                    .Text("DEBITS (Amounts Owing)").FontSize(11).Bold().FontColor(Colors.White);
+                // ── Column Headers ──
+                table.Cell().Background(Colors.Grey.Darken3).Padding(6)
+                    .Text("ADJUSTMENT ITEM").FontSize(9).Bold().FontColor(Colors.White);
+                table.Cell().Background(Colors.Grey.Darken3).Padding(6).AlignRight()
+                    .Text("CREDIT VENDOR").FontSize(9).Bold().FontColor(Colors.White);
+                table.Cell().Background(Colors.Grey.Darken3).Padding(6).AlignRight()
+                    .Text("CREDIT PURCHASER").FontSize(9).Bold().FontColor(Colors.White);
 
-                column.Item().Border(1).BorderColor(Colors.Grey.Lighten1).Table(table =>
+                // ══════════════════════════════════════════
+                // SALE PRICE
+                // ══════════════════════════════════════════
+                SectionHeader(table, "SALE PRICE");
+
+                CellDesc(table, "Agreed Sale Price (incl. HST)");
+                CellVendor(table, soa.PurchasePrice);
+                CellEmpty(table);
+
+                if (soa.HSTAmount > 0)
                 {
-                    table.ColumnsDefinition(columns =>
-                    {
-                        columns.RelativeColumn(3);
-                        columns.RelativeColumn(1);
-                    });
+                    CellInfo(table, $"    HST: ${soa.HSTAmount:N2} (Federal 5% + Provincial 8%)");
 
-                    // Header
-                    table.Cell().Background(Colors.Grey.Lighten3).Padding(5).Text("Description").FontSize(9).Bold();
-                    table.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Amount").FontSize(9).Bold();
-
-                    // Ontario Land Transfer Tax
-                    if (soa.LandTransferTax > 0)
+                    if (soa.IsHSTRebateEligible)
                     {
-                        table.Cell().Padding(5).Text("Ontario Land Transfer Tax").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.LandTransferTax:N2}").FontSize(9);
+                        CellInfo(table, $"    Federal Rebate: ${soa.HSTRebateFederal:N2}  |  Provincial Rebate: ${soa.HSTRebateOntario:N2}");
                     }
 
-                    // Toronto Land Transfer Tax
-                    if (soa.TorontoLandTransferTax > 0)
+                    if (soa.IsHSTRebateAssignedToBuilder && soa.HSTRebateTotal > 0)
                     {
-                        table.Cell().Padding(5).Text("Toronto Land Transfer Tax").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.TorontoLandTransferTax:N2}").FontSize(9);
+                        CellInfo(table, $"    HST Rebate (${soa.HSTRebateTotal:N2}) assigned to builder");
                     }
 
-                    // Tarion Fee
-                    if (soa.TarionFee > 0)
+                    if (soa.NetHSTPayable > 0 && soa.NetHSTPayable != soa.HSTAmount)
                     {
-                        table.Cell().Padding(5).Text("Tarion Warranty Enrollment Fee").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.TarionFee:N2}").FontSize(9);
+                        CellDesc(table, "Net HST Payable");
+                        CellVendor(table, soa.NetHSTPayable);
+                        CellEmpty(table);
                     }
+                }
 
-                    // Development Charges
-                    if (soa.DevelopmentCharges > 0)
-                    {
-                        table.Cell().Padding(5).Text("Development Charges Levy").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.DevelopmentCharges:N2}").FontSize(9);
-                    }
-
-                    // Utility Connection Fees
-                    if (soa.UtilityConnectionFees > 0)
-                    {
-                        table.Cell().Padding(5).Text("Utility Connection Fees").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.UtilityConnectionFees:N2}").FontSize(9);
-                    }
-
-                    // Occupancy Fees
-                    if (soa.OccupancyFeesOwing > 0)
-                    {
-                        table.Cell().Padding(5).Text("Occupancy Fees Owing").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.OccupancyFeesOwing:N2}").FontSize(9);
-                    }
-
-                    // Parking
-                    if (soa.ParkingPrice > 0)
-                    {
-                        table.Cell().Padding(5).Text("Parking").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.ParkingPrice:N2}").FontSize(9);
-                    }
-
-                    // Locker
-                    if (soa.LockerPrice > 0)
-                    {
-                        table.Cell().Padding(5).Text("Locker").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.LockerPrice:N2}").FontSize(9);
-                    }
-
-                    // Upgrades
-                    if (soa.Upgrades > 0)
-                    {
-                        table.Cell().Padding(5).Text("Upgrades").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.Upgrades:N2}").FontSize(9);
-                    }
-
-                    // Legal Fees Estimate
-                    if (soa.LegalFeesEstimate > 0)
-                    {
-                        table.Cell().Padding(5).Text("Legal Fees (Est.)").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.LegalFeesEstimate:N2}").FontSize(9);
-                    }
-
-                    // Other Debits
-                    if (soa.OtherDebits > 0)
-                    {
-                        table.Cell().Padding(5).Text("Other Debits").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.OtherDebits:N2}").FontSize(9);
-                    }
-
-                    // Total Debits
-                    table.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(5)
-                        .Text("TOTAL DEBITS").FontSize(10).Bold();
-                    table.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(5)
-                        .AlignRight().Text($"${soa.TotalDebits:N2}").FontSize(10).Bold().FontColor(Colors.Red.Darken2);
-                });
-            });
-        }
-
-        private void ComposeCreditsSection(IContainer container, List<Deposit> deposits, StatementOfAdjustments soa)
-        {
-            container.Column(column =>
-            {
-                column.Item().Background(Colors.Green.Darken2).Padding(8)
-                    .Text("CREDITS (Amounts Paid)").FontSize(11).Bold().FontColor(Colors.White);
-
-                column.Item().Border(1).BorderColor(Colors.Grey.Lighten1).Table(table =>
+                // ══════════════════════════════════════════
+                // DEPOSITS
+                // ══════════════════════════════════════════
+                var paidDeposits = deposits.Where(d => d.IsPaid).OrderBy(d => d.PaidDate).ToList();
+                if (paidDeposits.Any())
                 {
-                    table.ColumnsDefinition(columns =>
+                    SectionHeader(table, "DEPOSITS");
+
+                    foreach (var dep in paidDeposits)
                     {
-                        columns.RelativeColumn(3);
-                        columns.RelativeColumn(1);
-                    });
+                        var label = dep.PaidDate.HasValue
+                            ? $"{dep.PaidDate.Value:MMM dd, yyyy} — {dep.DepositName}"
+                            : dep.DepositName;
+                        CellDesc(table, label);
+                        CellEmpty(table);
+                        CellPurchaser(table, dep.Amount);
+                    }
+                }
 
-                    // Header
-                    table.Cell().Background(Colors.Grey.Lighten3).Padding(5).Text("Description").FontSize(9).Bold();
-                    table.Cell().Background(Colors.Grey.Lighten3).Padding(5).AlignRight().Text("Amount").FontSize(9).Bold();
+                // ══════════════════════════════════════════
+                // INTEREST ON DEPOSITS
+                // ══════════════════════════════════════════
+                if (soa.DepositInterest > 0)
+                {
+                    SectionHeader(table, "INTEREST ON DEPOSITS");
 
-                    // Deposits Paid
-                    table.Cell().Padding(5).Text("Deposits Paid").FontSize(9);
-                    table.Cell().Padding(5).AlignRight().Text($"${soa.DepositsPaid:N2}").FontSize(9).FontColor(Colors.Green.Darken2);
-
-                    // Deposit Interest
-                    if (soa.DepositInterest > 0)
+                    foreach (var dep in paidDeposits.Where(d => d.PaidDate.HasValue))
                     {
-                        table.Cell().Padding(5).Text("Deposit Interest").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.DepositInterest:N2}").FontSize(9).FontColor(Colors.Green.Darken2);
+                        var depositDate = dep.PaidDate!.Value;
+
+                        if (dep.InterestPeriods != null && dep.InterestPeriods.Any())
+                        {
+                            foreach (var period in dep.InterestPeriods.OrderBy(p => p.PeriodStart))
+                            {
+                                var effStart = depositDate > period.PeriodStart ? depositDate : period.PeriodStart;
+                                var effEnd = closingDate < period.PeriodEnd ? closingDate : period.PeriodEnd;
+
+                                if (effEnd > effStart)
+                                {
+                                    var days = (effEnd - effStart).Days;
+                                    var interest = dep.Amount * (period.AnnualRate / 100m) * (days / 365m);
+                                    CellDesc(table, $"    {dep.DepositName}: {effStart:MMM d, yyyy} – {effEnd:MMM d, yyyy} @ {period.AnnualRate:F3}% ({days} days)");
+                                    CellEmpty(table);
+                                    CellPurchaser(table, Math.Round(interest, 2));
+                                }
+                            }
+                        }
+                        else if (dep.IsInterestEligible && dep.InterestRate.HasValue && dep.InterestRate.Value > 0)
+                        {
+                            var days = (closingDate - depositDate).Days;
+                            var interest = dep.Amount * dep.InterestRate.Value * (days / 365m);
+                            CellDesc(table, $"    {dep.DepositName}: {depositDate:MMM d, yyyy} – {closingDate:MMM d, yyyy} ({days} days)");
+                            CellEmpty(table);
+                            CellPurchaser(table, Math.Round(interest, 2));
+                        }
                     }
 
-                    // Builder Credits
+                    // Total deposit interest
+                    CellDescBold(table, "Total Deposit Interest");
+                    CellEmpty(table);
+                    CellPurchaserBold(table, soa.DepositInterest);
+                }
+
+                // Interest on deposit interest
+                if (soa.InterestOnDepositInterest > 0)
+                {
+                    CellDesc(table, $"Interest on Deposit Interest ({unit.OccupancyDate?.ToString("MMM d, yyyy") ?? "N/A"} to {closingDate:MMM d, yyyy})");
+                    CellEmpty(table);
+                    CellPurchaser(table, soa.InterestOnDepositInterest);
+                }
+
+                // ══════════════════════════════════════════
+                // ADJUSTMENTS
+                // ══════════════════════════════════════════
+                SectionHeader(table, "ADJUSTMENTS");
+
+                // Land Taxes
+                if (soa.PropertyTaxAdjustment > 0)
+                {
+                    var annualTax = unit.ActualAnnualLandTax ?? unit.PurchasePrice * 0.01m;
+                    var daysInYear = DateTime.IsLeapYear(closingDate.Year) ? 366 : 365;
+                    var purchaserDays = daysInYear - closingDate.DayOfYear;
+                    var estFlag = unit.ActualAnnualLandTax == null ? " *est" : "";
+                    CellDesc(table, $"Land Taxes (Annual: ${annualTax:N2}; {purchaserDays}/{daysInYear} days{estFlag})");
+                    CellVendor(table, soa.PropertyTaxAdjustment);
+                    CellEmpty(table);
+                }
+
+                // Common Expenses
+                if (soa.CommonExpenseAdjustment > 0)
+                {
+                    var monthlyFee = unit.ActualMonthlyMaintenanceFee ?? unit.SquareFootage * 0.60m;
+                    var daysInMonth = DateTime.DaysInMonth(closingDate.Year, closingDate.Month);
+                    var daysRemaining = daysInMonth - closingDate.Day;
+                    var estFlag = unit.ActualMonthlyMaintenanceFee == null ? " *est" : "";
+                    CellDesc(table, $"Common Expenses (Monthly: ${monthlyFee:N2}; {daysRemaining}/{daysInMonth} days{estFlag})");
+                    CellVendor(table, soa.CommonExpenseAdjustment);
+                    CellEmpty(table);
+                }
+
+                // Occupancy Fees Chargeable (Credit Vendor)
+                if (soa.OccupancyFeesChargeable > 0)
+                {
+                    CellDesc(table, "Occupancy Fees Chargeable");
+                    CellVendor(table, soa.OccupancyFeesChargeable);
+                    CellEmpty(table);
+                }
+
+                // Occupancy Fees Paid (Credit Purchaser)
+                if (soa.OccupancyFeesPaid > 0)
+                {
+                    CellDesc(table, "Occupancy Fees Paid");
+                    CellEmpty(table);
+                    CellPurchaser(table, soa.OccupancyFeesPaid);
+                }
+
+                // Security Deposit Refund (Credit Purchaser)
+                if (soa.SecurityDepositRefund > 0)
+                {
+                    CellDesc(table, "Security Deposit Refund");
+                    CellEmpty(table);
+                    CellPurchaser(table, soa.SecurityDepositRefund);
+                }
+
+                // ══════════════════════════════════════════
+                // CLOSING COSTS
+                // ══════════════════════════════════════════
+                SectionHeader(table, "CLOSING COSTS");
+
+                if (soa.TarionFee > 0)
+                {
+                    CellDesc(table, "Tarion Warranty Enrolment Fee");
+                    CellVendor(table, soa.TarionFee);
+                    CellEmpty(table);
+                }
+                if (soa.HCRAFee > 0)
+                {
+                    CellDesc(table, "HCRA Regulatory Oversight Fee (incl. HST)");
+                    CellVendor(table, soa.HCRAFee);
+                    CellEmpty(table);
+                }
+                if (soa.ElectronicRegFee > 0)
+                {
+                    CellDesc(table, "Electronic Registration Fee (HST incl.)");
+                    CellVendor(table, soa.ElectronicRegFee);
+                    CellEmpty(table);
+                }
+                if (soa.StatusCertFee > 0)
+                {
+                    CellDesc(table, "Status Certificate (HST incl.)");
+                    CellVendor(table, soa.StatusCertFee);
+                    CellEmpty(table);
+                }
+                if (soa.TransactionLevyFee > 0)
+                {
+                    CellDesc(table, "Transaction Levy Surcharge (incl. HST)");
+                    CellVendor(table, soa.TransactionLevyFee);
+                    CellEmpty(table);
+                }
+                if (soa.DevelopmentCharges > 0)
+                {
+                    CellDesc(table, "Development Charges Levy");
+                    CellVendor(table, soa.DevelopmentCharges);
+                    CellEmpty(table);
+                }
+                if (soa.EducationDevelopmentCharges > 0)
+                {
+                    CellDesc(table, "Education Development Charges");
+                    CellVendor(table, soa.EducationDevelopmentCharges);
+                    CellEmpty(table);
+                }
+                if (soa.ParklandLevy > 0)
+                {
+                    CellDesc(table, "Parkland Levy");
+                    CellVendor(table, soa.ParklandLevy);
+                    CellEmpty(table);
+                }
+                if (soa.CommunityBenefitCharges > 0)
+                {
+                    CellDesc(table, "Community Benefit Charges");
+                    CellVendor(table, soa.CommunityBenefitCharges);
+                    CellEmpty(table);
+                }
+                if (soa.UtilityConnectionFees > 0)
+                {
+                    CellDesc(table, "Utility Connection / Energization Fees");
+                    CellVendor(table, soa.UtilityConnectionFees);
+                    CellEmpty(table);
+                }
+                if (soa.ParkingPrice > 0)
+                {
+                    CellDesc(table, "Parking");
+                    CellVendor(table, soa.ParkingPrice);
+                    CellEmpty(table);
+                }
+                if (soa.LockerPrice > 0)
+                {
+                    CellDesc(table, "Locker");
+                    CellVendor(table, soa.LockerPrice);
+                    CellEmpty(table);
+                }
+                if (soa.Upgrades > 0)
+                {
+                    CellDesc(table, "Upgrades");
+                    CellVendor(table, soa.Upgrades);
+                    CellEmpty(table);
+                }
+                if (soa.LegalFeesEstimate > 0)
+                {
+                    CellDesc(table, "Legal Fees (Est.)");
+                    CellVendor(table, soa.LegalFeesEstimate);
+                    CellEmpty(table);
+                }
+                if (soa.OtherDebits > 0)
+                {
+                    CellDesc(table, "Other Charges");
+                    CellVendor(table, soa.OtherDebits);
+                    CellEmpty(table);
+                }
+
+                // ══════════════════════════════════════════
+                // BUILDER CREDITS
+                // ══════════════════════════════════════════
+                if (soa.BuilderCredits > 0 || soa.OtherCredits > 0)
+                {
+                    SectionHeader(table, "CREDITS");
+
                     if (soa.BuilderCredits > 0)
                     {
-                        table.Cell().Padding(5).Text("Builder Credits").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.BuilderCredits:N2}").FontSize(9).FontColor(Colors.Green.Darken2);
-                    }
+                        CellDesc(table, "Builder Credits");
+                        CellEmpty(table);
+                        CellPurchaser(table, soa.BuilderCredits);
 
-                    // Other Credits
+                        // Sub-detail
+                        if (soa.DesignCredits > 0)
+                            CellInfo(table, $"    Design Credits: ${soa.DesignCredits:N2}");
+                        if (soa.FreeUpgradesValue > 0)
+                            CellInfo(table, $"    Free Upgrades: ${soa.FreeUpgradesValue:N2}");
+                        if (soa.CashBackIncentives > 0)
+                            CellInfo(table, $"    Cash Back Incentives: ${soa.CashBackIncentives:N2}");
+                    }
                     if (soa.OtherCredits > 0)
                     {
-                        table.Cell().Padding(5).Text("Other Credits").FontSize(9);
-                        table.Cell().Padding(5).AlignRight().Text($"${soa.OtherCredits:N2}").FontSize(9).FontColor(Colors.Green.Darken2);
+                        CellDesc(table, "Other Credits");
+                        CellEmpty(table);
+                        CellPurchaser(table, soa.OtherCredits);
                     }
+                }
 
-                    // Total Credits
-                    table.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(5)
-                        .Text("TOTAL CREDITS").FontSize(10).Bold();
-                    table.Cell().Border(1).BorderColor(Colors.Grey.Lighten2).Padding(5)
-                        .AlignRight().Text($"${soa.TotalCredits:N2}").FontSize(10).Bold().FontColor(Colors.Green.Darken2);
-                });
+                // ══════════════════════════════════════════
+                // TOTALS
+                // ══════════════════════════════════════════
+                // Total Vendor
+                table.Cell().Background(Colors.Blue.Lighten5).Padding(6)
+                    .Text("TOTAL CREDIT VENDOR").FontSize(10).Bold();
+                table.Cell().Background(Colors.Blue.Lighten5).Padding(6).AlignRight()
+                    .Text($"${soa.TotalVendorCredits:N2}").FontSize(10).Bold().FontColor(Colors.Blue.Darken2);
+                table.Cell().Background(Colors.Blue.Lighten5).Padding(6).Text("");
+
+                // Total Purchaser
+                table.Cell().Background(Colors.Green.Lighten5).Padding(6)
+                    .Text("TOTAL CREDIT PURCHASER").FontSize(10).Bold();
+                table.Cell().Background(Colors.Green.Lighten5).Padding(6).Text("");
+                table.Cell().Background(Colors.Green.Lighten5).Padding(6).AlignRight()
+                    .Text($"${soa.TotalPurchaserCredits:N2}").FontSize(10).Bold().FontColor(Colors.Green.Darken2);
+
+                // Balance Due
+                table.Cell().Background(Colors.Blue.Darken2).Padding(8)
+                    .Text("BALANCE DUE ON CLOSING").FontSize(11).Bold().FontColor(Colors.White);
+                table.Cell().ColumnSpan(2).Background(Colors.Blue.Darken2).Padding(8).AlignRight()
+                    .Text($"${soa.BalanceDueOnClosing:N2}").FontSize(13).Bold().FontColor(Colors.White);
             });
         }
 
-        private void ComposeSummarySection(IContainer container, StatementOfAdjustments soa)
-        {
-            container.Border(2).BorderColor(Colors.Blue.Darken2).Background(Colors.Blue.Lighten5).Padding(15).Column(column =>
-            {
-                column.Item().Text("BALANCE DUE ON CLOSING")
-                    .FontSize(14).Bold().FontColor(Colors.Blue.Darken2);
+        // ───────────────────────────────────────────────────
+        // FINANCING & CASH REQUIRED
+        // ───────────────────────────────────────────────────
 
-                column.Item().PaddingTop(10).Row(row =>
-                {
-                    row.RelativeItem().Text("Total Debits - Total Credits").FontSize(10);
-                    row.ConstantItem(120).AlignRight().Text($"${soa.BalanceDueOnClosing:N2}")
-                        .FontSize(16).Bold().FontColor(Colors.Blue.Darken2);
-                });
-            });
-        }
-
-        private void ComposeFinalSection(IContainer container, StatementOfAdjustments soa)
+        private void ComposeFinancing(IContainer container, StatementOfAdjustments soa)
         {
-            container.Column(column =>
+            container.Border(1).BorderColor(Colors.Grey.Lighten1).Padding(10).Column(column =>
             {
-                // Mortgage Info
-                column.Item().Border(1).BorderColor(Colors.Grey.Lighten1).Padding(10).Row(row =>
+                column.Item().Text("FINANCING").FontSize(10).Bold().FontColor(Colors.Grey.Darken2);
+
+                column.Item().PaddingTop(5).Row(row =>
                 {
-                    row.RelativeItem().Column(col =>
-                    {
-                        col.Item().Text("FINANCING").FontSize(11).Bold().FontColor(Colors.Grey.Darken2);
-                        col.Item().PaddingTop(5).Text($"Mortgage Amount: ${soa.MortgageAmount:N2}").FontSize(10);
-                    });
+                    row.RelativeItem().Text("Mortgage Amount:").FontSize(9);
+                    row.ConstantItem(120).AlignRight().Text($"${soa.MortgageAmount:N2}").FontSize(9);
                 });
 
-                column.Item().PaddingTop(10);
-
-                // Cash Required
                 var cashRequired = soa.CashRequiredToClose;
-                var bgColor = cashRequired <= 0 ? Colors.Green.Lighten4 : Colors.Red.Lighten4;
                 var textColor = cashRequired <= 0 ? Colors.Green.Darken3 : Colors.Red.Darken3;
                 var statusText = cashRequired <= 0 ? "FULLY FUNDED" : "CASH REQUIRED";
 
-                column.Item().Border(2).BorderColor(textColor).Background(bgColor).Padding(15).Column(col =>
+                column.Item().PaddingTop(8).Border(1).BorderColor(textColor).Padding(8).Row(row =>
                 {
-                    col.Item().Row(row =>
+                    row.RelativeItem().Column(c =>
                     {
-                        row.RelativeItem().Column(c =>
-                        {
-                            c.Item().Text("CASH REQUIRED TO CLOSE").FontSize(12).Bold().FontColor(textColor);
-                            c.Item().PaddingTop(3).Text("(Balance Due - Mortgage Amount)").FontSize(9).FontColor(Colors.Grey.Darken1);
-                        });
-                        row.ConstantItem(150).AlignRight().Column(c =>
-                        {
-                            c.Item().AlignRight().Text($"${Math.Abs(cashRequired):N2}")
-                                .FontSize(18).Bold().FontColor(textColor);
-                            c.Item().AlignRight().Text(statusText).FontSize(10).Bold().FontColor(textColor);
-                        });
+                        c.Item().Text("CASH REQUIRED TO CLOSE").FontSize(10).Bold().FontColor(textColor);
+                        c.Item().PaddingTop(2).Text("(Balance Due \u2212 Mortgage)").FontSize(8).FontColor(Colors.Grey.Darken1);
+                    });
+                    row.ConstantItem(140).AlignRight().Column(c =>
+                    {
+                        c.Item().AlignRight().Text($"${Math.Abs(cashRequired):N2}")
+                            .FontSize(14).Bold().FontColor(textColor);
+                        c.Item().AlignRight().Text(statusText).FontSize(9).Bold().FontColor(textColor);
                     });
                 });
             });
         }
+
+        // ───────────────────────────────────────────────────
+        // INFORMATIONAL LTT (not included in balance)
+        // ───────────────────────────────────────────────────
+
+        private void ComposeLTTInfo(IContainer container, StatementOfAdjustments soa)
+        {
+            if (soa.LandTransferTax <= 0 && soa.TorontoLandTransferTax <= 0) return;
+
+            container.Background(Colors.Grey.Lighten4).Border(1).BorderColor(Colors.Grey.Lighten2)
+                .Padding(10).Column(column =>
+            {
+                column.Item().Text("INFORMATIONAL \u2014 LAND TRANSFER TAX (paid at registration, not included in balance)")
+                    .FontSize(9).Bold().FontColor(Colors.Grey.Darken2);
+
+                column.Item().PaddingTop(5).Row(row =>
+                {
+                    row.RelativeItem().Text("Ontario LTT:").FontSize(9);
+                    row.ConstantItem(100).AlignRight().Text($"${soa.LandTransferTax:N2}").FontSize(9);
+                });
+
+                if (soa.TorontoLandTransferTax > 0)
+                {
+                    column.Item().Row(row =>
+                    {
+                        row.RelativeItem().Text("Toronto MLTT:").FontSize(9);
+                        row.ConstantItem(100).AlignRight().Text($"${soa.TorontoLandTransferTax:N2}").FontSize(9);
+                    });
+                }
+
+                var combinedLtt = soa.LandTransferTax + soa.TorontoLandTransferTax;
+                column.Item().PaddingTop(3).Row(row =>
+                {
+                    row.RelativeItem().Text("Combined Net LTT:").FontSize(9).Bold();
+                    row.ConstantItem(100).AlignRight().Text($"${combinedLtt:N2}").FontSize(9).Bold();
+                });
+
+                column.Item().PaddingTop(3).Text("Land Transfer Tax is paid by the purchaser's lawyer at land registration and is not included in the SOA balance.")
+                    .FontSize(7).FontColor(Colors.Grey.Medium).Italic();
+            });
+        }
+
+        // ───────────────────────────────────────────────────
+        // TABLE CELL HELPERS
+        // ───────────────────────────────────────────────────
+
+        private static void SectionHeader(TableDescriptor table, string title)
+        {
+            table.Cell().ColumnSpan(3).Background(Colors.Grey.Lighten2).PaddingHorizontal(6).PaddingVertical(4)
+                .Text(title).FontSize(9).Bold().FontColor(Colors.Grey.Darken3);
+        }
+
+        private static void CellDesc(TableDescriptor table, string text)
+        {
+            table.Cell().PaddingHorizontal(6).PaddingVertical(3).Text(text).FontSize(9);
+        }
+
+        private static void CellDescBold(TableDescriptor table, string text)
+        {
+            table.Cell().PaddingHorizontal(6).PaddingVertical(3).Text(text).FontSize(9).Bold();
+        }
+
+        private static void CellVendor(TableDescriptor table, decimal amount)
+        {
+            table.Cell().PaddingHorizontal(6).PaddingVertical(3).AlignRight()
+                .Text($"${amount:N2}").FontSize(9).FontColor(Colors.Blue.Darken2);
+        }
+
+        private static void CellPurchaser(TableDescriptor table, decimal amount)
+        {
+            table.Cell().PaddingHorizontal(6).PaddingVertical(3).AlignRight()
+                .Text($"${amount:N2}").FontSize(9).FontColor(Colors.Green.Darken2);
+        }
+
+        private static void CellPurchaserBold(TableDescriptor table, decimal amount)
+        {
+            table.Cell().PaddingHorizontal(6).PaddingVertical(3).AlignRight()
+                .Text($"${amount:N2}").FontSize(9).Bold().FontColor(Colors.Green.Darken2);
+        }
+
+        private static void CellEmpty(TableDescriptor table)
+        {
+            table.Cell().PaddingHorizontal(6).PaddingVertical(3).Text("");
+        }
+
+        private static void CellInfo(TableDescriptor table, string text)
+        {
+            table.Cell().ColumnSpan(3).PaddingHorizontal(6).PaddingVertical(1)
+                .Text(text).FontSize(8).FontColor(Colors.Grey.Darken1);
+        }
+
+        // ───────────────────────────────────────────────────
+        // FOOTER
+        // ───────────────────────────────────────────────────
 
         private void ComposeFooter(IContainer container)
         {

@@ -574,6 +574,7 @@ namespace PreConHub.Controllers
                     .ThenInclude(u => u.SOA)
                 .Include(up => up.Unit)
                     .ThenInclude(u => u.Deposits)
+                        .ThenInclude(d => d.InterestPeriods)
                 .Include(up => up.Unit)
                     .ThenInclude(u => u.Purchasers)
                         .ThenInclude(p => p.Purchaser)
