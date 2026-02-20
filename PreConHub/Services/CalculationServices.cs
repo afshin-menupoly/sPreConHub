@@ -317,6 +317,7 @@ namespace PreConHub.Services
                     }),
                     Timestamp = DateTime.UtcNow
                 });
+                soa.Id = existingSoa.Id;
                 _context.Entry(existingSoa).CurrentValues.SetValues(soa);
                 existingSoa.RecalculatedAt = DateTime.UtcNow;
             }
