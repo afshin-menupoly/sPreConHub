@@ -199,10 +199,17 @@ namespace PreConHub.Controllers
                     MortgageApproved = up.MortgageInfo?.HasMortgageApproval ?? false,
                     MortgageAmount = up.MortgageInfo?.ApprovedAmount ?? 0,
                     MortgageProvider = up.MortgageInfo?.MortgageProvider,
+                    CreditScore = up.MortgageInfo?.CreditScore,
+                    MortgageComments = up.MortgageInfo?.Comments,
 
                     // Financials
                     HasFinancialsSubmitted = up.Financials != null,
                     AdditionalCashAvailable = up.Financials?.AdditionalCashAvailable ?? 0,
+                    RRSPAvailable = up.Financials?.RRSPAvailable ?? 0,
+                    GiftFromFamily = up.Financials?.GiftFromFamily ?? 0,
+                    ProceedsFromSale = up.Financials?.ProceedsFromSale ?? 0,
+                    OtherFundsAmount = up.Financials?.OtherFundsAmount ?? 0,
+                    OtherFundsDescription = up.Financials?.OtherFundsDescription,
 
                     // Deposits
                     TotalDeposits = up.Unit.Deposits.Sum(d => d.Amount),

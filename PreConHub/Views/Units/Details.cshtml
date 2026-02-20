@@ -216,6 +216,33 @@
                                     <td>$@Model.PrimaryPurchaser.AdditionalCashAvailable.Value.ToString("N0")</td>
                                 </tr>
                             }
+                            @if (Model.PrimaryPurchaser.CreditScore.HasValue)
+                            {
+                                <tr>
+                                    <td class="text-muted">Credit Score</td>
+                                    <td>
+                                        <span class="fw-bold @(Model.PrimaryPurchaser.CreditScore >= 700 ? "text-success" : Model.PrimaryPurchaser.CreditScore >= 600 ? "text-warning" : "text-danger")">
+                                            @Model.PrimaryPurchaser.CreditScore
+                                        </span>
+                                        @if (Model.PrimaryPurchaser.CreditScore >= 750)
+                                        {
+                                            <span class="badge bg-success ms-1">Excellent</span>
+                                        }
+                                        else if (Model.PrimaryPurchaser.CreditScore >= 700)
+                                        {
+                                            <span class="badge bg-success ms-1">Good</span>
+                                        }
+                                        else if (Model.PrimaryPurchaser.CreditScore >= 600)
+                                        {
+                                            <span class="badge bg-warning text-dark ms-1">Fair</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger ms-1">Poor</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
                         </table>
                     }
                     else

@@ -216,6 +216,9 @@ namespace PreConHub.Models.ViewModels
         public MortgageApprovalType ApprovalType { get; set; }
         public DateTime? ApprovalExpiryDate { get; set; }
         
+        // Credit score
+        public int? CreditScore { get; set; }
+
         // Financials (limited visibility)
         public decimal? AdditionalCashAvailable { get; set; }
     }
@@ -564,10 +567,17 @@ namespace PreConHub.Models.ViewModels
         public bool MortgageApproved { get; set; }
         public decimal MortgageAmount { get; set; }
         public string? MortgageProvider { get; set; }
+        public int? CreditScore { get; set; }
+        public string? MortgageComments { get; set; }
 
         // Financials
         public bool HasFinancialsSubmitted { get; set; }
         public decimal AdditionalCashAvailable { get; set; }
+        public decimal RRSPAvailable { get; set; }
+        public decimal GiftFromFamily { get; set; }
+        public decimal ProceedsFromSale { get; set; }
+        public decimal OtherFundsAmount { get; set; }
+        public string? OtherFundsDescription { get; set; }
 
         // Deposits
         public decimal TotalDeposits { get; set; }

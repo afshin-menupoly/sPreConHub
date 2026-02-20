@@ -417,7 +417,8 @@ namespace PreConHub.Controllers
                     MortgageProvider = User.IsInRole("Admin") ? up.MortgageInfo?.MortgageProvider : null,
                     MortgageAmount = User.IsInRole("Admin") ? up.MortgageInfo?.ApprovedAmount : null,
                     ApprovalExpiryDate = User.IsInRole("Admin") ? up.MortgageInfo?.ApprovalExpiryDate : null,
-                    AdditionalCashAvailable = User.IsInRole("Admin") ? up.Financials?.AdditionalCashAvailable : null
+                    AdditionalCashAvailable = User.IsInRole("Admin") ? up.Financials?.AdditionalCashAvailable : null,
+                    CreditScore = up.MortgageInfo?.CreditScore
                 }).ToList(),
 
                 PrimaryPurchaser = unit.Purchasers
@@ -435,7 +436,8 @@ namespace PreConHub.Controllers
                         MortgageProvider = User.IsInRole("Admin") ? up.MortgageInfo?.MortgageProvider : null,
                         MortgageAmount = User.IsInRole("Admin") ? up.MortgageInfo?.ApprovedAmount : null,
                         ApprovalExpiryDate = User.IsInRole("Admin") ? up.MortgageInfo?.ApprovalExpiryDate : null,
-                        AdditionalCashAvailable = User.IsInRole("Admin") ? up.Financials?.AdditionalCashAvailable : null
+                        AdditionalCashAvailable = User.IsInRole("Admin") ? up.Financials?.AdditionalCashAvailable : null,
+                        CreditScore = up.MortgageInfo?.CreditScore
                     }).FirstOrDefault(),
 
                 // ===== ADD LAWYER ASSIGNMENTS MAPPING =====

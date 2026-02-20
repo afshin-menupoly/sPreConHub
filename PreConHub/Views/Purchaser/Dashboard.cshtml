@@ -264,6 +264,51 @@
                                         No mortgage approval on file
                                     </p>
                                 }
+                                @if (unit.CreditScore.HasValue)
+                                {
+                                    <p class="mb-0 mt-2 small">
+                                        <i class="bi bi-speedometer2 me-1"></i>
+                                        Credit Score: <strong class="@(unit.CreditScore >= 700 ? "text-success" : unit.CreditScore >= 600 ? "text-warning" : "text-danger")">@unit.CreditScore</strong>
+                                    </p>
+                                }
+                                @if (!string.IsNullOrEmpty(unit.MortgageComments))
+                                {
+                                    <p class="mb-0 mt-1 small text-muted fst-italic">@unit.MortgageComments</p>
+                                }
+                            </div>
+                        }
+
+                        <!-- Personal Funds Breakdown -->
+                        @if (unit.HasFinancialsSubmitted && (unit.RRSPAvailable > 0 || unit.GiftFromFamily > 0 || unit.ProceedsFromSale > 0 || unit.OtherFundsAmount > 0))
+                        {
+                            <div class="border rounded p-3 mt-3">
+                                <h6 class="small text-muted mb-2">PERSONAL FUNDS</h6>
+                                @if (unit.RRSPAvailable > 0)
+                                {
+                                    <p class="mb-1 small"><i class="bi bi-piggy-bank me-1"></i>RRSP: <strong>$@unit.RRSPAvailable.ToString("N0")</strong></p>
+                                }
+                                @if (unit.GiftFromFamily > 0)
+                                {
+                                    <p class="mb-1 small"><i class="bi bi-gift me-1"></i>Gift: <strong>$@unit.GiftFromFamily.ToString("N0")</strong></p>
+                                }
+                                @if (unit.ProceedsFromSale > 0)
+                                {
+                                    <p class="mb-1 small"><i class="bi bi-house me-1"></i>Sale Proceeds: <strong>$@unit.ProceedsFromSale.ToString("N0")</strong></p>
+                                }
+                                @if (unit.OtherFundsAmount > 0)
+                                {
+                                    <p class="mb-1 small">
+                                        <i class="bi bi-cash me-1"></i>Other: <strong>$@unit.OtherFundsAmount.ToString("N0")</strong>
+                                        @if (!string.IsNullOrEmpty(unit.OtherFundsDescription))
+                                        {
+                                            <span class="text-muted">(@unit.OtherFundsDescription)</span>
+                                        }
+                                    </p>
+                                }
+                                <hr class="my-2" />
+                                <p class="mb-0 small">
+                                    <i class="bi bi-wallet2 me-1"></i>Additional Cash: <strong>$@unit.AdditionalCashAvailable.ToString("N0")</strong>
+                                </p>
                             </div>
                         }
                     </div>
