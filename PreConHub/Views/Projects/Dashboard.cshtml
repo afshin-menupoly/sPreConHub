@@ -76,6 +76,12 @@
                     @(allowMA ? "MA Access: ON" : "MA Access: OFF")
                 </button>
             </form>
+            @if (User.IsInRole("Builder") || User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+            {
+                <a href="@Url.Action("ProjectInvestment", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-dark" title="Manage project investment & financial data">
+                    <i class="bi bi-safe me-1"></i>Investment
+                </a>
+            }
         </div>
     </div>
 

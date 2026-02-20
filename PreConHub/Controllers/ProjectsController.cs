@@ -1324,6 +1324,110 @@ namespace PreConHub.Controllers
 
         #endregion
 
+        #region Project Investment Management
+
+        // GET: /Projects/ProjectInvestment/5
+        // Builder-only view to manage project-level financial data used by AI allocation engine
+        public async Task<IActionResult> ProjectInvestment(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            var project = await _context.Projects
+                .Include(p => p.Financials)
+                .Include(p => p.Units)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (project == null) return NotFound();
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && project.BuilderId != userId)
+                return Forbid();
+
+            var financials = project.Financials;
+            var totalUnits = project.Units.Count;
+            var unsoldUnits = project.Units.Count(u => u.Status != UnitStatus.Closed && u.Status != UnitStatus.Defaulted && u.Status != UnitStatus.Cancelled);
+
+            var vm = new ProjectInvestmentViewModel
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                TotalRevenue = financials?.TotalRevenue ?? 0,
+                TotalInvestment = financials?.TotalInvestment ?? 0,
+                MarketingCost = financials?.MarketingCost ?? 0,
+                ProfitAvailable = financials?.ProfitAvailable ?? 0,
+                MaxBuilderCapital = financials?.MaxBuilderCapital ?? 0,
+                Notes = financials?.Notes,
+                TotalUnits = totalUnits,
+                UnsoldUnits = unsoldUnits
+            };
+
+            return View(vm);
+        }
+
+        // POST: /Projects/ProjectInvestment/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ProjectInvestment(int id, ProjectInvestmentViewModel model)
+        {
+            var userId = _userManager.GetUserId(User);
+            var project = await _context.Projects
+                .Include(p => p.Financials)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (project == null) return NotFound();
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && project.BuilderId != userId)
+                return Forbid();
+
+            if (!ModelState.IsValid)
+            {
+                model.ProjectId = id;
+                model.ProjectName = project.Name;
+                return View(model);
+            }
+
+            var financials = project.Financials;
+            if (financials == null)
+            {
+                financials = new ProjectFinancials
+                {
+                    ProjectId = id,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.ProjectFinancials.Add(financials);
+            }
+
+            financials.TotalRevenue = model.TotalRevenue;
+            financials.TotalInvestment = model.TotalInvestment;
+            financials.MarketingCost = model.MarketingCost;
+            financials.ProfitAvailable = model.ProfitAvailable;
+            financials.MaxBuilderCapital = model.MaxBuilderCapital;
+            financials.Notes = model.Notes;
+            financials.UpdatedAt = DateTime.UtcNow;
+            financials.UpdatedByUserId = userId;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "ProjectFinancials",
+                EntityId = id,
+                Action = "UpdateProjectInvestment",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    model.TotalRevenue,
+                    model.TotalInvestment,
+                    model.MarketingCost,
+                    model.ProfitAvailable,
+                    model.MaxBuilderCapital
+                }),
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Project investment data updated successfully.";
+            return RedirectToAction(nameof(Dashboard), new { id });
+        }
+
+        #endregion
 
     }
 }

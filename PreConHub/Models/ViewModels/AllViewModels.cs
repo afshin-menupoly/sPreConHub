@@ -1729,4 +1729,44 @@ namespace PreConHub.Models.ViewModels
 
     #endregion
 
+    #region Project Investment
+
+    public class ProjectInvestmentViewModel
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = "";
+
+        [Display(Name = "Total Revenue ($)")]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TotalRevenue { get; set; }
+
+        [Display(Name = "Total Investment ($)")]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TotalInvestment { get; set; }
+
+        [Display(Name = "Marketing Cost ($)")]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal MarketingCost { get; set; }
+
+        [Display(Name = "Profit Available ($)")]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ProfitAvailable { get; set; }
+
+        [Display(Name = "Max Builder Capital for VTB ($)")]
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal MaxBuilderCapital { get; set; }
+
+        [StringLength(500)]
+        [Display(Name = "Notes")]
+        public string? Notes { get; set; }
+
+        // Read-only summary from project
+        public int TotalUnits { get; set; }
+        public int UnsoldUnits { get; set; }
+        public decimal CalculatedProfitPerUnit => UnsoldUnits > 0 ? ProfitAvailable / UnsoldUnits : 0;
+        public decimal CalculatedVTBPerUnit => UnsoldUnits > 0 ? MaxBuilderCapital / UnsoldUnits : 0;
+    }
+
+    #endregion
+
 }

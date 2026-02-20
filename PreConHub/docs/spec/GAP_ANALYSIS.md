@@ -48,7 +48,7 @@
 | **Reports Enhancement** | Deposit Tracking + Purchaser Directory + nav fix | ✅ COMPLETE |
 | **Priority 7** | Data Model: SOAVersion + MA assignment | ✅ COMPLETE |
 | **Priority 8** | 7-Tier Color System | ✅ COMPLETE |
-| **Priority 9** | Project Investment Management | ⏳ NOT STARTED |
+| **Priority 9** | Project Investment Management | ✅ COMPLETE |
 | **Priority 10** | Marketing Agency Per-Project Assignment | ⏳ NOT STARTED |
 | **Priority 11** | SOA Version History | ⏳ NOT STARTED |
 | **Priority 12** | Extension Request Workflow | ⏳ NOT STARTED |
