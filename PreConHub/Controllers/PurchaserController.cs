@@ -162,6 +162,8 @@ namespace PreConHub.Controllers
                     .ThenInclude(u => u.ShortfallAnalysis)
                 .Include(up => up.Unit)
                     .ThenInclude(u => u.Documents)
+                .Include(up => up.Unit)
+                    .ThenInclude(u => u.ExtensionRequests)
                 .Include(up => up.MortgageInfo)
                 .Include(up => up.Financials)
                 .Where(up => up.PurchaserId == userId)
@@ -219,7 +221,25 @@ namespace PreConHub.Controllers
                     // Documents
                     HasDocumentsUploaded = purchaserDocuments.Any(),
                     DocumentsUploadedCount = purchaserDocuments.Count,
-                    RequiredDocumentsCount = 3 // Mortgage approval, ID, Bank statement
+                    RequiredDocumentsCount = 3, // Mortgage approval, ID, Bank statement
+
+                    // Extension Requests
+                    ExtensionRequests = up.Unit.ExtensionRequests
+                        .OrderByDescending(er => er.RequestedDate)
+                        .Select(er => new ExtensionRequestItem
+                        {
+                            RequestId = er.Id,
+                            UnitId = er.UnitId,
+                            UnitNumber = up.Unit.UnitNumber,
+                            ProjectName = up.Unit.Project.Name,
+                            OriginalClosingDate = er.OriginalClosingDate,
+                            RequestedNewClosingDate = er.RequestedNewClosingDate,
+                            Reason = er.Reason,
+                            RequestedDate = er.RequestedDate,
+                            Status = er.Status,
+                            ReviewerNotes = er.ReviewerNotes,
+                            ReviewedAt = er.ReviewedAt
+                        }).ToList()
                 };
                 }).ToList()
             };

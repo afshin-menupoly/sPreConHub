@@ -272,6 +272,75 @@
         </div>
     }
 
+    <!-- Extension Requests Section -->
+    @{
+        var allExtensions = Model.Units.SelectMany(u => u.ExtensionRequests).ToList();
+    }
+    @if (allExtensions.Any())
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-calendar-range text-primary me-2"></i>Extension Requests
+                </h5>
+                @{
+                    var firstUnit = Model.Units.First();
+                }
+                <a href="@Url.Action("SubmitExtensionRequest", "Purchaser", new { id = firstUnit.UnitId })"
+                   class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus me-1"></i>New Request
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle small">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Unit</th>
+                                <th>Original Close</th>
+                                <th>Requested Close</th>
+                                <th>Reason</th>
+                                <th>Submitted</th>
+                                <th>Status</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ext in allExtensions)
+                            {
+                                <tr>
+                                    <td class="fw-bold">@ext.UnitNumber</td>
+                                    <td class="text-muted">
+                                        @(ext.OriginalClosingDate?.ToString("MMM dd, yyyy") ?? "—")
+                                    </td>
+                                    <td>@ext.RequestedNewClosingDate.ToString("MMM dd, yyyy")</td>
+                                    <td class="text-muted" style="max-width:180px;">@(ext.Reason ?? "—")</td>
+                                    <td class="text-muted">@ext.RequestedDate.ToString("MMM dd, yyyy")</td>
+                                    <td><span class="badge @ext.StatusBadgeClass">@ext.StatusText</span></td>
+                                    <td class="text-muted fst-italic" style="max-width:150px;">
+                                        @(ext.ReviewerNotes ?? "—")
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @foreach (var unit in Model.Units)
+        {
+            <div class="mb-3">
+                <a href="@Url.Action("SubmitExtensionRequest", "Purchaser", new { id = unit.UnitId })"
+                   class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-calendar-range me-1"></i>Request Closing Extension for @unit.UnitNumber
+                </a>
+            </div>
+        }
+    }
+
     <!-- Help Card -->
     <div class="card border-0 shadow-sm bg-light">
         <div class="card-body">

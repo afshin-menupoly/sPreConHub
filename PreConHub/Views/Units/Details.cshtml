@@ -855,6 +855,73 @@
             </div>
         </div>
     </div>
+
+    <!-- Extension Requests Section -->
+    @if (Model.ExtensionRequests.Any())
+    {
+        <div class="col-12">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar-range text-primary me-2"></i>Extension Requests
+                        <span class="badge bg-secondary ms-2">@Model.ExtensionRequests.Count</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Purchaser</th>
+                                    <th>Original Close</th>
+                                    <th>Requested Close</th>
+                                    <th class="text-center">Days</th>
+                                    <th>Reason</th>
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                    <th>Notes</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var ext in Model.ExtensionRequests)
+                                {
+                                    <tr>
+                                        <td>@ext.PurchaserName</td>
+                                        <td class="text-muted">
+                                            @(ext.OriginalClosingDate?.ToString("MMM dd, yyyy") ?? "—")
+                                        </td>
+                                        <td>@ext.RequestedNewClosingDate.ToString("MMM dd, yyyy")</td>
+                                        <td class="text-center">
+                                            @if (ext.DaysRequested > 0)
+                                            {
+                                                <span class="badge bg-light text-dark">+@ext.DaysRequested d</span>
+                                            }
+                                        </td>
+                                        <td class="text-muted" style="max-width:180px;">@(ext.Reason ?? "—")</td>
+                                        <td class="text-muted">@ext.RequestedDate.ToString("MMM dd, yyyy")</td>
+                                        <td><span class="badge @ext.StatusBadgeClass">@ext.StatusText</span></td>
+                                        <td class="text-muted fst-italic" style="max-width:150px;">
+                                            @(ext.ReviewerNotes ?? "—")
+                                        </td>
+                                        <td>
+                                            @if (ext.Status == PreConHub.Models.Entities.ClosingExtensionStatus.Pending)
+                                            {
+                                                <a href="@Url.Action("ReviewExtensionRequest", "Units", new { id = ext.RequestId })"
+                                                   class="btn btn-sm btn-primary">
+                                                    <i class="bi bi-pencil-square me-1"></i>Review
+                                                </a>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @section Styles {

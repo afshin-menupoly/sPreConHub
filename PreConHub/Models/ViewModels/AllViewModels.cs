@@ -195,6 +195,9 @@ namespace PreConHub.Models.ViewModels
         public List<LawyerAssignmentViewModel> LawyerAssignments { get; set; } = new();
         public int TotalUnreadLawyerNotes { get; set; }
         public bool HasLawyerActivity => LawyerAssignments.Any();
+
+        // Extension Requests
+        public List<ExtensionRequestItem> ExtensionRequests { get; set; } = new();
     }
 
     public class PurchaserInfoViewModel
@@ -585,6 +588,10 @@ namespace PreConHub.Models.ViewModels
         public decimal ShortfallPercentage { get; set; }
         public ClosingRecommendation? Recommendation { get; set; }
 
+        // Extension requests
+        public List<ExtensionRequestItem> ExtensionRequests { get; set; } = new();
+        public bool HasPendingExtension => ExtensionRequests.Any(e => e.Status == ClosingExtensionStatus.Pending);
+
         // Completion tracking
         public List<CompletionStep> CompletionSteps { get; set; } = new();
         public int CompletionPercentage { get; set; }
@@ -766,6 +773,51 @@ namespace PreConHub.Models.ViewModels
         public string? ReviewerNotes { get; set; }
 
         public bool Approve { get; set; }
+    }
+
+    // ===== EXTENSION REQUEST LIST (Builder/Admin) =====
+    public class ExtensionRequestListViewModel
+    {
+        public string PageTitle { get; set; } = "Extension Requests";
+        public bool ShowingHistory { get; set; }
+        public List<ExtensionRequestItem> Requests { get; set; } = new();
+    }
+
+    public class ExtensionRequestItem
+    {
+        public int RequestId { get; set; }
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+        public string PurchaserName { get; set; } = "";
+        public DateTime? OriginalClosingDate { get; set; }
+        public DateTime RequestedNewClosingDate { get; set; }
+        public string? Reason { get; set; }
+        public DateTime RequestedDate { get; set; }
+        public ClosingExtensionStatus Status { get; set; }
+        public string? ReviewerNotes { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+        public string? ReviewedByName { get; set; }
+
+        public int DaysRequested => OriginalClosingDate.HasValue
+            ? (int)(RequestedNewClosingDate - OriginalClosingDate.Value).TotalDays
+            : 0;
+
+        public string StatusBadgeClass => Status switch
+        {
+            ClosingExtensionStatus.Pending => "bg-warning text-dark",
+            ClosingExtensionStatus.Approved => "bg-success",
+            ClosingExtensionStatus.Rejected => "bg-danger",
+            _ => "bg-secondary"
+        };
+
+        public string StatusText => Status switch
+        {
+            ClosingExtensionStatus.Pending => "Pending",
+            ClosingExtensionStatus.Approved => "Approved",
+            ClosingExtensionStatus.Rejected => "Rejected",
+            _ => "Unknown"
+        };
     }
 
     // ===== REVIEW AI SUGGESTION (Builder) =====

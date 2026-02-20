@@ -330,12 +330,12 @@ namespace PreConHub.Controllers
                 .Include(u => u.SOA)
                 .Include(u => u.ShortfallAnalysis)
                 .Include(u => u.Documents)
-                // ===== ADD THESE INCLUDES =====
+                .Include(u => u.ExtensionRequests)
+                    .ThenInclude(er => er.RequestedByPurchaser)
                 .Include(u => u.LawyerAssignments)
                     .ThenInclude(la => la.Lawyer)
                 .Include(u => u.LawyerAssignments)
                     .ThenInclude(la => la.LawyerNotes)
-                // ==============================
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (unit == null)
@@ -471,8 +471,26 @@ namespace PreConHub.Controllers
                     }).ToList(),
                 TotalUnreadLawyerNotes = unit.LawyerAssignments
                     .SelectMany(la => la.LawyerNotes)
-                    .Count(n => n.Visibility == NoteVisibility.ForBuilder && !n.IsReadByBuilder)
-                // ==========================================
+                    .Count(n => n.Visibility == NoteVisibility.ForBuilder && !n.IsReadByBuilder),
+
+                // Extension Requests
+                ExtensionRequests = unit.ExtensionRequests
+                    .OrderByDescending(er => er.RequestedDate)
+                    .Select(er => new ExtensionRequestItem
+                    {
+                        RequestId = er.Id,
+                        UnitId = er.UnitId,
+                        UnitNumber = unit.UnitNumber,
+                        ProjectName = unit.Project.Name,
+                        PurchaserName = $"{er.RequestedByPurchaser.FirstName} {er.RequestedByPurchaser.LastName}".Trim(),
+                        OriginalClosingDate = er.OriginalClosingDate,
+                        RequestedNewClosingDate = er.RequestedNewClosingDate,
+                        Reason = er.Reason,
+                        RequestedDate = er.RequestedDate,
+                        Status = er.Status,
+                        ReviewerNotes = er.ReviewerNotes,
+                        ReviewedAt = er.ReviewedAt
+                    }).ToList()
             };
 
             if (unit.SOA != null)
