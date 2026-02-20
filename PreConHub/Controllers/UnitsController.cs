@@ -486,7 +486,8 @@ namespace PreConHub.Controllers
                     CashRequiredToClose = unit.SOA.CashRequiredToClose,
                     CalculatedAt = unit.SOA.CalculatedAt,
                     IsConfirmedByLawyer = unit.SOA.IsConfirmedByLawyer,
-                    LawyerNotes = unit.SOA.LawyerNotes
+                    LawyerNotes = unit.SOA.LawyerNotes,
+                    LawyerUploadedBalanceDue = unit.SOA.LawyerUploadedBalanceDue
                 };
             }
 

@@ -102,6 +102,7 @@ namespace PreConHub.Controllers
                     HasSOA = la.Unit.SOA != null,
                     BalanceDueOnClosing = la.Unit.SOA?.BalanceDueOnClosing ?? 0,
                     CashRequiredToClose = la.Unit.SOA?.CashRequiredToClose ?? 0,
+                    LawyerUploadedBalanceDue = la.Unit.SOA?.LawyerUploadedBalanceDue,
                     
                     // Shortfall
                     ShortfallAmount = la.Unit.ShortfallAnalysis?.ShortfallAmount ?? 0,

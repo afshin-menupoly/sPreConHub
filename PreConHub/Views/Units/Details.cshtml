@@ -730,6 +730,40 @@
                                     <i class="bi bi-clock me-1"></i>
                                     Calculated: @Model.SOA.CalculatedAt.ToString("MMM dd, yyyy h:mm tt")
                                 </div>
+
+                                @if (Model.SOA.LawyerUploadedBalanceDue.HasValue)
+                                {
+                                    var systemBal = Model.SOA.BalanceDueOnClosing;
+                                    var lawyerBal = Model.SOA.LawyerUploadedBalanceDue.Value;
+                                    var diff = Math.Abs(systemBal - lawyerBal);
+                                    var match = diff < 1m;
+                                    <div class="alert @(match ? "alert-success" : "alert-danger") mt-3 mb-0">
+                                        <h6 class="alert-heading mb-2">
+                                            <i class="bi @(match ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
+                                            Lawyer SOA Comparison
+                                        </h6>
+                                        <div class="d-flex justify-content-between">
+                                            <span>System Balance Due:</span>
+                                            <strong>$@systemBal.ToString("N2")</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Lawyer Balance Due:</span>
+                                            <strong>$@lawyerBal.ToString("N2")</strong>
+                                        </div>
+                                        @if (!match)
+                                        {
+                                            <div class="d-flex justify-content-between border-top mt-1 pt-1">
+                                                <span class="text-danger fw-bold">Difference:</span>
+                                                <strong class="text-danger">$@diff.ToString("N2")</strong>
+                                            </div>
+                                            <small class="text-danger">Amounts do not match. Review before proceeding.</small>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-success">System and lawyer SOA amounts match.</small>
+                                        }
+                                    </div>
+                                }
                             </div>
                         </div>
                     }
