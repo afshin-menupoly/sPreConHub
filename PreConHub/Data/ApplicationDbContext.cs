@@ -34,6 +34,7 @@ namespace PreConHub.Data
         public DbSet<ClosingExtensionRequest> ClosingExtensionRequests { get; set; }
         public DbSet<DepositInterestPeriod> DepositInterestPeriods { get; set; }
         public DbSet<SystemFeeConfig> SystemFeeConfigs { get; set; }
+        public DbSet<SOAVersion> SOAVersions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -389,6 +390,40 @@ namespace PreConHub.Data
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(e => e.DepositId);
             });
+
+            // ============================================
+            // SOAVersion Configuration
+            // ============================================
+            builder.Entity<SOAVersion>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.BalanceDueOnClosing).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalVendorCredits).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalPurchaserCredits).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.CashRequiredToClose).HasColumnType("decimal(18,2)");
+
+                entity.HasOne(e => e.Unit)
+                    .WithMany(u => u.SOAVersions)
+                    .HasForeignKey(e => e.UnitId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.CreatedByUser)
+                    .WithMany()
+                    .HasForeignKey(e => e.CreatedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => new { e.UnitId, e.VersionNumber }).IsUnique();
+                entity.HasIndex(e => e.CreatedAt);
+            });
+
+            // ============================================
+            // Project → MarketingAgencyUser Configuration
+            // ============================================
+            builder.Entity<Project>()
+                .HasOne(p => p.MarketingAgencyUser)
+                .WithMany()
+                .HasForeignKey(p => p.MarketingAgencyUserId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // ============================================
             // SystemFeeConfig Configuration + Seed Data

@@ -113,6 +113,12 @@ namespace PreConHub.Models.Entities
         /// <summary>Maximum units allowed in this project. Null = quota not set (blocked). Admin-adjustable.</summary>
         public int? MaxUnits { get; set; }
 
+        // Per-project Marketing Agency assignment (spec Section H)
+        public string? MarketingAgencyUserId { get; set; }
+
+        [ForeignKey("MarketingAgencyUserId")]
+        public virtual ApplicationUser? MarketingAgencyUser { get; set; }
+
         // Builder-only project financials (spec Section E)
         public virtual ProjectFinancials? Financials { get; set; }
     }
@@ -297,6 +303,7 @@ namespace PreConHub.Models.Entities
         /// <summary>Actual monthly common expense/maintenance fee — used for accurate SOA common expense adjustment.</summary>
         [Column(TypeName = "decimal(18,2)")] public decimal? ActualMonthlyMaintenanceFee { get; set; }
         public virtual ICollection<ClosingExtensionRequest> ExtensionRequests { get; set; } = new List<ClosingExtensionRequest>();
+        public virtual ICollection<SOAVersion> SOAVersions { get; set; } = new List<SOAVersion>();
     }
 
     public enum UnitType
@@ -1538,6 +1545,70 @@ namespace PreConHub.Models.Entities
         [StringLength(500)] public string? Notes { get; set; }
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public string? UpdatedByUserId { get; set; }
+    }
+
+    #endregion
+
+    #region SOA Version History
+
+    /// <summary>Source of an SOA version snapshot.</summary>
+    public enum SOAVersionSource
+    {
+        SystemCalculation = 0,
+        LawyerUpload = 1,
+        BuilderUpload = 2
+    }
+
+    /// <summary>
+    /// Versioned snapshot of a Statement of Adjustments for audit trail and comparison.
+    /// A new SOAVersion is created each time the SOA is recalculated or a lawyer uploads a new SOA.
+    /// </summary>
+    public class SOAVersion
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public int UnitId { get; set; }
+
+        [ForeignKey("UnitId")]
+        public virtual Unit Unit { get; set; } = null!;
+
+        /// <summary>Auto-incremented version number per unit (1, 2, 3, ...)</summary>
+        public int VersionNumber { get; set; }
+
+        public SOAVersionSource Source { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal BalanceDueOnClosing { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TotalVendorCredits { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TotalPurchaserCredits { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal CashRequiredToClose { get; set; }
+
+        /// <summary>File path for lawyer/builder uploaded SOA documents.</summary>
+        [StringLength(500)]
+        public string? UploadedFilePath { get; set; }
+
+        [Required]
+        public string CreatedByUserId { get; set; } = string.Empty;
+
+        [ForeignKey("CreatedByUserId")]
+        public virtual ApplicationUser CreatedByUser { get; set; } = null!;
+
+        /// <summary>Role of the user who created this version (Admin, Builder, Lawyer).</summary>
+        [Required]
+        [StringLength(50)]
+        public string CreatedByRole { get; set; } = string.Empty;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        [StringLength(1000)]
+        public string? Notes { get; set; }
     }
 
     #endregion

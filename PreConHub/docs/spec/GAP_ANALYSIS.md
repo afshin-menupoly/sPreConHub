@@ -1,8 +1,8 @@
 # PreConHub — Gap Analysis & Remediation Status
 
 **Original analysis date:** 2026-02-18
-**Last updated:** 2026-02-19 (Priority 6 SOA Real-World Alignment — planning complete, work not yet started)
-**Spec source:** `PreConHub/docs/spec/WORKFLOW_SPEC.md`
+**Last updated:** 2026-02-20 (Session 8 — Admin Management, Reports, Gap Analysis complete)
+**Spec source:** `PreConHub/docs/spec/PreConHubReconstructionPlatform.docx` + `WORKFLOW_SPEC.md`
 **Codebase:** ASP.NET Core 8 MVC at `PreConHub/`
 
 ---
@@ -15,17 +15,20 @@
 | 2 | 2026-02-19 | Priority 3 views complete; all 3 migrations applied to DB | Migration fix: conditional index SQL in `Priority1_DataModel` |
 | 3 | 2026-02-19 | Priority 4 (Audit & Compliance) + Priority 5 (Bug Fixes) complete | No new migrations required |
 | 4 | 2026-02-19 | Marketing Agency full workflow complete (controller + views + toggle + nav link) | No new migrations |
-| 5 | 2026-02-19 | SOA real-world alignment — research complete, spec written, work not yet started | `Priority6_SOAAlignment` (pending) |
+| 5 | 2026-02-19 | SOA real-world alignment — research complete, spec written | `Priority6_SOAAlignment` (pending) |
+| 6 | 2026-02-19 | Priority 6 Parts A–F — SOA calculation engine + PDF layout rewrite | `Priority6_SOAAlignment` applied |
+| 7 | 2026-02-20 | Lawyer SOA Upload + Differences Flag | `LawyerSOAUpload` applied |
+| 8 | 2026-02-20 | Admin Management (CRUD + SuperAdmin + Builder Quotas) + Reports Enhancement | `AdminMgmt_SuperAdmin_BuilderQuotas` applied |
 
-> **DATABASE:** All 3 migrations have been applied. No further migrations are needed for Priority 4 or 5.
+> **DATABASE:** 6 migrations have been applied. Next pending: `Priority7_SpecAlignment`.
 
 ---
 
 ## Overall Assessment
 
 > Original estimate: ~65% system change required.
-> After Priority 1–5 + Marketing Agency: approximately 90% complete.
-> Priority 6 (SOA Real-World Alignment) is the next major work block — 6-part plan, data model + calculation engine + PDF layout overhaul.
+> After Priorities 1–6 + Marketing Agency + Admin Management + Reports: approximately 70% complete.
+> Remaining ~30%: Priorities 7–15 covering SOAVersion entity, 7-tier color system, project investment, per-project MA assignment, SOA versioning, extension request workflow completion, purchaser/unit detail enhancements, notifications, and report updates.
 
 ---
 
@@ -33,13 +36,25 @@
 
 | Priority | Scope | Status |
 |---|---|---|
-| **Priority 1** | Data Model changes | ✅ DONE |
-| **Priority 2** | AI Logic corrections | ✅ DONE |
+| **Priority 1** | Data Model changes | ✅ COMPLETE |
+| **Priority 2** | AI Logic corrections | ✅ COMPLETE |
 | **Priority 3** | Missing Workflows + Views | ✅ COMPLETE |
 | **Priority 4** | Audit & Compliance | ✅ COMPLETE |
 | **Priority 5** | Bug Fixes | ✅ COMPLETE |
-| **Marketing Agency** | Full MA workflow (unassigned gap) | ✅ COMPLETE |
-| **Priority 6** | SOA Real-World Alignment | ⏳ PLANNED — not started |
+| **Marketing Agency** | Full MA workflow | ✅ COMPLETE |
+| **Priority 6** | SOA Real-World Alignment (6 parts) | ✅ COMPLETE |
+| **Lawyer SOA Upload** | SOA upload + diff flag | ✅ COMPLETE |
+| **Admin Management** | CRUD + SuperAdmin + Builder Quotas | ✅ COMPLETE |
+| **Reports Enhancement** | Deposit Tracking + Purchaser Directory + nav fix | ✅ COMPLETE |
+| **Priority 7** | Data Model: SOAVersion + MA assignment | ✅ COMPLETE |
+| **Priority 8** | 7-Tier Color System | ⏳ NOT STARTED |
+| **Priority 9** | Project Investment Management | ⏳ NOT STARTED |
+| **Priority 10** | Marketing Agency Per-Project Assignment | ⏳ NOT STARTED |
+| **Priority 11** | SOA Version History | ⏳ NOT STARTED |
+| **Priority 12** | Extension Request Workflow | ⏳ NOT STARTED |
+| **Priority 13** | Purchaser & Unit Detail Enhancements | ⏳ NOT STARTED |
+| **Priority 14** | Notification Enhancements | ⏳ NOT STARTED |
+| **Priority 15** | Report Enhancements (colors + new reports) | ⏳ NOT STARTED |
 
 ---
 
@@ -208,19 +223,83 @@ All files created/modified. Committed and pushed to GitHub.
 
 ---
 
-## REMAINING GAPS
+## COMPLETED SINCE SESSION 5
 
-### Lawyer SOA upload (spec Process D)
-- ❌ `LawyerController` has no action to upload a new SOA document
-- Only builder can upload/recalculate SOA via `UnitsController`
+### Priority 6 — SOA Real-World Alignment ✅ ALL 6 PARTS COMPLETE
+- **Part A:** DepositInterestPeriod + SystemFeeConfig entities + migration `Priority6_SOAAlignment`
+- **Part B:** Builder UI deposit interest rate periods (AddDepositInterestPeriod, DeleteDepositInterestPeriod)
+- **Part C:** ActualAnnualLandTax + ActualMonthlyMaintenanceFee on Unit Edit
+- **Part D:** Admin fee schedule page (AdminController.FeeSchedule + UpdateFeeConfig)
+- **Part E:** Calculation engine rewrite (per-period interest, 2-column vendor/purchaser credits)
+- **Part F:** PDF layout rewrite (Ontario SOA format with Credit Vendor/Credit Purchaser columns)
 
-### SOA differences flag (spec Process D)
-- ❌ No UI comparing system-calculated SOA vs. lawyer-uploaded balance due
-- Would require a field on `StatementOfAdjustments` for `LawyerUploadedBalanceDue` and a view showing the delta
+### Lawyer SOA Upload + Differences Flag ✅ COMPLETE
+- **Migration:** `LawyerSOAUpload`
+- LawyerController.UploadSOA — file upload + LawyerUploadedBalanceDue field
+- SOA diff comparison panels in Builder and Lawyer dashboards
+- `StatementOfAdjustments.LawyerUploadedBalanceDue` (decimal?) added
 
-### Purchaser `Comments` field in UI
-- ✅ `MortgageInfo.Comments` field added to entity and ViewModel (Priority 3)
-- ✅ `Views/Purchaser/SubmitMortgageInfo.cshtml` updated to show all 6 new fields (Priority 3 views)
+### Admin User Management + SuperAdmin + Builder Quotas ✅ COMPLETE
+- **Migration:** `AdminMgmt_SuperAdmin_BuilderQuotas`
+- `ApplicationUser.MaxProjects` (int, default 1) and `Project.MaxUnits` (int?, nullable)
+- SuperAdmin role seeded for `info@afshahin.com`
+- Full CRUD user management (Create, Edit, Delete) in Admin panel
+- Deletion blocked for users with activity; soft-disable offered
+- Builder quota enforcement (MaxProjects per user, MaxUnits per project)
+
+### Reports Enhancement ✅ COMPLETE
+- Fixed nav bug: `IsInRole("PlatformAdmin")` → `IsInRole("Admin")` for Projects + Reports
+- Added SuperAdmin to ReportsController authorization
+- NEW: Deposit Tracking Report (Chart.js, collection status, overdue, interest, holders)
+- NEW: Purchaser Directory Report (Chart.js, mortgage readiness, recommendation breakdown)
+- Updated Reports Hub with 2 new report cards + nav dropdown entries
+
+---
+
+## REMAINING GAPS (Priorities 7–15)
+
+### Priority 7 — Data Model + Migration
+- NEW `SOAVersion` entity (Id, UnitId, VersionNumber, Source enum, BalanceDue, VendorCredits, PurchaserCredits, CashRequired, UploadedFilePath, CreatedByUserId, CreatedByRole, CreatedAt, Notes)
+- NEW `SOAVersionSource` enum (SystemCalculation=0, LawyerUpload=1, BuilderUpload=2)
+- `Project.MarketingAgencyUserId` (string? FK→ApplicationUser) for per-project MA assignment
+- `Unit.SOAVersions` navigation (ICollection<SOAVersion>)
+
+### Priority 8 — 7-Tier Color System
+- Update ViewModel color mappings for all 7 tiers + PotentialDefault
+- Update badge switches in 11+ view files
+- Add custom CSS classes (bg-lightgreen, bg-lightyellow, bg-orange, bg-purple, bg-combination)
+
+### Priority 9 — Project Investment Management
+- ProjectInvestmentViewModel + ProjectsController.ProjectInvestment GET/POST
+- New view: Views/Projects/ProjectInvestment.cshtml
+
+### Priority 10 — Marketing Agency Per-Project Assignment
+- Replace toggle with ManageMarketingAccess (user selector dropdown)
+- MarketingAgencyController: SuggestCreditAdjustment, SuggestionHistory
+- Filter MA Dashboard by MarketingAgencyUserId
+
+### Priority 11 — SOA Version History
+- Create SOAVersion records on each SOA calculation + lawyer upload
+- SOAVersionHistory action + view with diff viewer
+
+### Priority 12 — Extension Request Workflow
+- ExtensionRequestController (Index, Approve, Reject, History)
+- Views: Index.cshtml, History.cshtml
+- Purchaser Dashboard extension section + Unit Details extension tab + Nav link
+
+### Priority 13 — Purchaser & Unit Detail Enhancements
+- Purchaser Dashboard: credit score, comments, personal funds breakdown
+- Unit Details: SOA Version History tab, Extension History tab, Mutual Release indicator, recalc button
+- Lawyer Dashboard: SOA version history link
+
+### Priority 14 — Notification Enhancements
+- 5 new notification methods (extension submit/approve/reject, SOA version created, MA suggestion)
+- Wire into respective controllers
+
+### Priority 15 — Report Enhancements
+- 7-tier colors in all Chart.js charts
+- Mutual Release + Combination counts in ProjectReport
+- NEW: Credit Score Distribution, Extension Request, Project Investment reports
 
 ---
 
@@ -291,26 +370,19 @@ All files created/modified. Committed and pushed to GitHub.
 
 | Migration | Status |
 |---|---|
-| `Priority1_DataModel` | ✅ Applied (with conditional index SQL fix) |
+| `Priority1_DataModel` | ✅ Applied |
 | `Priority2_AILogicFixes` | ✅ Applied |
 | `Priority3_WorkflowsAndComments` | ✅ Applied |
-
----
-
-## VIEWS THAT NEED TO BE CREATED OR UPDATED
-
-| View File | Status | Notes |
-|---|---|---|
-| `Views/Purchaser/SubmitMortgageInfo.cshtml` | ✅ DONE | Added `IsBlanketMortgage`, `PurchaserAppraisalValue`, `EstimatedFundingDate`, `CreditScore`, `CreditBureau`, `Comments` |
-| `Views/Purchaser/SubmitExtensionRequest.cshtml` | ✅ DONE | Created — pending request warning, date picker, reason textarea |
-| `Views/Units/ReviewExtensionRequest.cshtml` | ✅ DONE | Created — request summary, Approve/Reject radios, reviewer notes |
-| `Views/Purchaser/AuditTrail.cshtml` | ✅ DONE | Created — audit log table for purchaser's own activity history |
+| `Priority6_SOAAlignment` | ✅ Applied |
+| `LawyerSOAUpload` | ✅ Applied |
+| `AdminMgmt_SuperAdmin_BuilderQuotas` | ✅ Applied |
+| `Priority7_SpecAlignment` | ✅ Applied |
 
 ---
 
 ---
 
-## PRIORITY 6 — SOA Real-World Alignment ⏳ PLANNED
+## PRIORITY 6 — SOA Real-World Alignment ✅ COMPLETE
 
 **Source specs:** `PreConHub/docs/spec/FinalSOA1607.pdf` (real SOA for Suite 1607, 35 Parliament St, Toronto) and `PreConHub/docs/spec/DynamicSOAClosingDate.docx` (dynamic formula spec).
 **Goal:** Make the calculation engine and PDF output match the real Ontario SOA structure exactly.
@@ -548,16 +620,8 @@ INFORMATIONAL — LAND TRANSFER TAX (paid at registration)
 
 ## HOW TO RESUME NEXT SESSION
 
-Marketing Agency workflow is complete. Priority 6 (SOA Real-World Alignment) is fully planned — start with Part A.
-
 Tell Claude Code:
 
-> "Continue PreConHub. Marketing Agency workflow is done. Priority 6 SOA alignment is next — start with Part A (data model + migration). Read GAP_ANALYSIS.md for the full spec."
+> "Continue PreConHub spec alignment. Read memory files `preconhub-status.md` and `preconhub-gaps.md` for full context. Start from the next incomplete priority."
 
-**Migration status:**
-| Migration | Status |
-|---|---|
-| `Priority1_DataModel` | ✅ Applied |
-| `Priority2_AILogicFixes` | ✅ Applied |
-| `Priority3_WorkflowsAndComments` | ✅ Applied |
-| `Priority6_SOAAlignment` | ⏳ Not yet created |
+This will pick up at the next incomplete priority in the 7–15 range.
