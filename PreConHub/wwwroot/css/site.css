@@ -20,3 +20,35 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* =============================================
+   7-Tier Closing Recommendation Color System
+   ============================================= */
+
+/* Proceed to Close — Dark Green (uses Bootstrap bg-success) */
+
+/* Close with Discount — Light Green */
+.bg-lightgreen { background-color: #90EE90 !important; color: #000 !important; }
+
+/* VTB Second Mortgage — Light Yellow */
+.bg-lightyellow { background-color: #FFFACD !important; color: #000 !important; }
+
+/* VTB First Mortgage — Orange */
+.bg-orange { background-color: #FFA500 !important; color: #fff !important; }
+
+/* High Risk / Default — Red (uses Bootstrap bg-danger) */
+
+/* Mutual Release — Purple */
+.bg-purple { background-color: #9B59B6 !important; color: #fff !important; }
+
+/* Combination Suggestion — Yellow */
+.bg-combination { background-color: #F1C40F !important; color: #000 !important; }
+
+/* Dashboard unit table recommendation CSS classes */
+.rec-proceed { color: #198754; }
+.rec-discount { color: #157347; }
+.rec-vtb-second { color: #856404; }
+.rec-vtb-first { color: #c77c00; }
+.rec-default { color: #dc3545; }
+.rec-mutual { color: #9B59B6; }
+.rec-combination { color: #9a7d0a; }

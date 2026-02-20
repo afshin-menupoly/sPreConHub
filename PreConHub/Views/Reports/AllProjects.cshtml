@@ -119,9 +119,9 @@
             data: {
                 labels: projectData.map(p => p.projectName),
                 datasets: [
-                    { label: 'Closing Clean', data: projectData.map(p => p.closingClean), backgroundColor: '#28a745' },
-                    { label: 'Need Support', data: projectData.map(p => p.needSupport), backgroundColor: '#ffc107' },
-                    { label: 'High Risk', data: projectData.map(p => p.highRisk), backgroundColor: '#dc3545' }
+                    { label: 'Closing Clean', data: projectData.map(p => p.closingClean), backgroundColor: '#198754' },
+                    { label: 'Need Support', data: projectData.map(p => p.needSupport), backgroundColor: '#FFA500' },
+                    { label: 'High Risk', data: projectData.map(p => p.highRisk), backgroundColor: '#DC3545' }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: true, scales: { x: { stacked: true }, y: { stacked: true } }, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } } }
@@ -132,8 +132,8 @@
             data: {
                 labels: projectData.map(p => p.projectName),
                 datasets: [
-                    { label: 'Discount', data: projectData.map(p => p.discountExposure), backgroundColor: '#007bff' },
-                    { label: 'VTB', data: projectData.map(p => p.vtbExposure), backgroundColor: '#f97316' }
+                    { label: 'Discount', data: projectData.map(p => p.discountExposure), backgroundColor: '#90EE90' },
+                    { label: 'VTB', data: projectData.map(p => p.vtbExposure), backgroundColor: '#FFA500' }
                 ]
             },
             options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } } },

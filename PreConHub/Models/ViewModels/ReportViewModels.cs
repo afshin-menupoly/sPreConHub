@@ -212,17 +212,21 @@ namespace PreConHub.Models.ViewModels
             ClosingRecommendation.VTBFirstMortgage => "VTB 1st Mortgage",
             ClosingRecommendation.HighRiskDefault => "High Risk",
             ClosingRecommendation.PotentialDefault => "Potential Default",
+            ClosingRecommendation.MutualRelease => "Mutual Release",
+            ClosingRecommendation.CombinationSuggestion => "Combination",
             _ => "Pending"
         };
 
         public string StatusColorClass => Recommendation switch
         {
             ClosingRecommendation.ProceedToClose => "success",
-            ClosingRecommendation.CloseWithDiscount => "primary",
-            ClosingRecommendation.VTBSecondMortgage => "warning",
+            ClosingRecommendation.CloseWithDiscount => "lightgreen",
+            ClosingRecommendation.VTBSecondMortgage => "lightyellow",
             ClosingRecommendation.VTBFirstMortgage => "orange",
             ClosingRecommendation.HighRiskDefault => "danger",
             ClosingRecommendation.PotentialDefault => "danger",
+            ClosingRecommendation.MutualRelease => "purple",
+            ClosingRecommendation.CombinationSuggestion => "combination",
             _ => "secondary"
         };
     }
@@ -411,28 +415,34 @@ namespace PreConHub.Models.ViewModels
             ClosingRecommendation.VTBFirstMortgage => "VTB 1st Mortgage",
             ClosingRecommendation.HighRiskDefault => "High Risk",
             ClosingRecommendation.PotentialDefault => "Potential Default",
+            ClosingRecommendation.MutualRelease => "Mutual Release",
+            ClosingRecommendation.CombinationSuggestion => "Combination",
             _ => "Pending Analysis"
         };
 
         public string StatusColor => Recommendation switch
         {
-            ClosingRecommendation.ProceedToClose => "#28a745",
-            ClosingRecommendation.CloseWithDiscount => "#007bff",
-            ClosingRecommendation.VTBSecondMortgage => "#ffc107",
-            ClosingRecommendation.VTBFirstMortgage => "#f97316",
-            ClosingRecommendation.HighRiskDefault => "#dc3545",
-            ClosingRecommendation.PotentialDefault => "#8b0000",
+            ClosingRecommendation.ProceedToClose => "#198754",
+            ClosingRecommendation.CloseWithDiscount => "#90EE90",
+            ClosingRecommendation.VTBSecondMortgage => "#FFFACD",
+            ClosingRecommendation.VTBFirstMortgage => "#FFA500",
+            ClosingRecommendation.HighRiskDefault => "#DC3545",
+            ClosingRecommendation.PotentialDefault => "#DC3545",
+            ClosingRecommendation.MutualRelease => "#9B59B6",
+            ClosingRecommendation.CombinationSuggestion => "#F1C40F",
             _ => "#6c757d"
         };
 
         public string StatusBadgeClass => Recommendation switch
         {
             ClosingRecommendation.ProceedToClose => "bg-success",
-            ClosingRecommendation.CloseWithDiscount => "bg-primary",
-            ClosingRecommendation.VTBSecondMortgage => "bg-warning text-dark",
+            ClosingRecommendation.CloseWithDiscount => "bg-lightgreen",
+            ClosingRecommendation.VTBSecondMortgage => "bg-lightyellow",
             ClosingRecommendation.VTBFirstMortgage => "bg-orange",
             ClosingRecommendation.HighRiskDefault => "bg-danger",
             ClosingRecommendation.PotentialDefault => "bg-danger",
+            ClosingRecommendation.MutualRelease => "bg-purple",
+            ClosingRecommendation.CombinationSuggestion => "bg-combination",
             _ => "bg-secondary"
         };
 
@@ -602,17 +612,21 @@ namespace PreConHub.Models.ViewModels
             ClosingRecommendation.VTBFirstMortgage => "VTB 1st Mortgage",
             ClosingRecommendation.HighRiskDefault => "High Risk",
             ClosingRecommendation.PotentialDefault => "Potential Default",
+            ClosingRecommendation.MutualRelease => "Mutual Release",
+            ClosingRecommendation.CombinationSuggestion => "Combination",
             _ => "Pending"
         };
 
         public string RecommendationBadgeClass => Recommendation switch
         {
             ClosingRecommendation.ProceedToClose => "bg-success",
-            ClosingRecommendation.CloseWithDiscount => "bg-primary",
-            ClosingRecommendation.VTBSecondMortgage => "bg-warning text-dark",
+            ClosingRecommendation.CloseWithDiscount => "bg-lightgreen",
+            ClosingRecommendation.VTBSecondMortgage => "bg-lightyellow",
             ClosingRecommendation.VTBFirstMortgage => "bg-orange",
             ClosingRecommendation.HighRiskDefault => "bg-danger",
             ClosingRecommendation.PotentialDefault => "bg-danger",
+            ClosingRecommendation.MutualRelease => "bg-purple",
+            ClosingRecommendation.CombinationSuggestion => "bg-combination",
             _ => "bg-secondary"
         };
     }

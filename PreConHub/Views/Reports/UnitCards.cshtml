@@ -17,17 +17,16 @@
 
 
     string StatusGroup(ReportUnitItem u) => u.Recommendation switch
-
     {
-
         ClosingRecommendation.ProceedToClose => "success",
-
+        ClosingRecommendation.CloseWithDiscount => "lightgreen",
+        ClosingRecommendation.VTBSecondMortgage => "lightyellow",
+        ClosingRecommendation.VTBFirstMortgage => "orange",
         ClosingRecommendation.HighRiskDefault => "danger",
-
         ClosingRecommendation.PotentialDefault => "danger",
-
+        ClosingRecommendation.MutualRelease => "purple",
+        ClosingRecommendation.CombinationSuggestion => "combination",
         _ => "warning"
-
     };
 
 
@@ -129,6 +128,31 @@
         color: #dc3545;
     }
 
+    .badge-lightgreen {
+        background: rgba(144, 238, 144, 0.2);
+        color: #157347;
+    }
+
+    .badge-lightyellow {
+        background: rgba(255, 250, 205, 0.5);
+        color: #856404;
+    }
+
+    .badge-orange {
+        background: rgba(255, 165, 0, 0.15);
+        color: #c77c00;
+    }
+
+    .badge-purple {
+        background: rgba(155, 89, 182, 0.1);
+        color: #9B59B6;
+    }
+
+    .badge-combination {
+        background: rgba(241, 196, 15, 0.15);
+        color: #9a7d0a;
+    }
+
     .unit-title {
         font-size: 1rem;
         font-weight: 700;
@@ -195,7 +219,7 @@
                     </ol>
                 </nav>
                 <h2>Unit Status Cards</h2>
-                <p class="text-muted">@totalCount total units • <strong>@projectName</strong></p>
+                <p class="text-muted">@totalCount total units ï¿½ <strong>@projectName</strong></p>
             </div>
             <div class="btn-group">
                 <button class="btn btn-primary active">

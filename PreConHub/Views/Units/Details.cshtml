@@ -122,10 +122,14 @@
                         var recBadge = Model.Recommendation switch
                         {
                             PreConHub.Models.Entities.ClosingRecommendation.ProceedToClose => "bg-success",
-                            PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount => "bg-primary",
-                            PreConHub.Models.Entities.ClosingRecommendation.VTBSecondMortgage => "bg-warning text-dark",
+                            PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount => "bg-lightgreen",
+                            PreConHub.Models.Entities.ClosingRecommendation.VTBSecondMortgage => "bg-lightyellow",
                             PreConHub.Models.Entities.ClosingRecommendation.VTBFirstMortgage => "bg-orange",
-                            _ => "bg-danger"
+                            PreConHub.Models.Entities.ClosingRecommendation.HighRiskDefault => "bg-danger",
+                            PreConHub.Models.Entities.ClosingRecommendation.PotentialDefault => "bg-danger",
+                            PreConHub.Models.Entities.ClosingRecommendation.MutualRelease => "bg-purple",
+                            PreConHub.Models.Entities.ClosingRecommendation.CombinationSuggestion => "bg-combination",
+                            _ => "bg-secondary"
                         };
                     }
                     <div class="mb-3">

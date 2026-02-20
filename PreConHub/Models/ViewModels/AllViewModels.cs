@@ -72,9 +72,11 @@ namespace PreConHub.Models.ViewModels
             ClosingRecommendation.VTBFirstMortgage => "VTB First Mortgage",
             ClosingRecommendation.HighRiskDefault => "High Risk of Default",
             ClosingRecommendation.PotentialDefault => "Potential Default",
+            ClosingRecommendation.MutualRelease => "Mutual Release",
+            ClosingRecommendation.CombinationSuggestion => "Combination",
             _ => "Pending"
         };
-        
+
         public string RecommendationClass => Recommendation switch
         {
             ClosingRecommendation.ProceedToClose => "rec-proceed",
@@ -83,6 +85,8 @@ namespace PreConHub.Models.ViewModels
             ClosingRecommendation.VTBFirstMortgage => "rec-vtb-first",
             ClosingRecommendation.HighRiskDefault => "rec-default",
             ClosingRecommendation.PotentialDefault => "rec-default",
+            ClosingRecommendation.MutualRelease => "rec-mutual",
+            ClosingRecommendation.CombinationSuggestion => "rec-combination",
             _ => ""
         };
         
@@ -1649,15 +1653,15 @@ namespace PreConHub.Models.ViewModels
 
         public string RecommendationBadgeClass => Recommendation switch
         {
-            ClosingRecommendation.ProceedToClose      => "bg-success",
-            ClosingRecommendation.CloseWithDiscount   => "bg-primary",
-            ClosingRecommendation.VTBSecondMortgage   => "bg-warning text-dark",
-            ClosingRecommendation.VTBFirstMortgage    => "bg-warning text-dark",
-            ClosingRecommendation.HighRiskDefault     => "bg-danger",
-            ClosingRecommendation.PotentialDefault    => "bg-danger",
-            ClosingRecommendation.MutualRelease       => "bg-secondary",
-            ClosingRecommendation.CombinationSuggestion => "bg-info text-dark",
-            _                                         => "bg-secondary"
+            ClosingRecommendation.ProceedToClose        => "bg-success",
+            ClosingRecommendation.CloseWithDiscount     => "bg-lightgreen",
+            ClosingRecommendation.VTBSecondMortgage     => "bg-lightyellow",
+            ClosingRecommendation.VTBFirstMortgage      => "bg-orange",
+            ClosingRecommendation.HighRiskDefault       => "bg-danger",
+            ClosingRecommendation.PotentialDefault      => "bg-danger",
+            ClosingRecommendation.MutualRelease         => "bg-purple",
+            ClosingRecommendation.CombinationSuggestion => "bg-combination",
+            _                                           => "bg-secondary"
         };
 
         public string RecommendationText => Recommendation switch

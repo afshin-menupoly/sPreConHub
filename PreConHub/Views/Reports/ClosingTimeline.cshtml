@@ -88,7 +88,7 @@
 
                         <div class="flex-grow-1">
                             <a href="@Url.Action("Details", "Projects", new { id = u.UnitId })" class="fw-bold text-decoration-none">@u.UnitNumber</a>
-                            <span class="badge @(u.StatusColorClass == "orange" ? "bg-orange" : $"bg-{u.StatusColorClass}") ms-1" style="font-size:0.65rem;">@u.RecommendationText</span>
+                            <span class="badge bg-@(u.StatusColorClass) ms-1" style="font-size:0.65rem;">@u.RecommendationText</span>
                             @if (!string.IsNullOrEmpty(u.PurchaserName))
                             {
                                 <span class="text-muted ms-1 small">@u.PurchaserName</span>
