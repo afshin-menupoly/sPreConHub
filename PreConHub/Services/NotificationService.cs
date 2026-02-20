@@ -25,7 +25,12 @@ namespace PreConHub.Services
         Task NotifyDepositReceivedAsync(int depositId, string purchaserName, decimal amount);
         Task NotifyPurchaserAddedAsync(int unitId, string purchaserName, string builderId);
         Task NotifyDocumentUploadedAsync(int unitId, string documentName, string uploadedBy);
-        
+        Task NotifyExtensionRequestSubmittedAsync(int unitId, string purchaserName);
+        Task NotifyExtensionApprovedAsync(int unitId, string purchaserName, string purchaserId);
+        Task NotifyExtensionRejectedAsync(int unitId, string purchaserName, string purchaserId);
+        Task NotifySOAVersionCreatedAsync(int unitId, string createdByName, string source);
+        Task NotifyMarketingAgencySuggestionAsync(int projectId, string agencyUserName, string builderId);
+
         // Get notifications
         Task<List<Notification>> GetUserNotificationsAsync(string userId, int count = 20, bool unreadOnly = false);
         Task<int> GetUnreadCountAsync(string userId);
@@ -335,6 +340,100 @@ namespace PreConHub.Services
                 projectId: unit.ProjectId,
                 unitId: unitId,
                 groupKey: $"document-{unitId}"
+            );
+        }
+
+        public async Task NotifyExtensionRequestSubmittedAsync(int unitId, string purchaserName)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit?.Project == null) return;
+
+            await CreateAsync(
+                userId: unit.Project.BuilderId,
+                title: "Extension Request Submitted",
+                message: $"{purchaserName} has requested a closing date extension for Unit {unit.UnitNumber} in {unit.Project.Name}.",
+                type: NotificationType.Info,
+                priority: NotificationPriority.High,
+                actionUrl: $"/ExtensionRequest",
+                actionText: "Review",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"extension-request-{unitId}"
+            );
+        }
+
+        public async Task NotifyExtensionApprovedAsync(int unitId, string purchaserName, string purchaserId)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            await CreateAsync(
+                userId: purchaserId,
+                title: "Extension Approved",
+                message: $"Your closing date extension for Unit {unit.UnitNumber} in {unit.Project.Name} has been approved.",
+                type: NotificationType.Success,
+                priority: NotificationPriority.High,
+                actionUrl: $"/Purchaser/Dashboard",
+                actionText: "View",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"extension-approved-{unitId}"
+            );
+        }
+
+        public async Task NotifyExtensionRejectedAsync(int unitId, string purchaserName, string purchaserId)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            await CreateAsync(
+                userId: purchaserId,
+                title: "Extension Rejected",
+                message: $"Your closing date extension for Unit {unit.UnitNumber} in {unit.Project.Name} has been rejected.",
+                type: NotificationType.Alert,
+                priority: NotificationPriority.High,
+                actionUrl: $"/Purchaser/Dashboard",
+                actionText: "View",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"extension-rejected-{unitId}"
+            );
+        }
+
+        public async Task NotifySOAVersionCreatedAsync(int unitId, string createdByName, string source)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit?.Project == null) return;
+
+            await CreateAsync(
+                userId: unit.Project.BuilderId,
+                title: "SOA Version Created",
+                message: $"A new SOA version ({source}) was created for Unit {unit.UnitNumber} by {createdByName}.",
+                type: NotificationType.Info,
+                priority: NotificationPriority.Normal,
+                actionUrl: $"/Units/SOAVersionHistory/{unitId}",
+                actionText: "View History",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"soa-version-{unitId}"
+            );
+        }
+
+        public async Task NotifyMarketingAgencySuggestionAsync(int projectId, string agencyUserName, string builderId)
+        {
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
+            if (project == null) return;
+
+            await CreateAsync(
+                userId: builderId,
+                title: "Marketing Agency Suggestion",
+                message: $"{agencyUserName} submitted a discount/credit suggestion for {project.Name}.",
+                type: NotificationType.Info,
+                priority: NotificationPriority.Normal,
+                actionUrl: $"/Projects/Dashboard/{projectId}",
+                actionText: "View Project",
+                projectId: projectId,
+                groupKey: $"ma-suggestion-{projectId}"
             );
         }
 

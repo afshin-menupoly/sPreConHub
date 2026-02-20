@@ -710,6 +710,9 @@ namespace PreConHub.Controllers
                 unitId: unit.Id
             );
 
+            // SOA version notification
+            await _notificationService.NotifySOAVersionCreatedAsync(unit.Id, lawyerName, "Lawyer Upload");
+
             _logger.LogInformation("Lawyer {UserId} uploaded SOA for Unit {UnitId}, balance due: {Balance}",
                 userId, unit.Id, model.LawyerBalanceDue);
 

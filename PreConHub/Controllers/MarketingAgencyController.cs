@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using PreConHub.Data;
 using PreConHub.Models.Entities;
 using PreConHub.Models.ViewModels;
+using PreConHub.Services;
 
 namespace PreConHub.Controllers
 {
@@ -14,14 +15,17 @@ namespace PreConHub.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<MarketingAgencyController> _logger;
+        private readonly INotificationService _notificationService;
 
         public MarketingAgencyController(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
+            INotificationService notificationService,
             ILogger<MarketingAgencyController> logger)
         {
             _context = context;
             _userManager = userManager;
+            _notificationService = notificationService;
             _logger = logger;
         }
 
@@ -157,6 +161,11 @@ namespace PreConHub.Controllers
             _logger.LogInformation("Marketing Agency {UserId} suggested discount of {Amount} for unit {UnitId}",
                 userId, model.SuggestedAmount, unit.Id);
 
+            // Notify builder
+            var maUser = await _userManager.GetUserAsync(User);
+            var maName = $"{maUser?.FirstName} {maUser?.LastName}".Trim();
+            await _notificationService.NotifyMarketingAgencySuggestionAsync(unit.ProjectId, maName, unit.Project.BuilderId);
+
             TempData["Success"] = $"Discount suggestion of {model.SuggestedAmount:C0} submitted for Unit {model.UnitNumber}.";
             return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });
         }
@@ -203,6 +212,11 @@ namespace PreConHub.Controllers
                 Timestamp = DateTime.UtcNow
             });
             await _context.SaveChangesAsync();
+
+            // Notify builder
+            var maUser2 = await _userManager.GetUserAsync(User);
+            var maName2 = $"{maUser2?.FirstName} {maUser2?.LastName}".Trim();
+            await _notificationService.NotifyMarketingAgencySuggestionAsync(unit.ProjectId, maName2, unit.Project.BuilderId);
 
             TempData["Success"] = $"Credit adjustment suggestion of {model.SuggestedAmount:C0} submitted for Unit {model.UnitNumber}.";
             return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });

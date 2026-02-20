@@ -1632,6 +1632,13 @@ namespace PreConHub.Controllers
                 TempData["Success"] = "Extension request rejected.";
             }
 
+            // Notify purchaser of decision
+            var purchaserName = request.RequestedByPurchaserId; // used as ID for notification
+            if (model.Approve)
+                await _notificationService.NotifyExtensionApprovedAsync(request.UnitId, "", request.RequestedByPurchaserId);
+            else
+                await _notificationService.NotifyExtensionRejectedAsync(request.UnitId, "", request.RequestedByPurchaserId);
+
             return RedirectToAction(nameof(Details), new { id = request.UnitId });
         }
 

@@ -1049,6 +1049,11 @@ namespace PreConHub.Controllers
 
             _logger.LogInformation("Purchaser {UserId} submitted extension request for unit {UnitId}", userId, model.UnitId);
 
+            // Notify builder
+            var purchaser = await _userManager.GetUserAsync(User);
+            var purchaserName = $"{purchaser?.FirstName} {purchaser?.LastName}".Trim();
+            await _notificationService.NotifyExtensionRequestSubmittedAsync(model.UnitId, purchaserName);
+
             TempData["Success"] = "Your closing extension request has been submitted to the builder for review.";
             return RedirectToAction(nameof(Dashboard));
         }
