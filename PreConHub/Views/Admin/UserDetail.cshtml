@@ -87,12 +87,23 @@
                                 <td>@Model.Phone</td>
                             </tr>
                         }
+                        @if (!string.IsNullOrEmpty(Model.CompanyName))
+                        {
+                            <tr>
+                                <td class="text-muted">Company</td>
+                                <td>@Model.CompanyName</td>
+                            </tr>
+                        }
                         <tr>
                             <td class="text-muted">Roles</td>
                             <td>
                                 @foreach (var role in Model.Roles)
                                 {
                                     <span class="badge bg-secondary me-1">@role</span>
+                                }
+                                @if (Model.IsSuperAdmin)
+                                {
+                                    <span class="badge bg-dark ms-1">SuperAdmin</span>
                                 }
                             </td>
                         </tr>
@@ -136,41 +147,78 @@
                     <h5 class="mb-0"><i class="bi bi-gear me-2 text-secondary"></i>Admin Actions</h5>
                 </div>
                 <div class="card-body">
+                    @{
+                        var canManage = !Model.IsSuperAdmin || Model.IsCurrentUserSuperAdmin;
+                    }
                     <div class="d-grid gap-2">
-                        <!-- Toggle Status -->
-                        <form asp-action="ToggleUserStatus" method="post">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" name="userId" value="@Model.UserId" />
-                            @if (Model.IsActive)
-                            {
-                                <button type="submit" class="btn btn-outline-danger w-100"
-                                        onclick="return confirm('Deactivate this user?');">
-                                    <i class="bi bi-person-x me-2"></i>Deactivate User
-                                </button>
-                            }
-                            else
-                            {
-                                <button type="submit" class="btn btn-outline-success w-100">
-                                    <i class="bi bi-person-check me-2"></i>Activate User
-                                </button>
-                            }
-                        </form>
-
-                        <!-- Reset Password -->
-                        <a asp-action="ResetPassword" asp-route-id="@Model.UserId" class="btn btn-outline-warning">
-                            <i class="bi bi-key me-2"></i>Reset Password
-                        </a>
-
-                        @if (!Model.EmailConfirmed)
+                        @if (canManage)
                         {
-                            <!-- Resend Invitation -->
-                            <form asp-action="ResendInvitation" method="post">
+                            <!-- Edit User -->
+                            <a asp-action="EditUser" asp-route-id="@Model.UserId" class="btn btn-outline-primary">
+                                <i class="bi bi-pencil me-2"></i>Edit User
+                            </a>
+
+                            <!-- Toggle Status -->
+                            <form asp-action="ToggleUserStatus" method="post">
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="userId" value="@Model.UserId" />
-                                <button type="submit" class="btn btn-outline-info w-100">
-                                    <i class="bi bi-envelope me-2"></i>Resend Invitation
+                                @if (Model.IsActive)
+                                {
+                                    <button type="submit" class="btn btn-outline-danger w-100"
+                                            onclick="return confirm('Deactivate this user?');">
+                                        <i class="bi bi-person-x me-2"></i>Deactivate User
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="submit" class="btn btn-outline-success w-100">
+                                        <i class="bi bi-person-check me-2"></i>Activate User
+                                    </button>
+                                }
+                            </form>
+
+                            <!-- Reset Password -->
+                            <a asp-action="ResetPassword" asp-route-id="@Model.UserId" class="btn btn-outline-warning">
+                                <i class="bi bi-key me-2"></i>Reset Password
+                            </a>
+
+                            <!-- Send Password Reset Email -->
+                            <form asp-action="SendPasswordResetEmail" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="userId" value="@Model.UserId" />
+                                <button type="submit" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-envelope me-2"></i>Send Password Reset Email
                                 </button>
                             </form>
+
+                            <!-- Delete User -->
+                            <a asp-action="DeleteUser" asp-route-id="@Model.UserId" class="btn btn-outline-danger">
+                                <i class="bi bi-trash me-2"></i>Delete User
+                            </a>
+
+                            @if (!Model.EmailConfirmed)
+                            {
+                                <form asp-action="ResendInvitation" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="userId" value="@Model.UserId" />
+                                    <button type="submit" class="btn btn-outline-info w-100">
+                                        <i class="bi bi-envelope me-2"></i>Resend Invitation
+                                    </button>
+                                </form>
+                            }
+
+                            @if (Model.UserType == UserType.Builder)
+                            {
+                                <a asp-action="SetBuilderQuota" asp-route-id="@Model.UserId" class="btn btn-outline-primary">
+                                    <i class="bi bi-sliders me-2"></i>Manage Quotas
+                                </a>
+                            }
+                        }
+                        else
+                        {
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-shield-lock me-2"></i>This is a Super Admin account. Only Super Admins can manage this account.
+                            </div>
                         }
                     </div>
                 </div>
@@ -370,12 +418,12 @@
             {
                 <div class="card border-0 shadow-sm">
                     <div class="card-header bg-white">
-                        <h5 class="mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Summary</h5>
+                        <h5 class="mb-0"><i class="bi bi-graph-up me-2 text-primary"></i>Summary &amp; Quotas</h5>
                     </div>
                     <div class="card-body">
                         <div class="row text-center">
                             <div class="col-6 mb-3">
-                                <h3 class="mb-0">@Model.TotalProjects</h3>
+                                <h3 class="mb-0">@Model.TotalProjects <small class="text-muted fs-6">/ @Model.MaxProjects</small></h3>
                                 <small class="text-muted">Projects</small>
                             </div>
                             <div class="col-6 mb-3">
@@ -383,6 +431,18 @@
                                 <small class="text-muted">Total Units</small>
                             </div>
                         </div>
+                        @if (Model.BuilderProjects.Any())
+                        {
+                            <hr>
+                            <h6 class="text-muted mb-2">Per-Project Unit Limits</h6>
+                            @foreach (var p in Model.BuilderProjects)
+                            {
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>@p.ProjectName</span>
+                                    <span>@p.TotalUnits / @(p.MaxUnits?.ToString() ?? "<span class='text-danger'>Not set</span>")</span>
+                                </div>
+                            }
+                        }
                     </div>
                 </div>
             }

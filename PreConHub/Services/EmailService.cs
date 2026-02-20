@@ -32,6 +32,8 @@ namespace PreConHub.Services
         Task<bool> SendLawyerApprovalNotificationAsync(string builderEmail, string builderName, string lawyerName, string unitNumber, string projectName);
         Task<bool> SendLawyerRevisionRequestAsync(string builderEmail, string builderName, string lawyerName, string unitNumber, string projectName, string revisionNotes);
         Task<bool> SendPurchaserStatusUpdateAsync(string toEmail, string purchaserName, string unitNumber, string projectName, string statusMessage);
+        Task<bool> SendPasswordResetEmailAsync(string toEmail, string userName, string resetLink);
+        Task<bool> SendAdminCreatedUserEmailAsync(string toEmail, string userName, string roleName, string loginLink);
     }
 
     // ===== EMAIL SERVICE IMPLEMENTATION =====
@@ -194,6 +196,40 @@ namespace PreConHub.Services
             return await SendEmailAsync(toEmail, subject, htmlBody);
         }
 
+        // ===== PASSWORD RESET EMAIL =====
+        public async Task<bool> SendPasswordResetEmailAsync(
+            string toEmail,
+            string userName,
+            string resetLink)
+        {
+            var subject = "Reset Your PreConHub Password";
+
+            var htmlBody = GetEmailTemplate("PasswordReset")
+                .Replace("{{UserName}}", userName)
+                .Replace("{{ResetLink}}", resetLink)
+                .Replace("{{Year}}", DateTime.Now.Year.ToString());
+
+            return await SendEmailAsync(toEmail, subject, htmlBody);
+        }
+
+        // ===== ADMIN-CREATED USER EMAIL =====
+        public async Task<bool> SendAdminCreatedUserEmailAsync(
+            string toEmail,
+            string userName,
+            string roleName,
+            string loginLink)
+        {
+            var subject = "Your PreConHub Account Has Been Created";
+
+            var htmlBody = GetEmailTemplate("AdminCreatedUser")
+                .Replace("{{UserName}}", userName)
+                .Replace("{{RoleName}}", roleName)
+                .Replace("{{LoginLink}}", loginLink)
+                .Replace("{{Year}}", DateTime.Now.Year.ToString());
+
+            return await SendEmailAsync(toEmail, subject, htmlBody);
+        }
+
         // ===== GET EMAIL TEMPLATE =====
         private string GetEmailTemplate(string templateName)
         {
@@ -213,6 +249,8 @@ namespace PreConHub.Services
                 "LawyerApproval" => GetLawyerApprovalTemplate(),
                 "RevisionRequest" => GetRevisionRequestTemplate(),
                 "PurchaserStatusUpdate" => GetPurchaserStatusUpdateTemplate(),
+                "PasswordReset" => GetPasswordResetTemplate(),
+                "AdminCreatedUser" => GetAdminCreatedUserTemplate(),
                 _ => GetDefaultTemplate()
             };
         }
@@ -480,6 +518,63 @@ namespace PreConHub.Services
         <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>
             © {{Year}} PreConHub. All rights reserved.
         </div>
+    </div>
+</body>
+</html>";
+        }
+
+        private string GetPasswordResetTemplate()
+        {
+            return @"
+<!DOCTYPE html>
+<html>
+<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head>
+<body style='margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+        <div style='background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
+            <h1 style='color: white; margin: 0; font-size: 28px;'>PreConHub</h1>
+            <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Password Reset</p>
+        </div>
+        <div style='background: white; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
+            <h2 style='color: #333; margin-top: 0;'>Hello, {{UserName}}</h2>
+            <p style='color: #555; line-height: 1.6;'>An administrator has requested a password reset for your account. Click the button below to set a new password:</p>
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='{{ResetLink}}' style='background: #6f42c1; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;'>Reset My Password</a>
+            </div>
+            <p style='color: #888; font-size: 14px;'>If the button doesn't work, copy and paste this link:<br><a href='{{ResetLink}}' style='color: #6f42c1; word-break: break-all;'>{{ResetLink}}</a></p>
+            <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+            <p style='color: #888; font-size: 12px; text-align: center;'>This link will expire in 24 hours. If you didn't request this, please ignore this email.</p>
+        </div>
+        <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>&copy; {{Year}} PreConHub. All rights reserved.</div>
+    </div>
+</body>
+</html>";
+        }
+
+        private string GetAdminCreatedUserTemplate()
+        {
+            return @"
+<!DOCTYPE html>
+<html>
+<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head>
+<body style='margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+        <div style='background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
+            <h1 style='color: white; margin: 0; font-size: 28px;'>PreConHub</h1>
+            <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Welcome to PreConHub</p>
+        </div>
+        <div style='background: white; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
+            <h2 style='color: #333; margin-top: 0;'>Welcome, {{UserName}}!</h2>
+            <p style='color: #555; line-height: 1.6;'>An account has been created for you on PreConHub as a <strong>{{RoleName}}</strong>.</p>
+            <p style='color: #555; line-height: 1.6;'>You can now log in and start using the platform:</p>
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='{{LoginLink}}' style='background: #0d6efd; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;'>Log In to PreConHub</a>
+            </div>
+            <p style='color: #888; font-size: 14px;'>If the button doesn't work, copy and paste this link:<br><a href='{{LoginLink}}' style='color: #0d6efd; word-break: break-all;'>{{LoginLink}}</a></p>
+            <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+            <p style='color: #888; font-size: 12px; text-align: center;'>If you didn't expect this email, please contact your administrator.</p>
+        </div>
+        <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>&copy; {{Year}} PreConHub. All rights reserved.</div>
     </div>
 </body>
 </html>";

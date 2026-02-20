@@ -57,10 +57,17 @@ namespace PreConHub.Controllers
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
+            // Load builder quota info
+            var builderUser = userId != null ? await _userManager.FindByIdAsync(userId) : null;
+            var maxProjects = builderUser?.MaxProjects ?? 99;
+            var canCreate = isAdmin || projects.Count < maxProjects;
+
             var viewModel = new ProjectListViewModel
             {
                 TotalProjects = projects.Count,
                 ActiveProjects = projects.Count(p => p.Status == ProjectStatus.Active),
+                MaxProjects = maxProjects,
+                CanCreateProject = canCreate,
                 Projects = projects.Select(p => new ProjectItemViewModel
                 {
                     Id = p.Id,
@@ -167,7 +174,10 @@ namespace PreConHub.Controllers
                 }).ToList(),
                 TotalIncomeDueClosing = project.Units
                     .Where(u => u.SOA != null)
-                    .Sum(u => u.SOA!.CashRequiredToClose)
+                    .Sum(u => u.SOA!.CashRequiredToClose),
+                MaxUnits = project.MaxUnits,
+                CurrentUnitCount = project.Units.Count,
+                CanAddUnit = isAdmin || (project.MaxUnits.HasValue && project.Units.Count < project.MaxUnits.Value)
             };
 
             return View(viewModel);
@@ -190,6 +200,21 @@ namespace PreConHub.Controllers
             }
 
             var userId = _userManager.GetUserId(User);
+
+            // Quota enforcement: non-admin builders check MaxProjects
+            if (!User.IsInRole("Admin"))
+            {
+                var builder = await _userManager.FindByIdAsync(userId!);
+                if (builder != null)
+                {
+                    var currentProjectCount = await _context.Projects.CountAsync(p => p.BuilderId == userId);
+                    if (currentProjectCount >= builder.MaxProjects)
+                    {
+                        TempData["Error"] = $"You have reached your project limit ({builder.MaxProjects}). Contact an administrator to increase your quota.";
+                        return RedirectToAction(nameof(Index));
+                    }
+                }
+            }
 
             var project = new Project
             {

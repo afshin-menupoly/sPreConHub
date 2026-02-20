@@ -200,6 +200,8 @@ using (var scope = app.Services.CreateScope())
         
         await SeedRolesAsync(roleManager);
         await SeedAdminUserAsync(userManager);
+        await SeedSuperAdminAsync(userManager);
+        await SeedBuilderQuotasAsync(context);
     }
     catch (Exception ex)
     {
@@ -216,7 +218,7 @@ app.Run();
 
 static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
 {
-    string[] roles = { "Admin", "Builder", "Purchaser", "Lawyer", "MarketingAgency" };
+    string[] roles = { "Admin", "Builder", "Purchaser", "Lawyer", "MarketingAgency", "SuperAdmin" };
     
     foreach (var role in roles)
     {
@@ -265,5 +267,87 @@ static async Task SeedAdminUserAsync(UserManager<ApplicationUser> userManager)
     else
     {
         Console.WriteLine($"Admin user already exists: {adminEmail}");
+    }
+}
+
+static async Task SeedSuperAdminAsync(UserManager<ApplicationUser> userManager)
+{
+    var superAdminEmail = "info@afshahin.com";
+    var existingUser = await userManager.FindByEmailAsync(superAdminEmail);
+
+    if (existingUser == null)
+    {
+        // Create the SuperAdmin user
+        var superAdmin = new ApplicationUser
+        {
+            UserName = superAdminEmail,
+            Email = superAdminEmail,
+            FirstName = "Afshin",
+            LastName = "SuperAdmin",
+            UserType = UserType.PlatformAdmin,
+            EmailConfirmed = true,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var result = await userManager.CreateAsync(superAdmin, "Afshin@123!");
+        if (result.Succeeded)
+        {
+            await userManager.AddToRoleAsync(superAdmin, "Admin");
+            await userManager.AddToRoleAsync(superAdmin, "SuperAdmin");
+            Console.WriteLine($"SuperAdmin user created: {superAdminEmail}");
+        }
+        else
+        {
+            foreach (var error in result.Errors)
+                Console.WriteLine($"SuperAdmin creation error: {error.Description}");
+        }
+    }
+    else
+    {
+        // Ensure existing user has SuperAdmin + Admin roles
+        if (!await userManager.IsInRoleAsync(existingUser, "SuperAdmin"))
+        {
+            await userManager.AddToRoleAsync(existingUser, "SuperAdmin");
+            Console.WriteLine($"SuperAdmin role assigned to existing user: {superAdminEmail}");
+        }
+        if (!await userManager.IsInRoleAsync(existingUser, "Admin"))
+        {
+            await userManager.AddToRoleAsync(existingUser, "Admin");
+        }
+    }
+}
+
+static async Task SeedBuilderQuotasAsync(ApplicationDbContext context)
+{
+    // Set MaxProjects=4 for existing builders who still have default (1)
+    var builders = await context.Users
+        .Where(u => u.UserType == UserType.Builder && u.MaxProjects == 1)
+        .ToListAsync();
+
+    foreach (var b in builders)
+    {
+        // Only upgrade if they already have projects (existing active builder)
+        var projectCount = await context.Projects.CountAsync(p => p.BuilderId == b.Id);
+        if (projectCount > 0)
+        {
+            b.MaxProjects = 4;
+        }
+    }
+
+    // Set MaxUnits=10 for existing projects that have null MaxUnits
+    var projects = await context.Projects
+        .Where(p => p.MaxUnits == null)
+        .ToListAsync();
+
+    foreach (var p in projects)
+    {
+        p.MaxUnits = 10;
+    }
+
+    if (builders.Any() || projects.Any())
+    {
+        await context.SaveChangesAsync();
+        Console.WriteLine($"Builder quotas seeded: {builders.Count(b => b.MaxProjects == 4)} builders set to MaxProjects=4, {projects.Count} projects set to MaxUnits=10");
     }
 }

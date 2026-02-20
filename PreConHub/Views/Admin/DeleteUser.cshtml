@@ -1,0 +1,107 @@
+@model PreConHub.Models.ViewModels.AdminDeleteUserViewModel
+@using PreConHub.Models.Entities
+@{
+    ViewData["Title"] = "Delete User";
+}
+
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a asp-action="Dashboard">Admin</a></li>
+            <li class="breadcrumb-item"><a asp-action="Users">Users</a></li>
+            <li class="breadcrumb-item active">Delete User</li>
+        </ol>
+    </nav>
+    <h1 class="h3 mb-4"><i class="bi bi-trash me-2 text-danger"></i>Delete User</h1>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">User Details</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <td class="text-muted" style="width:30%;">Name</td>
+                            <td><strong>@Model.FullName</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Email</td>
+                            <td>@Model.Email</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">User Type</td>
+                            <td><span class="badge bg-secondary">@Model.UserType</span></td>
+                        </tr>
+                    </table>
+
+                    <hr>
+                    <h6>Activity Summary</h6>
+                    <table class="table table-sm">
+                        <tr>
+                            <td>Projects</td>
+                            <td class="text-end"><strong>@Model.ProjectCount</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Units</td>
+                            <td class="text-end"><strong>@Model.UnitCount</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Assignments</td>
+                            <td class="text-end"><strong>@Model.AssignmentCount</strong></td>
+                        </tr>
+                    </table>
+
+                    @if (Model.HasAnyActivity)
+                    {
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Cannot delete this user.</strong> They have active projects, units, or other activity records.
+                            You can deactivate the account instead.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <form asp-action="ToggleUserStatus" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="userId" value="@Model.UserId" />
+                                <button type="submit" class="btn btn-warning"
+                                        onclick="return confirm('Deactivate this user instead?');">
+                                    <i class="bi bi-person-x me-2"></i>Deactivate Instead
+                                </button>
+                            </form>
+                            <a asp-action="UserDetail" asp-route-id="@Model.UserId" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-circle me-2"></i>
+                            <strong>This action is permanent.</strong> The user account and all associated data will be permanently removed.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <form asp-action="DeleteUserConfirmed" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="userId" value="@Model.UserId" />
+                                <button type="submit" class="btn btn-danger"
+                                        onclick="return confirm('Are you sure you want to PERMANENTLY delete @Model.Email? This cannot be undone.');">
+                                    <i class="bi bi-trash me-2"></i>Delete Permanently
+                                </button>
+                            </form>
+                            <a asp-action="UserDetail" asp-route-id="@Model.UserId" class="btn btn-outline-secondary">Cancel</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

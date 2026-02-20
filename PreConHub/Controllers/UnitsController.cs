@@ -90,6 +90,8 @@ namespace PreConHub.Controllers
 
             ViewBag.ProjectName = project.Name;
             ViewBag.UnitTypes = new SelectList(Enum.GetValues(typeof(UnitType)));
+            ViewBag.MaxUnits = project.MaxUnits;
+            ViewBag.CurrentUnitCount = await _context.Units.CountAsync(u => u.ProjectId == id);
 
             return View(viewModel);
         }
@@ -106,6 +108,22 @@ namespace PreConHub.Controllers
             var userId = _userManager.GetUserId(User);
             if (!User.IsInRole("Admin") && project.BuilderId != userId)
                 return Forbid();
+
+            // Quota enforcement: non-admin builders check MaxUnits
+            if (!User.IsInRole("Admin"))
+            {
+                var currentUnits = await _context.Units.CountAsync(u => u.ProjectId == model.ProjectId);
+                if (project.MaxUnits == null)
+                {
+                    TempData["Error"] = "Unit quota has not been assigned for this project. Contact an administrator.";
+                    return RedirectToAction("Dashboard", "Projects", new { id = model.ProjectId });
+                }
+                if (currentUnits >= project.MaxUnits.Value)
+                {
+                    TempData["Error"] = $"Unit limit reached ({project.MaxUnits} units). Contact an administrator to increase your quota.";
+                    return RedirectToAction("Dashboard", "Projects", new { id = model.ProjectId });
+                }
+            }
 
             // Check if unit number already exists in this project
             var existingUnit = await _context.Units
@@ -1648,10 +1666,13 @@ namespace PreConHub.Controllers
             if (!User.IsInRole("Admin") && project.BuilderId != userId)
                 return Forbid();
 
+            var currentUnitCount = await _context.Units.CountAsync(u => u.ProjectId == id);
             var viewModel = new BulkImportViewModel
             {
                 ProjectId = id,
-                ProjectName = project.Name
+                ProjectName = project.Name,
+                MaxUnits = project.MaxUnits,
+                CurrentUnitCount = currentUnitCount
             };
 
             return View(viewModel);
@@ -1682,6 +1703,16 @@ namespace PreConHub.Controllers
                 return RedirectToAction(nameof(BulkImport), new { id });
             }
 
+            // Quota enforcement for non-admin
+            if (!User.IsInRole("Admin"))
+            {
+                if (project.MaxUnits == null)
+                {
+                    TempData["Error"] = "Unit quota has not been assigned for this project. Contact an administrator.";
+                    return RedirectToAction(nameof(BulkImport), new { id });
+                }
+            }
+
             var errors = new List<string>();
             var successCount = 0;
             var skippedCount = 0;
@@ -1699,6 +1730,19 @@ namespace PreConHub.Controllers
 
                 using var csv = new CsvReader(reader, config);
                 var records = csv.GetRecords<BulkImportRow>().ToList();
+
+                // Quota enforcement: check total after parsing
+                if (!User.IsInRole("Admin") && project.MaxUnits.HasValue)
+                {
+                    var currentUnits = await _context.Units.CountAsync(u => u.ProjectId == id);
+                    var remainingSlots = project.MaxUnits.Value - currentUnits;
+                    if (records.Count > remainingSlots)
+                    {
+                        TempData["Error"] = $"CSV contains {records.Count} units but only {remainingSlots} slots remaining (limit: {project.MaxUnits.Value}, current: {currentUnits}).";
+                        return RedirectToAction(nameof(BulkImport), new { id });
+                    }
+                }
+
                 var rowNumber = 1; // Start at 1 for header
 
                 foreach (var row in records)

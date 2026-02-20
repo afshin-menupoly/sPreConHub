@@ -15,6 +15,9 @@ namespace PreConHub.Models.ViewModels
         public ProjectSummaryViewModel Summary { get; set; } = new();
         public List<UnitRowViewModel> Units { get; set; } = new();
         public decimal TotalIncomeDueClosing { get; set; }
+        public int? MaxUnits { get; set; }
+        public int CurrentUnitCount { get; set; }
+        public bool CanAddUnit { get; set; }
     }
 
     public class ProjectSummaryViewModel
@@ -105,6 +108,8 @@ namespace PreConHub.Models.ViewModels
         public List<ProjectItemViewModel> Projects { get; set; } = new();
         public int TotalProjects { get; set; }
         public int ActiveProjects { get; set; }
+        public int MaxProjects { get; set; }
+        public bool CanCreateProject { get; set; } = true;
     }
 
     public class ProjectItemViewModel
@@ -784,6 +789,9 @@ namespace PreConHub.Models.ViewModels
     {
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = "";
+        public int? MaxUnits { get; set; }
+        public int CurrentUnitCount { get; set; }
+        public int? RemainingSlots => MaxUnits.HasValue ? MaxUnits.Value - CurrentUnitCount : null;
     }
 
     /// <summary>
@@ -1299,6 +1307,7 @@ namespace PreConHub.Models.ViewModels
         public bool EmailConfirmed { get; set; }
         public DateTime? LastLoginAt { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool IsSuperAdmin { get; set; }
 
         public string UserTypeBadgeClass => UserType switch
         {
@@ -1338,12 +1347,16 @@ namespace PreConHub.Models.ViewModels
         public string? LastName { get; set; }
         public string FullName => $"{FirstName} {LastName}".Trim();
         public string? Phone { get; set; }
+        public string? CompanyName { get; set; }
         public UserType UserType { get; set; }
         public List<string> Roles { get; set; } = new();
         public bool IsActive { get; set; }
         public bool EmailConfirmed { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? LastLoginAt { get; set; }
+        public bool IsSuperAdmin { get; set; }
+        public bool IsCurrentUserSuperAdmin { get; set; }
+        public int MaxProjects { get; set; }
 
         // Builder-specific data
         public List<BuilderProjectSummary> BuilderProjects { get; set; } = new();
@@ -1378,6 +1391,7 @@ namespace PreConHub.Models.ViewModels
         public string ProjectName { get; set; } = "";
         public string? Address { get; set; }
         public int TotalUnits { get; set; }
+        public int? MaxUnits { get; set; }
         public int PendingUnits { get; set; }
         public int AtRiskUnits { get; set; }
         public int ClosedUnits { get; set; }
@@ -1444,6 +1458,111 @@ namespace PreConHub.Models.ViewModels
                 return Timestamp.ToString("MMM dd, yyyy");
             }
         }
+    }
+
+    /// <summary>
+    /// Admin edit user form
+    /// </summary>
+    public class AdminEditUserViewModel
+    {
+        public string UserId { get; set; } = "";
+
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(100)]
+        public string FirstName { get; set; } = "";
+
+        [Required]
+        [StringLength(100)]
+        public string LastName { get; set; } = "";
+
+        [Phone]
+        public string? Phone { get; set; }
+
+        [StringLength(100)]
+        public string? CompanyName { get; set; }
+
+        public UserType UserType { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    /// <summary>
+    /// Admin create user form
+    /// </summary>
+    public class AdminCreateUserViewModel
+    {
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = "";
+
+        [Required]
+        [StringLength(100)]
+        public string FirstName { get; set; } = "";
+
+        [Required]
+        [StringLength(100)]
+        public string LastName { get; set; } = "";
+
+        [Phone]
+        public string? Phone { get; set; }
+
+        [StringLength(100)]
+        public string? CompanyName { get; set; }
+
+        public UserType UserType { get; set; }
+
+        [Required]
+        [StringLength(100, MinimumLength = 8)]
+        [DataType(DataType.Password)]
+        public string Password { get; set; } = "";
+
+        [Required]
+        [DataType(DataType.Password)]
+        [Compare("Password", ErrorMessage = "Passwords do not match.")]
+        public string ConfirmPassword { get; set; } = "";
+
+        public bool SendInvitation { get; set; } = false;
+    }
+
+    /// <summary>
+    /// Admin delete user confirmation
+    /// </summary>
+    public class AdminDeleteUserViewModel
+    {
+        public string UserId { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public UserType UserType { get; set; }
+        public int ProjectCount { get; set; }
+        public int UnitCount { get; set; }
+        public int AssignmentCount { get; set; }
+        public bool HasAnyActivity { get; set; }
+        public bool CanDelete => !HasAnyActivity;
+    }
+
+    /// <summary>
+    /// Admin set builder quotas
+    /// </summary>
+    public class AdminSetBuilderQuotaViewModel
+    {
+        public string UserId { get; set; } = "";
+        public string BuilderName { get; set; } = "";
+        public int MaxProjects { get; set; }
+        public List<AdminProjectQuotaItem> Projects { get; set; } = new();
+    }
+
+    /// <summary>
+    /// Per-project quota item for builder quota form
+    /// </summary>
+    public class AdminProjectQuotaItem
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = "";
+        public int CurrentUnitCount { get; set; }
+        public int? MaxUnits { get; set; }
     }
 
     /// <summary>

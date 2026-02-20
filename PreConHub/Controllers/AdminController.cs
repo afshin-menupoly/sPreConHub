@@ -5,28 +5,45 @@ using Microsoft.EntityFrameworkCore;
 using PreConHub.Data;
 using PreConHub.Models.Entities;
 using PreConHub.Models.ViewModels;
+using PreConHub.Services;
 using System.Security.Claims;
 
 namespace PreConHub.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin")]
     public class AdminController : Controller
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
+        private readonly RoleManager<IdentityRole> _roleManager;
+        private readonly IEmailService _emailService;
         private readonly ILogger<AdminController> _logger;
 
         public AdminController(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
+            RoleManager<IdentityRole> roleManager,
+            IEmailService emailService,
             ILogger<AdminController> logger)
         {
             _context = context;
             _userManager = userManager;
             _signInManager = signInManager;
+            _roleManager = roleManager;
+            _emailService = emailService;
             _logger = logger;
+        }
+
+        // ===== SuperAdmin Helpers =====
+        private bool IsCurrentUserSuperAdmin()
+            => User.IsInRole("SuperAdmin");
+
+        private async Task<bool> IsTargetSuperAdmin(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            return user != null && await _userManager.IsInRoleAsync(user, "SuperAdmin");
         }
 
         // GET: /Admin/Dashboard
@@ -126,6 +143,12 @@ namespace PreConHub.Controllers
                     CreatedAt = u.CreatedAt
                 }).ToListAsync();
 
+            // Populate IsSuperAdmin from roles (can't query via EF)
+            var superAdmins = await _userManager.GetUsersInRoleAsync("SuperAdmin");
+            var superAdminIds = superAdmins.Select(u => u.Id).ToHashSet();
+            foreach (var u in users)
+                u.IsSuperAdmin = superAdminIds.Contains(u.UserId);
+
             var viewModel = new UserListViewModel
             {
                 Users = users,
@@ -156,12 +179,16 @@ namespace PreConHub.Controllers
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Phone = user.PhoneNumber,
+                CompanyName = user.CompanyName,
                 UserType = user.UserType,
                 Roles = roles.ToList(),
                 IsActive = user.IsActive,
                 EmailConfirmed = user.EmailConfirmed,
                 CreatedAt = user.CreatedAt,
-                LastLoginAt = user.LastLoginAt
+                LastLoginAt = user.LastLoginAt,
+                IsSuperAdmin = roles.Contains("SuperAdmin"),
+                IsCurrentUserSuperAdmin = IsCurrentUserSuperAdmin(),
+                MaxProjects = user.MaxProjects
             };
 
             // Load type-specific data
@@ -194,6 +221,7 @@ namespace PreConHub.Controllers
                     ProjectName = p.Name,
                     Address = $"{p.Address}, {p.City}",
                     TotalUnits = p.Units.Count,
+                    MaxUnits = p.MaxUnits,
                     PendingUnits = p.Units.Count(u => u.Status == UnitStatus.Pending),
                     AtRiskUnits = p.Units.Count(u => u.Status == UnitStatus.AtRisk),
                     ClosedUnits = p.Units.Count(u => u.Status == UnitStatus.Closed),
@@ -340,6 +368,13 @@ namespace PreConHub.Controllers
             if (user == null)
                 return NotFound();
 
+            // SuperAdmin protection
+            if (await IsTargetSuperAdmin(userId) && !IsCurrentUserSuperAdmin())
+            {
+                TempData["Error"] = "Only Super Admins can modify Super Admin accounts.";
+                return RedirectToAction(nameof(UserDetail), new { id = userId });
+            }
+
             user.IsActive = !user.IsActive;
             await _userManager.UpdateAsync(user);
 
@@ -361,7 +396,12 @@ namespace PreConHub.Controllers
             if (targetUser == null)
                 return NotFound();
 
-            // Don't allow impersonating other admins
+            // Don't allow impersonating SuperAdmins or other admins
+            if (await _userManager.IsInRoleAsync(targetUser, "SuperAdmin"))
+            {
+                TempData["Error"] = "Cannot impersonate Super Admin accounts.";
+                return RedirectToAction(nameof(UserDetail), new { id = userId });
+            }
             if (await _userManager.IsInRoleAsync(targetUser, "Admin") || targetUser.UserType == UserType.PlatformAdmin)
             {
                 TempData["Error"] = "Cannot impersonate other administrators.";
@@ -488,7 +528,31 @@ namespace PreConHub.Controllers
             if (user == null)
                 return NotFound();
 
-            TempData["Info"] = $"Resend invitation feature coming soon for {user.Email}.";
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token, email = user.Email }, Request.Scheme);
+            await _emailService.SendPasswordResetEmailAsync(user.Email ?? "", $"{user.FirstName} {user.LastName}", resetLink ?? "");
+
+            TempData["Success"] = $"Invitation re-sent to {user.Email}.";
+            return RedirectToAction(nameof(UserDetail), new { id = userId });
+        }
+
+        // POST: /Admin/SendPasswordResetEmail
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SendPasswordResetEmail(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return NotFound();
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token, email = user.Email }, Request.Scheme);
+            await _emailService.SendPasswordResetEmailAsync(user.Email ?? "", $"{user.FirstName} {user.LastName}", resetLink ?? "");
+
+            _logger.LogInformation("Admin {AdminId} sent password reset email to {UserId} ({Email})",
+                _userManager.GetUserId(User), userId, user.Email);
+
+            TempData["Success"] = $"Password reset email sent to {user.Email}.";
             return RedirectToAction(nameof(UserDetail), new { id = userId });
         }
 
@@ -547,6 +611,399 @@ namespace PreConHub.Controllers
 
             TempData["Success"] = $"{fee.DisplayName} updated successfully.";
             return RedirectToAction(nameof(FeeSchedule));
+        }
+
+        // =============================================
+        // CRUD: EditUser
+        // =============================================
+
+        // GET: /Admin/EditUser/userId
+        public async Task<IActionResult> EditUser(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            // SuperAdmin protection
+            if (await IsTargetSuperAdmin(id) && !IsCurrentUserSuperAdmin())
+            {
+                TempData["Error"] = "Only Super Admins can edit Super Admin accounts.";
+                return RedirectToAction(nameof(UserDetail), new { id });
+            }
+
+            var viewModel = new AdminEditUserViewModel
+            {
+                UserId = user.Id,
+                Email = user.Email ?? "",
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Phone = user.PhoneNumber,
+                CompanyName = user.CompanyName,
+                UserType = user.UserType,
+                IsActive = user.IsActive
+            };
+
+            return View(viewModel);
+        }
+
+        // POST: /Admin/EditUser
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> EditUser(AdminEditUserViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = await _userManager.FindByIdAsync(model.UserId);
+            if (user == null) return NotFound();
+
+            // SuperAdmin protection
+            if (await IsTargetSuperAdmin(model.UserId) && !IsCurrentUserSuperAdmin())
+            {
+                TempData["Error"] = "Only Super Admins can edit Super Admin accounts.";
+                return RedirectToAction(nameof(UserDetail), new { id = model.UserId });
+            }
+
+            // Cannot change someone TO SuperAdmin/Admin unless caller is SuperAdmin
+            if ((model.UserType == UserType.PlatformAdmin) && !IsCurrentUserSuperAdmin())
+            {
+                ModelState.AddModelError("UserType", "Only Super Admins can assign the Admin role.");
+                return View(model);
+            }
+
+            var oldUserType = user.UserType;
+            user.Email = model.Email;
+            user.UserName = model.Email;
+            user.NormalizedEmail = model.Email.ToUpperInvariant();
+            user.NormalizedUserName = model.Email.ToUpperInvariant();
+            user.FirstName = model.FirstName;
+            user.LastName = model.LastName;
+            user.PhoneNumber = model.Phone;
+            user.CompanyName = model.CompanyName;
+            user.UserType = model.UserType;
+            user.IsActive = model.IsActive;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                    ModelState.AddModelError("", error.Description);
+                return View(model);
+            }
+
+            // Sync roles if UserType changed
+            if (oldUserType != model.UserType)
+            {
+                var currentRoles = await _userManager.GetRolesAsync(user);
+                // Remove old role (keep SuperAdmin if it exists)
+                var roleToRemove = GetRoleName(oldUserType);
+                if (!string.IsNullOrEmpty(roleToRemove) && currentRoles.Contains(roleToRemove))
+                    await _userManager.RemoveFromRoleAsync(user, roleToRemove);
+
+                // Add new role
+                var roleToAdd = GetRoleName(model.UserType);
+                if (!string.IsNullOrEmpty(roleToAdd) && !currentRoles.Contains(roleToAdd))
+                    await _userManager.AddToRoleAsync(user, roleToAdd);
+            }
+
+            _logger.LogInformation("Admin {AdminId} edited user {UserId}", _userManager.GetUserId(User), model.UserId);
+            TempData["Success"] = $"User {user.Email} updated successfully.";
+            return RedirectToAction(nameof(UserDetail), new { id = model.UserId });
+        }
+
+        // =============================================
+        // CRUD: CreateUser
+        // =============================================
+
+        // GET: /Admin/CreateUser
+        public IActionResult CreateUser()
+        {
+            return View(new AdminCreateUserViewModel());
+        }
+
+        // POST: /Admin/CreateUser
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateUser(AdminCreateUserViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            // Only SuperAdmin can create admin accounts
+            if (model.UserType == UserType.PlatformAdmin && !IsCurrentUserSuperAdmin())
+            {
+                ModelState.AddModelError("UserType", "Only Super Admins can create Admin accounts.");
+                return View(model);
+            }
+
+            var newUser = new ApplicationUser
+            {
+                UserName = model.Email,
+                Email = model.Email,
+                FirstName = model.FirstName,
+                LastName = model.LastName,
+                PhoneNumber = model.Phone,
+                CompanyName = model.CompanyName,
+                UserType = model.UserType,
+                EmailConfirmed = true,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var result = await _userManager.CreateAsync(newUser, model.Password);
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                    ModelState.AddModelError("", error.Description);
+                return View(model);
+            }
+
+            // Assign role
+            var roleName = GetRoleName(model.UserType);
+            if (!string.IsNullOrEmpty(roleName))
+                await _userManager.AddToRoleAsync(newUser, roleName);
+
+            // Send invitation email if requested
+            if (model.SendInvitation)
+            {
+                var loginLink = Url.Action("Login", "Account", new { area = "Identity" }, Request.Scheme);
+                await _emailService.SendAdminCreatedUserEmailAsync(model.Email, $"{model.FirstName} {model.LastName}", roleName ?? "User", loginLink ?? "");
+            }
+
+            _logger.LogInformation("Admin {AdminId} created user {Email} as {Role}",
+                _userManager.GetUserId(User), model.Email, roleName);
+
+            TempData["Success"] = $"User {model.Email} created successfully as {roleName}.";
+            return RedirectToAction(nameof(UserDetail), new { id = newUser.Id });
+        }
+
+        // =============================================
+        // CRUD: DeleteUser
+        // =============================================
+
+        // GET: /Admin/DeleteUser/userId
+        public async Task<IActionResult> DeleteUser(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null) return NotFound();
+
+            // SuperAdmin protection
+            if (await IsTargetSuperAdmin(id) && !IsCurrentUserSuperAdmin())
+            {
+                TempData["Error"] = "Only Super Admins can delete Super Admin accounts.";
+                return RedirectToAction(nameof(UserDetail), new { id });
+            }
+
+            var (hasActivity, projectCount, unitCount, assignmentCount) = await CheckUserActivity(user);
+
+            var viewModel = new AdminDeleteUserViewModel
+            {
+                UserId = user.Id,
+                FullName = $"{user.FirstName} {user.LastName}",
+                Email = user.Email ?? "",
+                UserType = user.UserType,
+                ProjectCount = projectCount,
+                UnitCount = unitCount,
+                AssignmentCount = assignmentCount,
+                HasAnyActivity = hasActivity
+            };
+
+            return View(viewModel);
+        }
+
+        // POST: /Admin/DeleteUserConfirmed
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteUserConfirmed(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null) return NotFound();
+
+            // SuperAdmin protection
+            if (await IsTargetSuperAdmin(userId) && !IsCurrentUserSuperAdmin())
+            {
+                TempData["Error"] = "Only Super Admins can delete Super Admin accounts.";
+                return RedirectToAction(nameof(Users));
+            }
+
+            var (hasActivity, _, _, _) = await CheckUserActivity(user);
+            if (hasActivity)
+            {
+                TempData["Error"] = "Cannot delete this user because they have active projects or activity. Deactivate the account instead.";
+                return RedirectToAction(nameof(DeleteUser), new { id = userId });
+            }
+
+            var email = user.Email;
+            var result = await _userManager.DeleteAsync(user);
+            if (result.Succeeded)
+            {
+                _logger.LogWarning("Admin {AdminId} permanently deleted user {Email}",
+                    _userManager.GetUserId(User), email);
+                TempData["Success"] = $"User {email} has been permanently deleted.";
+                return RedirectToAction(nameof(Users));
+            }
+
+            foreach (var error in result.Errors)
+                TempData["Error"] = error.Description;
+
+            return RedirectToAction(nameof(DeleteUser), new { id = userId });
+        }
+
+        // =============================================
+        // Helper: Check user activity for deletion
+        // =============================================
+        private async Task<(bool HasActivity, int ProjectCount, int UnitCount, int AssignmentCount)> CheckUserActivity(ApplicationUser user)
+        {
+            int projectCount = 0, unitCount = 0, assignmentCount = 0;
+            bool hasActivity = false;
+
+            switch (user.UserType)
+            {
+                case UserType.Builder:
+                    projectCount = await _context.Projects.CountAsync(p => p.BuilderId == user.Id);
+                    unitCount = await _context.Units
+                        .Include(u => u.Project)
+                        .CountAsync(u => u.Project.BuilderId == user.Id);
+                    hasActivity = projectCount > 0 || unitCount > 0
+                        || await _context.AuditLogs.AnyAsync(a => a.UserId == user.Id);
+                    break;
+
+                case UserType.Purchaser:
+                    unitCount = await _context.UnitPurchasers.CountAsync(up => up.PurchaserId == user.Id);
+                    hasActivity = unitCount > 0
+                        || await _context.Documents.AnyAsync(d => d.UploadedById == user.Id);
+                    break;
+
+                case UserType.Lawyer:
+                    assignmentCount = await _context.LawyerAssignments.CountAsync(la => la.LawyerId == user.Id);
+                    hasActivity = assignmentCount > 0;
+                    break;
+
+                case UserType.MarketingAgency:
+                    hasActivity = await _context.AuditLogs.AnyAsync(a => a.UserId == user.Id);
+                    break;
+
+                case UserType.PlatformAdmin:
+                    hasActivity = await _context.AuditLogs.AnyAsync(a => a.UserId == user.Id && a.Action != "Login");
+                    break;
+            }
+
+            return (hasActivity, projectCount, unitCount, assignmentCount);
+        }
+
+        // =============================================
+        // Builder Quotas
+        // =============================================
+
+        // GET: /Admin/SetBuilderQuota/userId
+        public async Task<IActionResult> SetBuilderQuota(string id)
+        {
+            var user = await _userManager.FindByIdAsync(id);
+            if (user == null || user.UserType != UserType.Builder)
+                return NotFound();
+
+            var projects = await _context.Projects
+                .Where(p => p.BuilderId == id)
+                .Select(p => new AdminProjectQuotaItem
+                {
+                    ProjectId = p.Id,
+                    ProjectName = p.Name,
+                    CurrentUnitCount = p.Units.Count,
+                    MaxUnits = p.MaxUnits
+                }).ToListAsync();
+
+            var viewModel = new AdminSetBuilderQuotaViewModel
+            {
+                UserId = user.Id,
+                BuilderName = $"{user.FirstName} {user.LastName}",
+                MaxProjects = user.MaxProjects,
+                Projects = projects
+            };
+
+            return View(viewModel);
+        }
+
+        // POST: /Admin/SetBuilderQuota
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetBuilderQuota(AdminSetBuilderQuotaViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = await _userManager.FindByIdAsync(model.UserId);
+            if (user == null || user.UserType != UserType.Builder)
+                return NotFound();
+
+            var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Update MaxProjects on user
+            var oldMaxProjects = user.MaxProjects;
+            user.MaxProjects = model.MaxProjects;
+            await _userManager.UpdateAsync(user);
+
+            // Update MaxUnits on each project
+            foreach (var item in model.Projects)
+            {
+                var project = await _context.Projects.FindAsync(item.ProjectId);
+                if (project != null && project.BuilderId == model.UserId)
+                {
+                    var oldMaxUnits = project.MaxUnits;
+                    project.MaxUnits = item.MaxUnits;
+
+                    if (oldMaxUnits != item.MaxUnits)
+                    {
+                        _context.AuditLogs.Add(new AuditLog
+                        {
+                            UserId = adminId ?? "",
+                            Action = "UpdateProjectQuota",
+                            EntityType = "Project",
+                            EntityId = project.Id,
+                            OldValues = $"MaxUnits={oldMaxUnits}",
+                            NewValues = $"MaxUnits={item.MaxUnits}",
+                            Timestamp = DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+
+            if (oldMaxProjects != model.MaxProjects)
+            {
+                _context.AuditLogs.Add(new AuditLog
+                {
+                    UserId = adminId ?? "",
+                    Action = "UpdateBuilderQuota",
+                    EntityType = "ApplicationUser",
+                    EntityId = 0,
+                    OldValues = $"MaxProjects={oldMaxProjects}",
+                    NewValues = $"MaxProjects={model.MaxProjects}",
+                    Comments = $"Builder: {user.Email}",
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Admin {AdminId} updated quotas for builder {BuilderId}: MaxProjects={MaxProjects}",
+                adminId, model.UserId, model.MaxProjects);
+
+            TempData["Success"] = $"Quotas updated for {user.FirstName} {user.LastName}.";
+            return RedirectToAction(nameof(UserDetail), new { id = model.UserId });
+        }
+
+        // =============================================
+        // Helper: Map UserType to role name
+        // =============================================
+        private static string? GetRoleName(UserType userType)
+        {
+            return userType switch
+            {
+                UserType.PlatformAdmin => "Admin",
+                UserType.Builder => "Builder",
+                UserType.Purchaser => "Purchaser",
+                UserType.Lawyer => "Lawyer",
+                UserType.MarketingAgency => "MarketingAgency",
+                _ => null
+            };
         }
     }
 }

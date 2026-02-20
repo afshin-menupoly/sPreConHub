@@ -15,7 +15,12 @@
             </nav>
             <h1 class="h3 mb-0"><i class="bi bi-people me-2"></i>Manage Users</h1>
         </div>
-        <span class="badge bg-secondary fs-6">@Model.TotalCount users</span>
+        <div>
+            <a asp-action="CreateUser" class="btn btn-success me-2">
+                <i class="bi bi-person-plus me-1"></i>Create User
+            </a>
+            <span class="badge bg-secondary fs-6">@Model.TotalCount users</span>
+        </div>
     </div>
 
     <!-- Messages -->
@@ -101,6 +106,10 @@
                                     </td>
                                     <td>
                                         <span class="badge @user.UserTypeBadgeClass">@user.UserType</span>
+                                        @if (user.IsSuperAdmin)
+                                        {
+                                            <span class="badge bg-dark ms-1">SuperAdmin</span>
+                                        }
                                     </td>
                                     <td>
                                         @if (user.IsActive)
@@ -126,11 +135,22 @@
                                     </td>
                                     <td class="text-end">
                                         <div class="btn-group btn-group-sm">
-                                            <a asp-action="UserDetail" asp-route-id="@user.UserId" 
+                                            <a asp-action="UserDetail" asp-route-id="@user.UserId"
                                                class="btn btn-outline-primary" title="View Details">
                                                 <i class="bi bi-eye"></i>
                                             </a>
-                                            @if (user.UserType != PreConHub.Models.Entities.UserType.PlatformAdmin)
+                                            @if (!user.IsSuperAdmin || User.IsInRole("SuperAdmin"))
+                                            {
+                                                <a asp-action="EditUser" asp-route-id="@user.UserId"
+                                                   class="btn btn-outline-secondary" title="Edit">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a asp-action="DeleteUser" asp-route-id="@user.UserId"
+                                                   class="btn btn-outline-danger" title="Delete">
+                                                    <i class="bi bi-trash"></i>
+                                                </a>
+                                            }
+                                            @if (user.UserType != PreConHub.Models.Entities.UserType.PlatformAdmin && !user.IsSuperAdmin)
                                             {
                                                 <form asp-action="ImpersonateUser" method="post" class="d-inline">
                                                     @Html.AntiForgeryToken()
