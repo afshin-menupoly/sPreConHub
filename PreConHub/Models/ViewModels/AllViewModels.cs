@@ -344,13 +344,6 @@ namespace PreConHub.Models.ViewModels
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
     }
 
-    public class BulkImportUnitsViewModel
-    {
-        public int ProjectId { get; set; }
-        public string ProjectName { get; set; } = string.Empty;
-        // File upload handled separately
-    }
-
     #endregion
 
     #region Forms - Purchaser Input
@@ -822,7 +815,7 @@ namespace PreConHub.Models.ViewModels
         public DateTime? OccupancyDate { get; set; }
         public DateTime? ClosingDate { get; set; }
 
-        // ===== SOA ENHANCEMENT FIELDS (NEW) =====
+        // ===== SOA ENHANCEMENT FIELDS =====
         /// <summary>
         /// Agreement of Purchase and Sale date
         /// </summary>
@@ -839,6 +832,17 @@ namespace PreConHub.Models.ViewModels
         /// Values: true/false, yes/no, 1/0
         /// </summary>
         public string? IsPrimaryResidence { get; set; }
+
+        // ===== SOA ADJUSTMENT FIELDS (Priority 6C) =====
+        /// <summary>
+        /// Actual annual property tax from builder's tax bill. Null = use 1% estimate.
+        /// </summary>
+        public decimal? ActualAnnualLandTax { get; set; }
+
+        /// <summary>
+        /// Actual monthly maintenance/common expense fee. Null = use $0.60/sqft estimate.
+        /// </summary>
+        public decimal? ActualMonthlyMaintenanceFee { get; set; }
 
         // ===== PURCHASER INFORMATION (Optional) =====
         public string? PurchaserEmail { get; set; }

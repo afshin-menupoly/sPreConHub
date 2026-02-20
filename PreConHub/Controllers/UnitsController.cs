@@ -1754,10 +1754,14 @@ namespace PreConHub.Controllers
                             Status = UnitStatus.Pending,
                             CreatedAt = DateTime.UtcNow,
 
-                            // ===== SOA Enhancement Fields (NEW) =====
+                            // ===== SOA Enhancement Fields =====
                             APSDate = row.APSDate,
                             IsFirstTimeBuyer = ParseBool(row.IsFirstTimeBuyer),
-                            IsPrimaryResidence = ParseBool(row.IsPrimaryResidence) || string.IsNullOrEmpty(row.IsPrimaryResidence) // Default true
+                            IsPrimaryResidence = ParseBool(row.IsPrimaryResidence) || string.IsNullOrEmpty(row.IsPrimaryResidence), // Default true
+
+                            // ===== SOA Adjustment Fields (Priority 6C) =====
+                            ActualAnnualLandTax = row.ActualAnnualLandTax,
+                            ActualMonthlyMaintenanceFee = row.ActualMonthlyMaintenanceFee
                         };
 
                         _context.Units.Add(unit);
@@ -1912,6 +1916,8 @@ namespace PreConHub.Controllers
         "OccupancyDate", "ClosingDate", "APSDate",
         // SOA Fields
         "IsFirstTimeBuyer", "IsPrimaryResidence",
+        // SOA Adjustment Fields
+        "ActualAnnualLandTax", "ActualMonthlyMaintenanceFee",
         // Purchaser Info
         "PurchaserEmail", "PurchaserFirstName", "PurchaserLastName", "PurchaserPhone",
         // Deposit 1
@@ -1926,14 +1932,14 @@ namespace PreConHub.Controllers
         "Deposit5Amount", "Deposit5DueDate", "Deposit5PaidDate", "Deposit5Holder", "Deposit5InterestEligible", "Deposit5InterestRate"
     }));
 
-            // Sample data row 1 - First-time buyer, primary residence
-            csv.AppendLine("101,1,OneBedroom,1,1,650,599000,true,50000,true,5000,2026-06-01,2026-09-01,2024-01-10,true,true,john.smith@email.com,John,Smith,416-555-1234,29950,2024-01-15,2024-01-15,Trust,true,0.02,29950,2024-04-15,2024-04-15,Trust,true,0.02,29950,2024-07-15,,Trust,true,0.02,0,,,,,,0,,,,,");
+            // Sample data row 1 - First-time buyer, primary residence, with actual tax/maintenance
+            csv.AppendLine("101,1,OneBedroom,1,1,650,599000,true,50000,true,5000,2026-06-01,2026-09-01,2024-01-10,true,true,5200,450,john.smith@email.com,John,Smith,416-555-1234,29950,2024-01-15,2024-01-15,Trust,true,0.02,29950,2024-04-15,2024-04-15,Trust,true,0.02,29950,2024-07-15,,Trust,true,0.02,0,,,,,,0,,,,,");
 
-            // Sample data row 2 - Not first-time buyer
-            csv.AppendLine("102,1,TwoBedroom,2,2,850,699000,true,50000,false,0,2026-06-01,2026-09-01,2024-02-01,false,true,jane.doe@email.com,Jane,Doe,416-555-5678,34950,2024-02-15,2024-02-15,Builder,false,,34950,2024-05-15,,,Builder,false,,0,,,,,,0,,,,,,0,,,,,");
+            // Sample data row 2 - Not first-time buyer, with actual tax only
+            csv.AppendLine("102,1,TwoBedroom,2,2,850,699000,true,50000,false,0,2026-06-01,2026-09-01,2024-02-01,false,true,6100,,jane.doe@email.com,Jane,Doe,416-555-5678,34950,2024-02-15,2024-02-15,Builder,false,,34950,2024-05-15,,,Builder,false,,0,,,,,,0,,,,,,0,,,,,");
 
-            // Sample data row 3 - No purchaser yet
-            csv.AppendLine("201,2,Studio,0,1,450,399000,false,0,false,0,2026-06-01,2026-09-01,,true,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,");
+            // Sample data row 3 - No purchaser yet, no tax/maintenance data
+            csv.AppendLine("201,2,Studio,0,1,450,399000,false,0,false,0,2026-06-01,2026-09-01,,true,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,");
 
             var bytes = Encoding.UTF8.GetBytes(csv.ToString());
             return File(bytes, "text/csv", "PreConHub_BulkImport_Template_v2.csv");
@@ -2033,6 +2039,7 @@ namespace PreConHub.Controllers
                 DueDate = dueDate ?? DateTime.UtcNow,
                 IsPaid = paidDate.HasValue,
                 PaidDate = paidDate,
+                Status = paidDate.HasValue ? DepositStatus.Paid : DepositStatus.Pending,
                 CreatedAt = DateTime.UtcNow,
 
                 // SOA Enhancement Fields
