@@ -811,6 +811,7 @@ namespace PreConHub.Controllers
                         LastName = lastName,
                         PhoneNumber = phone,
                         UserType = UserType.Purchaser,
+                        CreatedByUserId = userId,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
                         EmailConfirmed = false // Will be confirmed when they register
@@ -863,6 +864,7 @@ namespace PreConHub.Controllers
                             LastName = coLastName ?? "",
                             PhoneNumber = coPhone,
                             UserType = UserType.Purchaser,
+                            CreatedByUserId = userId,
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,
                             EmailConfirmed = false
@@ -906,6 +908,7 @@ namespace PreConHub.Controllers
                             PhoneNumber = lawyerPhone,
                             UserType = UserType.Lawyer,
                             CompanyName = lawFirm,
+                            CreatedByUserId = userId,
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,
                             EmailConfirmed = false
@@ -1238,6 +1241,7 @@ namespace PreConHub.Controllers
                         PhoneNumber = lawyerPhone,
                         CompanyName = lawFirm,
                         UserType = UserType.Lawyer,
+                        CreatedByUserId = userId,
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow,
                         EmailConfirmed = false
@@ -1860,6 +1864,7 @@ namespace PreConHub.Controllers
                                     LastName = row.PurchaserLastName?.Trim() ?? row.UnitNumber,
                                     PhoneNumber = row.PurchaserPhone?.Trim(),
                                     UserType = UserType.Purchaser,
+                                    CreatedByUserId = userId,
                                     EmailConfirmed = false,
                                     IsActive = true,
                                     CreatedAt = DateTime.UtcNow
@@ -2316,6 +2321,7 @@ namespace PreConHub.Controllers
                             LastName = model.PurchaserLastName ?? model.UnitNumber ?? "",
                             PhoneNumber = model.PurchaserPhone,
                             UserType = UserType.Purchaser,
+                            CreatedByUserId = userId,
                             EmailConfirmed = false,
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow
@@ -2359,6 +2365,7 @@ namespace PreConHub.Controllers
                             LastName = model.CoPurchaserLastName ?? "",
                             PhoneNumber = model.CoPurchaserPhone,
                             UserType = UserType.Purchaser,
+                            CreatedByUserId = userId,
                             EmailConfirmed = false,
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow

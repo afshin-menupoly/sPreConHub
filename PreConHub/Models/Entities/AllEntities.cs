@@ -36,6 +36,10 @@ namespace PreConHub.Models.Entities
         /// <summary>Maximum number of projects this builder can create. Default 1 for new builders. Admin-adjustable.</summary>
         public int MaxProjects { get; set; } = 1;
 
+        /// <summary>ID of the Admin/Builder who created this user</summary>
+        public string? CreatedByUserId { get; set; }
+        public virtual ApplicationUser? CreatedByUser { get; set; }
+
         // Navigation properties
         public virtual ICollection<Project> BuilderProjects { get; set; } = new List<Project>();
         public virtual ICollection<UnitPurchaser> PurchaserUnits { get; set; } = new List<UnitPurchaser>();

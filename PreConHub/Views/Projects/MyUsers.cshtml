@@ -1,0 +1,146 @@
+@model PreConHub.Models.ViewModels.BuilderMyUsersViewModel
+@{
+    ViewData["Title"] = "My Users";
+}
+
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-1">
+            <li class="breadcrumb-item"><a asp-action="Index">Projects</a></li>
+            <li class="breadcrumb-item active">My Users</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0"><i class="bi bi-people me-2"></i>My Invited Users <span class="badge bg-secondary ms-2">@Model.TotalCount</span></h1>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (Model.Users.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>User</th>
+                                <th>Type</th>
+                                <th>Assignments</th>
+                                <th>Status</th>
+                                <th>Last Login</th>
+                                <th>Created</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in Model.Users)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle me-3 @(user.IsActive ? "bg-primary" : "bg-secondary") text-white"
+                                                 style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;">
+                                                @(user.FullName.Length > 0 ? user.FullName[0].ToString().ToUpper() : "?")
+                                            </div>
+                                            <div>
+                                                <strong>@user.FullName</strong><br>
+                                                <small class="text-muted">@user.Email</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge @user.UserTypeBadgeClass">@user.UserType</span>
+                                    </td>
+                                    <td>
+                                        @if (user.AssignedUnits > 0)
+                                        {
+                                            <span class="badge bg-outline-secondary border">@user.AssignedUnits unit(s)</span>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-muted">None</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (user.IsActive)
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i>Inactive</span>
+                                        }
+                                        @if (!user.EmailConfirmed)
+                                        {
+                                            <br><small class="text-warning"><i class="bi bi-envelope-exclamation me-1"></i>Pending</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="@(user.LastLoginAt.HasValue ? "" : "text-muted")">
+                                            @user.LastLoginDisplay
+                                        </span>
+                                    </td>
+                                    <td>@user.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                    <td class="text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            @if (!user.EmailConfirmed)
+                                            {
+                                                <form asp-action="ResendUserInvitation" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="targetUserId" value="@user.UserId" />
+                                                    <button type="submit" class="btn btn-outline-primary btn-sm" title="Generate invitation link">
+                                                        <i class="bi bi-envelope-arrow-up"></i>
+                                                    </button>
+                                                </form>
+                                            }
+                                            <form asp-action="ToggleInvitedUserStatus" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="targetUserId" value="@user.UserId" />
+                                                @if (user.IsActive)
+                                                {
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm"
+                                                            onclick="return confirm('Deactivate @user.FullName?');" title="Deactivate">
+                                                        <i class="bi bi-person-x"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button type="submit" class="btn btn-outline-success btn-sm"
+                                                            onclick="return confirm('Reactivate @user.FullName?');" title="Activate">
+                                                        <i class="bi bi-person-check"></i>
+                                                    </button>
+                                                }
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-people display-4 d-block mb-3"></i>
+                    <h5>No Invited Users Yet</h5>
+                    <p>Users you invite (purchasers, lawyers) will appear here.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

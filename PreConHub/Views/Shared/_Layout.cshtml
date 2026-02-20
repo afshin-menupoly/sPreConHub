@@ -44,6 +44,15 @@
                                 </a>
                             </li>
                         }
+                        @* My Users - Builder only *@
+                        @if (User.IsInRole("Builder"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Projects" asp-action="MyUsers">
+                                    <i class="bi bi-people me-1"></i>My Users
+                                </a>
+                            </li>
+                        }
                         @* Extension Requests - Builders and Admins *@
                         @if (User.IsInRole("Builder") || User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
                         {

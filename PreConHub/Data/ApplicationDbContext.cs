@@ -50,6 +50,11 @@ namespace PreConHub.Data
                 entity.Property(e => e.CompanyName).HasMaxLength(100);
                 entity.HasIndex(e => e.Email);
                 entity.HasIndex(e => e.UserType);
+                entity.HasIndex(e => e.CreatedByUserId);
+                entity.HasOne(e => e.CreatedByUser)
+                      .WithMany()
+                      .HasForeignKey(e => e.CreatedByUserId)
+                      .OnDelete(DeleteBehavior.NoAction);
             });
 
             // ============================================

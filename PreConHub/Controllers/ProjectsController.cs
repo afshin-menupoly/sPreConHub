@@ -737,6 +737,7 @@ namespace PreConHub.Controllers
                             PhoneNumber = lawyerPhone,
                             CompanyName = lawFirm,
                             UserType = UserType.Lawyer,
+                            CreatedByUserId = userId,
                             IsActive = true,
                             CreatedAt = DateTime.UtcNow,
                             EmailConfirmed = false
@@ -1487,6 +1488,91 @@ namespace PreConHub.Controllers
 
             TempData["Success"] = "Project investment data updated successfully.";
             return RedirectToAction(nameof(Dashboard), new { id });
+        }
+
+        #endregion
+
+        #region Builder User Management (MyUsers)
+
+        // GET: /Projects/MyUsers
+        [Authorize(Roles = "Builder")]
+        public async Task<IActionResult> MyUsers()
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var invitedUsers = await _context.Users
+                .Where(u => u.CreatedByUserId == userId)
+                .OrderByDescending(u => u.CreatedAt)
+                .Select(u => new BuilderInvitedUserItem
+                {
+                    UserId = u.Id,
+                    FullName = u.FirstName + " " + u.LastName,
+                    Email = u.Email ?? "",
+                    UserType = u.UserType,
+                    IsActive = u.IsActive,
+                    EmailConfirmed = u.EmailConfirmed,
+                    CreatedAt = u.CreatedAt,
+                    LastLoginAt = u.LastLoginAt,
+                    AssignedUnits = u.UserType == UserType.Purchaser
+                        ? u.PurchaserUnits.Count
+                        : u.UserType == UserType.Lawyer
+                            ? u.LawyerAssignments.Count
+                            : 0
+                })
+                .ToListAsync();
+
+            var viewModel = new BuilderMyUsersViewModel
+            {
+                Users = invitedUsers,
+                TotalCount = invitedUsers.Count
+            };
+
+            return View(viewModel);
+        }
+
+        // POST: /Projects/ToggleInvitedUserStatus
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Builder")]
+        public async Task<IActionResult> ToggleInvitedUserStatus(string targetUserId)
+        {
+            var userId = _userManager.GetUserId(User);
+            var targetUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == targetUserId && u.CreatedByUserId == userId);
+
+            if (targetUser == null)
+            {
+                TempData["Error"] = "User not found or you don't have permission.";
+                return RedirectToAction(nameof(MyUsers));
+            }
+
+            targetUser.IsActive = !targetUser.IsActive;
+            await _context.SaveChangesAsync();
+
+            var status = targetUser.IsActive ? "activated" : "deactivated";
+            TempData["Success"] = $"User {targetUser.Email} has been {status}.";
+            return RedirectToAction(nameof(MyUsers));
+        }
+
+        // POST: /Projects/ResendUserInvitation
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Builder")]
+        public async Task<IActionResult> ResendUserInvitation(string targetUserId)
+        {
+            var userId = _userManager.GetUserId(User);
+            var targetUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == targetUserId && u.CreatedByUserId == userId);
+
+            if (targetUser == null)
+            {
+                TempData["Error"] = "User not found or you don't have permission.";
+                return RedirectToAction(nameof(MyUsers));
+            }
+
+            var token = await _userManager.GeneratePasswordResetTokenAsync(targetUser);
+            var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token }, Request.Scheme);
+
+            TempData["Success"] = $"Invitation link for {targetUser.Email}: {resetLink}";
+            return RedirectToAction(nameof(MyUsers));
         }
 
         #endregion

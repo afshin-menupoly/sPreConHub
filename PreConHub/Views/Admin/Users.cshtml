@@ -82,6 +82,7 @@
                             <tr>
                                 <th>User</th>
                                 <th>Type</th>
+                                <th>Invited By</th>
                                 <th>Status</th>
                                 <th>Last Login</th>
                                 <th>Registered</th>
@@ -109,6 +110,18 @@
                                         @if (user.IsSuperAdmin)
                                         {
                                             <span class="badge bg-dark ms-1">SuperAdmin</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(user.InvitedByName))
+                                        {
+                                            <a asp-action="UserDetail" asp-route-id="@user.InvitedByUserId" class="text-decoration-none">
+                                                <small>@user.InvitedByName</small>
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-muted">—</small>
                                         }
                                     </td>
                                     <td>

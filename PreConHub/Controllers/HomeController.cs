@@ -31,6 +31,20 @@ namespace PreConHub.Controllers
 
         public IActionResult Index()
         {
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+                    return RedirectToAction("Dashboard", "Admin");
+                if (User.IsInRole("Builder"))
+                    return RedirectToAction("Index", "Projects");
+                if (User.IsInRole("Purchaser"))
+                    return RedirectToAction("Dashboard", "Purchaser");
+                if (User.IsInRole("Lawyer"))
+                    return RedirectToAction("Dashboard", "Lawyer");
+                if (User.IsInRole("MarketingAgency"))
+                    return RedirectToAction("Dashboard", "MarketingAgency");
+            }
+
             return View();
         }
 

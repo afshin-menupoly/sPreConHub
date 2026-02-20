@@ -137,6 +137,19 @@
                                 }
                             </td>
                         </tr>
+                        <tr>
+                            <td class="text-muted">Invited By</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(Model.InvitedByName))
+                                {
+                                    <a asp-action="UserDetail" asp-route-id="@Model.InvitedByUserId">@Model.InvitedByName</a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                        </tr>
                     </table>
                 </div>
             </div>

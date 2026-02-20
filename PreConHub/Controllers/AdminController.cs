@@ -140,7 +140,11 @@ namespace PreConHub.Controllers
                     IsActive = u.IsActive,
                     EmailConfirmed = u.EmailConfirmed,
                     LastLoginAt = u.LastLoginAt,
-                    CreatedAt = u.CreatedAt
+                    CreatedAt = u.CreatedAt,
+                    InvitedByUserId = u.CreatedByUserId,
+                    InvitedByName = u.CreatedByUser != null
+                        ? u.CreatedByUser.FirstName + " " + u.CreatedByUser.LastName
+                        : null
                 }).ToListAsync();
 
             // Populate IsSuperAdmin from roles (can't query via EF)
@@ -166,7 +170,9 @@ namespace PreConHub.Controllers
         // GET: /Admin/UserDetail/userId
         public async Task<IActionResult> UserDetail(string id)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _context.Users
+                .Include(u => u.CreatedByUser)
+                .FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
                 return NotFound();
 
@@ -188,7 +194,11 @@ namespace PreConHub.Controllers
                 LastLoginAt = user.LastLoginAt,
                 IsSuperAdmin = roles.Contains("SuperAdmin"),
                 IsCurrentUserSuperAdmin = IsCurrentUserSuperAdmin(),
-                MaxProjects = user.MaxProjects
+                MaxProjects = user.MaxProjects,
+                InvitedByUserId = user.CreatedByUserId,
+                InvitedByName = user.CreatedByUser != null
+                    ? $"{user.CreatedByUser.FirstName} {user.CreatedByUser.LastName}"
+                    : null
             };
 
             // Load type-specific data
@@ -728,13 +738,7 @@ namespace PreConHub.Controllers
             if (!ModelState.IsValid)
                 return View(model);
 
-            // Only SuperAdmin can create admin accounts
-            if (model.UserType == UserType.PlatformAdmin && !IsCurrentUserSuperAdmin())
-            {
-                ModelState.AddModelError("UserType", "Only Super Admins can create Admin accounts.");
-                return View(model);
-            }
-
+            // Admin CreateUser is restricted to Builder accounts only
             var newUser = new ApplicationUser
             {
                 UserName = model.Email,
@@ -743,7 +747,9 @@ namespace PreConHub.Controllers
                 LastName = model.LastName,
                 PhoneNumber = model.Phone,
                 CompanyName = model.CompanyName,
-                UserType = model.UserType,
+                UserType = UserType.Builder,
+                MaxProjects = model.MaxProjects,
+                CreatedByUserId = _userManager.GetUserId(User),
                 EmailConfirmed = true,
                 IsActive = true,
                 CreatedAt = DateTime.UtcNow
@@ -757,22 +763,20 @@ namespace PreConHub.Controllers
                 return View(model);
             }
 
-            // Assign role
-            var roleName = GetRoleName(model.UserType);
-            if (!string.IsNullOrEmpty(roleName))
-                await _userManager.AddToRoleAsync(newUser, roleName);
+            // Assign Builder role
+            await _userManager.AddToRoleAsync(newUser, "Builder");
 
             // Send invitation email if requested
             if (model.SendInvitation)
             {
                 var loginLink = Url.Action("Login", "Account", new { area = "Identity" }, Request.Scheme);
-                await _emailService.SendAdminCreatedUserEmailAsync(model.Email, $"{model.FirstName} {model.LastName}", roleName ?? "User", loginLink ?? "");
+                await _emailService.SendAdminCreatedUserEmailAsync(model.Email, $"{model.FirstName} {model.LastName}", "Builder", loginLink ?? "");
             }
 
-            _logger.LogInformation("Admin {AdminId} created user {Email} as {Role}",
-                _userManager.GetUserId(User), model.Email, roleName);
+            _logger.LogInformation("Admin {AdminId} created builder {Email} (MaxProjects={MaxProjects})",
+                _userManager.GetUserId(User), model.Email, model.MaxProjects);
 
-            TempData["Success"] = $"User {model.Email} created successfully as {roleName}.";
+            TempData["Success"] = $"Builder {model.Email} created successfully.";
             return RedirectToAction(nameof(UserDetail), new { id = newUser.Id });
         }
 

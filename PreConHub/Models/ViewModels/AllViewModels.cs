@@ -1376,6 +1376,8 @@ namespace PreConHub.Models.ViewModels
         public DateTime? LastLoginAt { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool IsSuperAdmin { get; set; }
+        public string? InvitedByUserId { get; set; }
+        public string? InvitedByName { get; set; }
 
         public string UserTypeBadgeClass => UserType switch
         {
@@ -1425,6 +1427,8 @@ namespace PreConHub.Models.ViewModels
         public bool IsSuperAdmin { get; set; }
         public bool IsCurrentUserSuperAdmin { get; set; }
         public int MaxProjects { get; set; }
+        public string? InvitedByUserId { get; set; }
+        public string? InvitedByName { get; set; }
 
         // Builder-specific data
         public List<BuilderProjectSummary> BuilderProjects { get; set; } = new();
@@ -1580,7 +1584,9 @@ namespace PreConHub.Models.ViewModels
         [StringLength(100)]
         public string? CompanyName { get; set; }
 
-        public UserType UserType { get; set; } = UserType.Builder;
+        /// <summary>Maximum projects this builder can create (default 1)</summary>
+        [Range(1, 1000)]
+        public int MaxProjects { get; set; } = 1;
 
         [Required]
         [StringLength(100, MinimumLength = 8)]
@@ -1866,6 +1872,61 @@ namespace PreConHub.Models.ViewModels
             "BuilderUpload" => "Builder Upload",
             _ => Source
         };
+    }
+
+    #endregion
+
+    #region Builder User Management
+
+    /// <summary>
+    /// Builder's "My Users" page view model
+    /// </summary>
+    public class BuilderMyUsersViewModel
+    {
+        public List<BuilderInvitedUserItem> Users { get; set; } = new();
+        public int TotalCount { get; set; }
+    }
+
+    /// <summary>
+    /// Single user row in Builder's invited users list
+    /// </summary>
+    public class BuilderInvitedUserItem
+    {
+        public string UserId { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public UserType UserType { get; set; }
+        public bool IsActive { get; set; }
+        public bool EmailConfirmed { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+        public int AssignedProjects { get; set; }
+        public int AssignedUnits { get; set; }
+
+        public string UserTypeBadgeClass => UserType switch
+        {
+            UserType.Purchaser => "bg-success",
+            UserType.Lawyer => "bg-info",
+            UserType.MarketingAgency => "bg-warning text-dark",
+            _ => "bg-secondary"
+        };
+
+        public string StatusBadgeClass => IsActive ? "bg-success" : "bg-secondary";
+
+        public string LastLoginDisplay => LastLoginAt.HasValue
+            ? GetTimeAgo(LastLoginAt.Value)
+            : "Never";
+
+        private static string GetTimeAgo(DateTime dateTime)
+        {
+            var span = DateTime.UtcNow - dateTime;
+            if (span.TotalMinutes < 1) return "Just now";
+            if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes} min ago";
+            if (span.TotalHours < 24) return $"{(int)span.TotalHours} hrs ago";
+            if (span.TotalDays < 7) return $"{(int)span.TotalDays} days ago";
+            if (span.TotalDays < 30) return $"{(int)(span.TotalDays / 7)} weeks ago";
+            return dateTime.ToString("MMM dd, yyyy");
+        }
     }
 
     #endregion
