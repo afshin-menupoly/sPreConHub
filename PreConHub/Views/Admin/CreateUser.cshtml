@@ -54,13 +54,13 @@
                             <div class="col-md-6">
                                 <label asp-for="UserType" class="form-label">User Type *</label>
                                 <select asp-for="UserType" class="form-select">
-                                    <option value="@UserType.Builder">Builder</option>
-                                    <option value="@UserType.Purchaser">Purchaser</option>
-                                    <option value="@UserType.Lawyer">Lawyer</option>
-                                    <option value="@UserType.MarketingAgency">Marketing Agency</option>
+                                    <option value="@((int)UserType.Builder)">Builder</option>
+                                    <option value="@((int)UserType.Purchaser)">Purchaser</option>
+                                    <option value="@((int)UserType.Lawyer)">Lawyer</option>
+                                    <option value="@((int)UserType.MarketingAgency)">Marketing Agency</option>
                                     @if (User.IsInRole("SuperAdmin"))
                                     {
-                                        <option value="@UserType.PlatformAdmin">Admin</option>
+                                        <option value="@((int)UserType.PlatformAdmin)">Admin</option>
                                     }
                                 </select>
                                 <span asp-validation-for="UserType" class="text-danger"></span>

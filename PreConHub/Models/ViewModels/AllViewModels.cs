@@ -1580,7 +1580,7 @@ namespace PreConHub.Models.ViewModels
         [StringLength(100)]
         public string? CompanyName { get; set; }
 
-        public UserType UserType { get; set; }
+        public UserType UserType { get; set; } = UserType.Builder;
 
         [Required]
         [StringLength(100, MinimumLength = 8)]
