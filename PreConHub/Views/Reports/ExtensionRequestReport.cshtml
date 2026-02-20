@@ -1,0 +1,144 @@
+@model PreConHub.Models.ViewModels.ExtensionRequestReportViewModel
+@{
+    ViewData["Title"] = "Extension Request Report";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-calendar-range text-primary me-2"></i>Extension Request Report
+            </h1>
+            <p class="text-muted mb-0">@Model.ProjectName — Closing date extension analysis</p>
+        </div>
+        <div class="d-flex gap-2">
+            <select class="form-select form-select-sm" style="width:auto"
+                    onchange="window.location.href='/Reports/ExtensionRequestReport?projectId=' + this.value">
+                @foreach (var p in Model.AllProjects)
+                {
+                    <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name (@p.UnitCount units)</option>
+                }
+            </select>
+            <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Reports Hub
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-primary">@Model.TotalRequests</div>
+                    <div class="small text-muted">Total Requests</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-success">@Model.Approved</div>
+                    <div class="small text-muted">Approved</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-danger">@Model.Rejected</div>
+                    <div class="small text-muted">Rejected</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-info">@Model.ApprovalRate%</div>
+                    <div class="small text-muted">Approval Rate</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.AverageExtensionDays > 0)
+    {
+        <div class="alert alert-info py-2 mb-4">
+            <i class="bi bi-info-circle me-2"></i>
+            Average approved extension: <strong>@Math.Round(Model.AverageExtensionDays, 0) days</strong>
+        </div>
+    }
+
+    <!-- Chart + Table -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <canvas id="extensionChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Unit</th>
+                                    <th>Purchaser</th>
+                                    <th>Submitted</th>
+                                    <th>Original Close</th>
+                                    <th>Requested Close</th>
+                                    <th class="text-center">Days</th>
+                                    <th>Status</th>
+                                    <th>Reviewed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Items)
+                                {
+                                    <tr>
+                                        <td class="fw-bold">@item.UnitNumber</td>
+                                        <td>@item.PurchaserName</td>
+                                        <td class="text-muted">@item.RequestedDate.ToString("MMM dd, yyyy")</td>
+                                        <td class="text-muted">@(item.OriginalClosingDate?.ToString("MMM dd, yyyy") ?? "—")</td>
+                                        <td>@item.RequestedNewClosingDate.ToString("MMM dd, yyyy")</td>
+                                        <td class="text-center">
+                                            @if (item.DaysRequested > 0)
+                                            {
+                                                <span class="badge bg-light text-dark">+@item.DaysRequested</span>
+                                            }
+                                        </td>
+                                        <td><span class="badge @item.StatusBadgeClass">@item.Status</span></td>
+                                        <td class="text-muted">@(item.ReviewedAt?.ToString("MMM dd, yyyy") ?? "—")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+    new Chart(document.getElementById('extensionChart'), {
+        type: 'pie',
+        data: {
+            labels: ['Approved', 'Rejected', 'Pending'],
+            datasets: [{
+                data: [@Model.Approved, @Model.Rejected, @Model.Pending],
+                backgroundColor: ['#198754', '#dc3545', '#ffc107']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+</script>
+}

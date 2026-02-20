@@ -1,0 +1,150 @@
+@model PreConHub.Models.ViewModels.CreditScoreReportViewModel
+@{
+    ViewData["Title"] = "Credit Score Distribution";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-speedometer2 text-primary me-2"></i>Credit Score Distribution
+            </h1>
+            <p class="text-muted mb-0">@Model.ProjectName — Purchaser credit score analysis</p>
+        </div>
+        <div class="d-flex gap-2">
+            <select class="form-select form-select-sm" style="width:auto"
+                    onchange="window.location.href='/Reports/CreditScoreDistribution?projectId=' + this.value">
+                @foreach (var p in Model.AllProjects)
+                {
+                    <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name (@p.UnitCount units)</option>
+                }
+            </select>
+            <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Reports Hub
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-primary">@Model.TotalPurchasers</div>
+                    <div class="small text-muted">Total Purchasers</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-success">@Model.Excellent</div>
+                    <div class="small text-muted">Excellent (750+)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-info">@Model.Good</div>
+                    <div class="small text-muted">Good (700-749)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-warning">@Model.Fair</div>
+                    <div class="small text-muted">Fair (600-699)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-danger">@Model.Poor</div>
+                    <div class="small text-muted">Poor (&lt;600)</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-3 fw-bold text-secondary">@Model.ScoresNotReported</div>
+                    <div class="small text-muted">Not Reported</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <canvas id="creditChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle small">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Purchaser</th>
+                                    <th>Unit</th>
+                                    <th class="text-center">Score</th>
+                                    <th>Band</th>
+                                    <th>Mortgage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Items)
+                                {
+                                    <tr>
+                                        <td>@item.PurchaserName</td>
+                                        <td class="fw-bold">@item.UnitNumber</td>
+                                        <td class="text-center fw-bold">@(item.CreditScore?.ToString() ?? "—")</td>
+                                        <td><span class="badge @item.BandBadgeClass">@item.Band</span></td>
+                                        <td>
+                                            @if (item.MortgageApproved)
+                                            {
+                                                <span class="text-success"><i class="bi bi-check-circle"></i> @(item.MortgageProvider ?? "Approved")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">—</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+    new Chart(document.getElementById('creditChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Excellent (750+)', 'Good (700-749)', 'Fair (600-699)', 'Poor (<600)', 'Not Reported'],
+            datasets: [{
+                data: [@Model.Excellent, @Model.Good, @Model.Fair, @Model.Poor, @Model.ScoresNotReported],
+                backgroundColor: ['#198754', '#0dcaf0', '#ffc107', '#dc3545', '#6c757d']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+</script>
+}

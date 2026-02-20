@@ -108,6 +108,8 @@ namespace PreConHub.Controllers
                     u.Recommendation == ClosingRecommendation.HighRiskDefault ||
                     u.Recommendation == ClosingRecommendation.PotentialDefault),
                 UnitsPendingData = units.Count(u => u.Recommendation == null),
+                UnitsMutualRelease = units.Count(u => u.Recommendation == ClosingRecommendation.MutualRelease),
+                UnitsCombination = units.Count(u => u.Recommendation == ClosingRecommendation.CombinationSuggestion),
 
                 TotalSalesValue = units.Sum(u => u.PurchasePrice),
                 TotalDepositsPaid = units.Sum(u => u.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount)),
@@ -128,6 +130,9 @@ namespace PreConHub.Controllers
                 TotalIncomeDueClosing = units
                     .Where(u => u.SOA != null)
                     .Sum(u => u.SOA!.BalanceDueOnClosing),
+                TotalFundNeededToClose = units
+                    .Where(u => u.SOA != null)
+                    .Sum(u => u.SOA!.CashRequiredToClose),
 
                 MortgageApprovedCount = units.Count(u => GetPrimaryMortgage(u)?.HasMortgageApproval == true),
                 MortgagePendingCount = units.Count(u => GetPrimaryMortgage(u)?.ApprovalType == MortgageApprovalType.PreApproval
@@ -833,6 +838,177 @@ namespace PreConHub.Controllers
                 DaysUntilClosing = closingDate.HasValue ? (int)(closingDate.Value - today).TotalDays : int.MaxValue,
                 IsConfirmedByLawyer = u.IsConfirmedByLawyer
             };
+        }
+
+        // ================================================================
+        // GET: /Reports/CreditScoreDistribution?projectId=5
+        // ================================================================
+        public async Task<IActionResult> CreditScoreDistribution(int? projectId)
+        {
+            var userId = _userManager.GetUserId(User);
+            var projects = await GetAccessibleProjects(userId!);
+            var project = projectId.HasValue
+                ? projects.FirstOrDefault(p => p.Id == projectId)
+                : projects.FirstOrDefault();
+
+            if (project == null) return View("NoProjects");
+
+            var purchasers = await _context.UnitPurchasers
+                .Include(up => up.Purchaser)
+                .Include(up => up.Unit)
+                .Include(up => up.MortgageInfo)
+                .Where(up => up.Unit.ProjectId == project.Id && up.IsPrimaryPurchaser)
+                .ToListAsync();
+
+            var items = purchasers.Select(up => new CreditScoreItem
+            {
+                PurchaserName = $"{up.Purchaser.FirstName} {up.Purchaser.LastName}".Trim(),
+                UnitNumber = up.Unit.UnitNumber,
+                CreditScore = up.MortgageInfo?.CreditScore,
+                MortgageApproved = up.MortgageInfo?.HasMortgageApproval ?? false,
+                MortgageProvider = up.MortgageInfo?.MortgageProvider
+            }).OrderByDescending(i => i.CreditScore ?? 0).ToList();
+
+            var model = new CreditScoreReportViewModel
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                AllProjects = projects.Select(p => new ProjectDropdownItem
+                {
+                    Id = p.Id, Name = p.Name, UnitCount = p.Units.Count, Status = p.Status
+                }).ToList(),
+                TotalPurchasers = items.Count,
+                ScoresReported = items.Count(i => i.CreditScore.HasValue),
+                ScoresNotReported = items.Count(i => !i.CreditScore.HasValue),
+                Excellent = items.Count(i => i.CreditScore >= 750),
+                Good = items.Count(i => i.CreditScore >= 700 && i.CreditScore < 750),
+                Fair = items.Count(i => i.CreditScore >= 600 && i.CreditScore < 700),
+                Poor = items.Count(i => i.CreditScore.HasValue && i.CreditScore < 600),
+                Items = items
+            };
+
+            return View(model);
+        }
+
+        // ================================================================
+        // GET: /Reports/ExtensionRequestReport?projectId=5
+        // ================================================================
+        public async Task<IActionResult> ExtensionRequestReport(int? projectId)
+        {
+            var userId = _userManager.GetUserId(User);
+            var projects = await GetAccessibleProjects(userId!);
+            var project = projectId.HasValue
+                ? projects.FirstOrDefault(p => p.Id == projectId)
+                : projects.FirstOrDefault();
+
+            if (project == null) return View("NoProjects");
+
+            var requests = await _context.ClosingExtensionRequests
+                .Include(r => r.Unit)
+                .Include(r => r.RequestedByPurchaser)
+                .Where(r => r.Unit.ProjectId == project.Id)
+                .OrderByDescending(r => r.RequestedDate)
+                .ToListAsync();
+
+            var approved = requests.Where(r => r.Status == ClosingExtensionStatus.Approved).ToList();
+
+            var model = new ExtensionRequestReportViewModel
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                AllProjects = projects.Select(p => new ProjectDropdownItem
+                {
+                    Id = p.Id, Name = p.Name, UnitCount = p.Units.Count, Status = p.Status
+                }).ToList(),
+                TotalRequests = requests.Count,
+                Approved = approved.Count,
+                Rejected = requests.Count(r => r.Status == ClosingExtensionStatus.Rejected),
+                Pending = requests.Count(r => r.Status == ClosingExtensionStatus.Pending),
+                AverageExtensionDays = approved.Any() && approved.All(r => r.OriginalClosingDate.HasValue)
+                    ? approved.Average(r => (r.RequestedNewClosingDate - r.OriginalClosingDate!.Value).TotalDays)
+                    : 0,
+                Items = requests.Select(r => new ExtensionReportItem
+                {
+                    UnitNumber = r.Unit.UnitNumber,
+                    PurchaserName = $"{r.RequestedByPurchaser.FirstName} {r.RequestedByPurchaser.LastName}".Trim(),
+                    RequestedDate = r.RequestedDate,
+                    OriginalClosingDate = r.OriginalClosingDate,
+                    RequestedNewClosingDate = r.RequestedNewClosingDate,
+                    Status = r.Status,
+                    ReviewedAt = r.ReviewedAt
+                }).ToList()
+            };
+
+            return View(model);
+        }
+
+        // ================================================================
+        // GET: /Reports/ProjectInvestmentReport?projectId=5
+        // ================================================================
+        public async Task<IActionResult> ProjectInvestmentReport(int? projectId)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            // Builder-only (not admin for investment data)
+            if (!User.IsInRole("Builder"))
+                return Forbid();
+
+            var projects = await GetAccessibleProjects(userId!);
+            var project = projectId.HasValue
+                ? projects.FirstOrDefault(p => p.Id == projectId)
+                : projects.FirstOrDefault();
+
+            if (project == null) return View("NoProjects");
+
+            var financials = await _context.ProjectFinancials
+                .FirstOrDefaultAsync(pf => pf.ProjectId == project.Id);
+
+            var units = await _context.Units
+                .Include(u => u.ShortfallAnalysis)
+                .Where(u => u.ProjectId == project.Id)
+                .ToListAsync();
+
+            var model = new ProjectInvestmentReportViewModel
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                AllProjects = projects.Select(p => new ProjectDropdownItem
+                {
+                    Id = p.Id, Name = p.Name, UnitCount = p.Units.Count, Status = p.Status
+                }).ToList(),
+                TotalRevenue = financials?.TotalRevenue ?? 0,
+                TotalInvestment = financials?.TotalInvestment ?? 0,
+                MarketingCost = financials?.MarketingCost ?? 0,
+                ProfitAvailable = financials?.ProfitAvailable ?? 0,
+                MaxBuilderCapital = financials?.MaxBuilderCapital ?? 0,
+                TotalUnits = units.Count,
+                UnsoldUnits = units.Count(u => u.Status != UnitStatus.Closed),
+                TotalDiscountAllocated = units
+                    .Where(u => u.ShortfallAnalysis?.SuggestedDiscount > 0)
+                    .Sum(u => u.ShortfallAnalysis!.SuggestedDiscount ?? 0),
+                TotalVTBAllocated = units
+                    .Where(u => u.ShortfallAnalysis?.SuggestedVTBAmount > 0)
+                    .Sum(u => u.ShortfallAnalysis!.SuggestedVTBAmount ?? 0),
+                Units = units.Select(u => new InvestmentUnitItem
+                {
+                    UnitNumber = u.UnitNumber,
+                    PurchasePrice = u.PurchasePrice,
+                    ShortfallAmount = u.ShortfallAnalysis?.ShortfallAmount ?? 0,
+                    SuggestedDiscount = u.ShortfallAnalysis?.SuggestedDiscount ?? 0,
+                    SuggestedVTB = u.ShortfallAnalysis?.SuggestedVTBAmount ?? 0,
+                    Recommendation = u.Recommendation
+                }).ToList()
+            };
+
+            return View(model);
+        }
+
+        private async Task<List<Project>> GetAccessibleProjects(string userId)
+        {
+            var query = _context.Projects.Include(p => p.Units).AsQueryable();
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin"))
+                query = query.Where(p => p.BuilderId == userId);
+            return await query.OrderBy(p => p.Name).ToListAsync();
         }
     }
 }

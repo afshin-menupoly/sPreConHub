@@ -81,6 +81,11 @@ namespace PreConHub.Models.ViewModels
         public decimal DiscountPercentOfSales => TotalSalesValue > 0
             ? Math.Round(TotalDiscountExposure / TotalSalesValue * 100, 2) : 0;
 
+        // ── Additional Recommendation Counts ──
+        public int UnitsMutualRelease { get; set; }
+        public int UnitsCombination { get; set; }
+        public decimal TotalFundNeededToClose { get; set; }
+
         // ── Mortgage Summary ──
         public int MortgageApprovedCount { get; set; }
         public int MortgagePendingCount { get; set; }
@@ -628,6 +633,138 @@ namespace PreConHub.Models.ViewModels
             ClosingRecommendation.MutualRelease => "bg-purple",
             ClosingRecommendation.CombinationSuggestion => "bg-combination",
             _ => "bg-secondary"
+        };
+    }
+
+    // ============================================================
+    // CREDIT SCORE DISTRIBUTION REPORT
+    // ============================================================
+    public class CreditScoreReportViewModel
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = "";
+        public List<ProjectDropdownItem> AllProjects { get; set; } = new();
+
+        public int TotalPurchasers { get; set; }
+        public int ScoresReported { get; set; }
+        public int ScoresNotReported { get; set; }
+
+        // Bands
+        public int Excellent { get; set; } // 750+
+        public int Good { get; set; }      // 700-749
+        public int Fair { get; set; }      // 600-699
+        public int Poor { get; set; }      // <600
+
+        public List<CreditScoreItem> Items { get; set; } = new();
+    }
+
+    public class CreditScoreItem
+    {
+        public string PurchaserName { get; set; } = "";
+        public string UnitNumber { get; set; } = "";
+        public int? CreditScore { get; set; }
+        public bool MortgageApproved { get; set; }
+        public string? MortgageProvider { get; set; }
+        public string Band => CreditScore switch
+        {
+            >= 750 => "Excellent",
+            >= 700 => "Good",
+            >= 600 => "Fair",
+            _ when CreditScore.HasValue => "Poor",
+            _ => "Not Reported"
+        };
+        public string BandBadgeClass => CreditScore switch
+        {
+            >= 750 => "bg-success",
+            >= 700 => "bg-info",
+            >= 600 => "bg-warning text-dark",
+            _ when CreditScore.HasValue => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    // ============================================================
+    // EXTENSION REQUEST REPORT
+    // ============================================================
+    public class ExtensionRequestReportViewModel
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = "";
+        public List<ProjectDropdownItem> AllProjects { get; set; } = new();
+
+        public int TotalRequests { get; set; }
+        public int Approved { get; set; }
+        public int Rejected { get; set; }
+        public int Pending { get; set; }
+        public double ApprovalRate => TotalRequests > 0 ? Math.Round((double)Approved / TotalRequests * 100, 1) : 0;
+        public double AverageExtensionDays { get; set; }
+
+        public List<ExtensionReportItem> Items { get; set; } = new();
+    }
+
+    public class ExtensionReportItem
+    {
+        public string UnitNumber { get; set; } = "";
+        public string PurchaserName { get; set; } = "";
+        public DateTime RequestedDate { get; set; }
+        public DateTime? OriginalClosingDate { get; set; }
+        public DateTime RequestedNewClosingDate { get; set; }
+        public ClosingExtensionStatus Status { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+        public int DaysRequested => OriginalClosingDate.HasValue
+            ? (int)(RequestedNewClosingDate - OriginalClosingDate.Value).TotalDays : 0;
+        public string StatusBadgeClass => Status switch
+        {
+            ClosingExtensionStatus.Pending => "bg-warning text-dark",
+            ClosingExtensionStatus.Approved => "bg-success",
+            ClosingExtensionStatus.Rejected => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    // ============================================================
+    // PROJECT INVESTMENT REPORT (Builder-only)
+    // ============================================================
+    public class ProjectInvestmentReportViewModel
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = "";
+        public List<ProjectDropdownItem> AllProjects { get; set; } = new();
+
+        public decimal TotalRevenue { get; set; }
+        public decimal TotalInvestment { get; set; }
+        public decimal MarketingCost { get; set; }
+        public decimal ProfitAvailable { get; set; }
+        public decimal MaxBuilderCapital { get; set; }
+        public int TotalUnits { get; set; }
+        public int UnsoldUnits { get; set; }
+        public decimal ProfitPerUnit => UnsoldUnits > 0 ? ProfitAvailable / UnsoldUnits : 0;
+        public decimal VTBPerUnit => UnsoldUnits > 0 ? MaxBuilderCapital / UnsoldUnits : 0;
+
+        public decimal TotalDiscountAllocated { get; set; }
+        public decimal TotalVTBAllocated { get; set; }
+
+        public List<InvestmentUnitItem> Units { get; set; } = new();
+    }
+
+    public class InvestmentUnitItem
+    {
+        public string UnitNumber { get; set; } = "";
+        public decimal PurchasePrice { get; set; }
+        public decimal ShortfallAmount { get; set; }
+        public decimal SuggestedDiscount { get; set; }
+        public decimal SuggestedVTB { get; set; }
+        public ClosingRecommendation? Recommendation { get; set; }
+        public string RecommendationText => Recommendation switch
+        {
+            ClosingRecommendation.ProceedToClose => "Proceed",
+            ClosingRecommendation.CloseWithDiscount => "Discount",
+            ClosingRecommendation.VTBSecondMortgage => "VTB 2nd",
+            ClosingRecommendation.VTBFirstMortgage => "VTB 1st",
+            ClosingRecommendation.HighRiskDefault => "Default Risk",
+            ClosingRecommendation.MutualRelease => "Mutual Release",
+            ClosingRecommendation.CombinationSuggestion => "Combination",
+            _ => "Pending"
         };
     }
 }

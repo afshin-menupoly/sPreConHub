@@ -1,0 +1,180 @@
+@model PreConHub.Models.ViewModels.ProjectInvestmentReportViewModel
+@{
+    ViewData["Title"] = "Project Investment Report";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-piggy-bank text-primary me-2"></i>Project Investment Report
+            </h1>
+            <p class="text-muted mb-0">@Model.ProjectName — Builder investment & allocation analysis</p>
+        </div>
+        <div class="d-flex gap-2">
+            <select class="form-select form-select-sm" style="width:auto"
+                    onchange="window.location.href='/Reports/ProjectInvestmentReport?projectId=' + this.value">
+                @foreach (var p in Model.AllProjects)
+                {
+                    <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name (@p.UnitCount units)</option>
+                }
+            </select>
+            <a href="@Url.Action("Index")" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-arrow-left me-1"></i>Reports Hub
+            </a>
+        </div>
+    </div>
+
+    <div class="alert alert-warning py-2 mb-4">
+        <i class="bi bi-shield-lock me-2"></i>
+        <strong>Builder-Only:</strong> This report contains confidential investment data. Only you can see this information.
+    </div>
+
+    <!-- Financial Summary -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-5 fw-bold text-primary">$@Model.TotalRevenue.ToString("N0")</div>
+                    <div class="small text-muted">Total Revenue</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-5 fw-bold text-danger">$@Model.TotalInvestment.ToString("N0")</div>
+                    <div class="small text-muted">Total Investment</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-5 fw-bold text-warning">$@Model.MarketingCost.ToString("N0")</div>
+                    <div class="small text-muted">Marketing</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-5 fw-bold text-success">$@Model.ProfitAvailable.ToString("N0")</div>
+                    <div class="small text-muted">Profit Available</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-5 fw-bold text-info">$@Model.MaxBuilderCapital.ToString("N0")</div>
+                    <div class="small text-muted">Max VTB Capital</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card border-0 shadow-sm text-center">
+                <div class="card-body py-3">
+                    <div class="fs-5 fw-bold">@Model.TotalUnits / @Model.UnsoldUnits</div>
+                    <div class="small text-muted">Total / Unsold</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Per-Unit Metrics -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="fs-4 fw-bold text-success">$@Model.ProfitPerUnit.ToString("N0")</div>
+                    <div class="text-muted">Profit Per Unsold Unit</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="fs-4 fw-bold text-info">$@Model.VTBPerUnit.ToString("N0")</div>
+                    <div class="text-muted">Max VTB Per Unsold Unit</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <div class="fs-4 fw-bold text-warning">
+                        $@Model.TotalDiscountAllocated.ToString("N0") / $@Model.TotalVTBAllocated.ToString("N0")
+                    </div>
+                    <div class="text-muted">Total Discount / VTB Allocated</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unit Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Per-Unit Allocation Summary</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle small">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Unit</th>
+                            <th class="text-end">Purchase Price</th>
+                            <th class="text-end">Shortfall</th>
+                            <th class="text-end">Suggested Discount</th>
+                            <th class="text-end">Suggested VTB</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var u in Model.Units)
+                        {
+                            <tr>
+                                <td class="fw-bold">@u.UnitNumber</td>
+                                <td class="text-end">$@u.PurchasePrice.ToString("N0")</td>
+                                <td class="text-end @(u.ShortfallAmount > 0 ? "text-danger" : "")">
+                                    $@u.ShortfallAmount.ToString("N0")
+                                </td>
+                                <td class="text-end">
+                                    @if (u.SuggestedDiscount > 0)
+                                    {
+                                        <span class="text-primary">$@u.SuggestedDiscount.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (u.SuggestedVTB > 0)
+                                    {
+                                        <span class="text-info">$@u.SuggestedVTB.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>@u.RecommendationText</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr class="fw-bold">
+                            <td>TOTAL</td>
+                            <td class="text-end">$@Model.Units.Sum(u => u.PurchasePrice).ToString("N0")</td>
+                            <td class="text-end text-danger">$@Model.Units.Sum(u => u.ShortfallAmount).ToString("N0")</td>
+                            <td class="text-end text-primary">$@Model.TotalDiscountAllocated.ToString("N0")</td>
+                            <td class="text-end text-info">$@Model.TotalVTBAllocated.ToString("N0")</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
