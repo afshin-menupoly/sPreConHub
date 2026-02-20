@@ -491,5 +491,62 @@ namespace PreConHub.Controllers
             TempData["Info"] = $"Resend invitation feature coming soon for {user.Email}.";
             return RedirectToAction(nameof(UserDetail), new { id = userId });
         }
+
+        // GET: /Admin/FeeSchedule
+        public async Task<IActionResult> FeeSchedule()
+        {
+            var fees = await _context.SystemFeeConfigs
+                .OrderBy(f => f.Id)
+                .ToListAsync();
+
+            var viewModel = new FeeScheduleViewModel { Fees = fees };
+            return View(viewModel);
+        }
+
+        // POST: /Admin/UpdateFeeConfig
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> UpdateFeeConfig(SystemFeeConfigEditModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Validation failed. Please check the values and try again.";
+                return RedirectToAction(nameof(FeeSchedule));
+            }
+
+            var fee = await _context.SystemFeeConfigs.FindAsync(model.Id);
+            if (fee == null)
+                return NotFound();
+
+            var oldAmount = fee.Amount;
+            var oldHSTApplicable = fee.HSTApplicable;
+            var oldHSTIncluded = fee.HSTIncluded;
+
+            fee.Amount = model.Amount;
+            fee.HSTApplicable = model.HSTApplicable;
+            fee.HSTIncluded = model.HSTIncluded;
+            fee.Notes = model.Notes;
+            fee.UpdatedAt = DateTime.UtcNow;
+            fee.UpdatedByUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                UserId = fee.UpdatedByUserId ?? "",
+                Action = "UpdateFeeConfig",
+                EntityType = "SystemFeeConfig",
+                EntityId = fee.Id,
+                OldValues = $"Amount={oldAmount}, HSTApplicable={oldHSTApplicable}, HSTIncluded={oldHSTIncluded}",
+                NewValues = $"Amount={model.Amount}, HSTApplicable={model.HSTApplicable}, HSTIncluded={model.HSTIncluded}",
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Admin {AdminId} updated fee {FeeKey}: ${OldAmt} → ${NewAmt}",
+                fee.UpdatedByUserId, fee.Key, oldAmount, model.Amount);
+
+            TempData["Success"] = $"{fee.DisplayName} updated successfully.";
+            return RedirectToAction(nameof(FeeSchedule));
+        }
     }
 }

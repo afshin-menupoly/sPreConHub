@@ -1564,5 +1564,34 @@ namespace PreConHub.Models.ViewModels
 
     #endregion
 
+    #region Admin Fee Schedule
+
+    public class FeeScheduleViewModel
+    {
+        public List<SystemFeeConfig> Fees { get; set; } = new();
+    }
+
+    public class SystemFeeConfigEditModel
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [Range(0, 999999.99, ErrorMessage = "Amount must be between $0 and $999,999.99.")]
+        [DataType(DataType.Currency)]
+        [Display(Name = "Base Amount")]
+        public decimal Amount { get; set; }
+
+        [Display(Name = "HST Applicable (+13%)")]
+        public bool HSTApplicable { get; set; }
+
+        [Display(Name = "HST Already Included")]
+        public bool HSTIncluded { get; set; }
+
+        [StringLength(500, ErrorMessage = "Notes cannot exceed 500 characters.")]
+        [Display(Name = "Notes / Source")]
+        public string? Notes { get; set; }
+    }
+
+    #endregion
 
 }
