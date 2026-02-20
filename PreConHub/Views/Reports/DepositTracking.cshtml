@@ -1,0 +1,392 @@
+@model PreConHub.Models.ViewModels.DepositTrackingViewModel
+@using System.Text.Json
+@{
+    ViewData["Title"] = "Deposit Tracking";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a asp-action="Index">Reports</a></li>
+                    <li class="breadcrumb-item active">Deposit Tracking</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1"><i class="bi bi-cash-stack me-2 text-success"></i>Deposit Tracking</h1>
+            <p class="text-muted mb-0">@Model.ProjectName — @Model.ProjectAddress</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            @if (Model.AllProjects.Count > 1)
+            {
+                <select class="form-select form-select-sm" style="width:auto;" onchange="window.location.href='@Url.Action("DepositTracking")?projectId='+this.value">
+                    @foreach (var p in Model.AllProjects)
+                    {
+                        <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name (@p.UnitCount units)</option>
+                    }
+                </select>
+            }
+            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i>Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Total Deposits Collected</div>
+                    <div class="h3 mb-0 text-success">$@Model.TotalDepositsPaid.ToString("N0")</div>
+                    <div class="small text-muted">@Model.DepositsPaidCount paid deposits</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Outstanding</div>
+                    <div class="h3 mb-0 text-warning">$@Model.TotalDepositsOutstanding.ToString("N0")</div>
+                    <div class="small text-muted">@Model.DepositsPendingCount pending</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Overdue</div>
+                    <div class="h3 mb-0 text-danger">@Model.DepositsOverdueCount</div>
+                    <div class="small text-muted">deposits past due date</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-info border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Collection Rate</div>
+                    <div class="h3 mb-0 text-info">@Model.CollectionRate%</div>
+                    <div class="small text-muted">of $@Model.TotalDepositsExpected.ToString("N0") expected</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Collection Status</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="collectionChart" style="max-height:220px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-safe me-2"></i>Deposit Holders</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="holderChart" style="max-height:220px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-info-circle me-2"></i>Quick Stats</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">Total Units</td>
+                            <td class="text-end fw-bold">@Model.TotalUnits</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Units with Deposits</td>
+                            <td class="text-end fw-bold">@Model.UnitsWithDeposits</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Total Expected</td>
+                            <td class="text-end fw-bold">$@Model.TotalDepositsExpected.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Total Collected</td>
+                            <td class="text-end fw-bold text-success">$@Model.TotalDepositsPaid.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Interest Earned</td>
+                            <td class="text-end fw-bold text-info">$@Model.TotalInterestEarned.ToString("N2")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Held by Builder</td>
+                            <td class="text-end">$@Model.HeldByBuilder.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Held in Trust</td>
+                            <td class="text-end">$@Model.HeldInTrust.ToString("N0")</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Held by Lawyer</td>
+                            <td class="text-end">$@Model.HeldByLawyer.ToString("N0")</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Search by unit number or purchaser..." onkeyup="filterTable()">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="statusFilter" onchange="filterTable()">
+                        <option value="">All Statuses</option>
+                        <option value="overdue">Has Overdue</option>
+                        <option value="pending">Has Pending</option>
+                        <option value="complete">Fully Paid</option>
+                    </select>
+                </div>
+                <div class="col-md-5 text-end">
+                    <span class="text-muted small">Showing <span id="visibleCount">@Model.Units.Count</span> of @Model.Units.Count units</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unit Deposit Table -->
+    @if (Model.Units.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="depositTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Unit</th>
+                            <th>Purchaser</th>
+                            <th class="text-end">Purchase Price</th>
+                            <th class="text-center">Deposits</th>
+                            <th class="text-end">Expected</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Outstanding</th>
+                            <th class="text-center">Deposit %</th>
+                            <th class="text-end">Interest</th>
+                            <th class="text-center">Next Due</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Units.Count; i++)
+                        {
+                            var unit = Model.Units[i];
+                            var rowStatus = unit.HasOverdue ? "overdue" : (unit.PendingDeposits > 0 ? "pending" : "complete");
+                            <tr data-unit="@unit.UnitNumber.ToLower()"
+                                data-purchaser="@(unit.PurchaserName?.ToLower() ?? "")"
+                                data-status="@rowStatus"
+                                class="@(unit.HasOverdue ? "table-danger" : "")">
+                                <td>@(i + 1)</td>
+                                <td>
+                                    <a href="@Url.Action("Details", "Units", new { id = unit.UnitId })" class="fw-bold text-decoration-none">@unit.UnitNumber</a>
+                                </td>
+                                <td>@(unit.PurchaserName ?? "<span class='text-muted'>—</span>")</td>
+                                <td class="text-end">$@unit.PurchasePrice.ToString("N0")</td>
+                                <td class="text-center">
+                                    <span class="badge bg-success-subtle text-success">@unit.PaidDeposits</span>
+                                    @if (unit.PendingDeposits > 0)
+                                    {
+                                        <span class="badge bg-warning-subtle text-warning">@unit.PendingDeposits</span>
+                                    }
+                                    @if (unit.OverdueDeposits > 0)
+                                    {
+                                        <span class="badge bg-danger-subtle text-danger">@unit.OverdueDeposits!</span>
+                                    }
+                                </td>
+                                <td class="text-end">$@unit.TotalExpected.ToString("N0")</td>
+                                <td class="text-end text-success fw-bold">$@unit.TotalPaid.ToString("N0")</td>
+                                <td class="text-end">
+                                    @if (unit.Outstanding > 0)
+                                    {
+                                        <span class="text-danger">$@unit.Outstanding.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success">$0</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @{
+                                        var pctClass = unit.DepositPercent >= 100 ? "text-success" :
+                                                       unit.DepositPercent >= 50 ? "text-primary" :
+                                                       unit.DepositPercent >= 25 ? "text-warning" : "text-danger";
+                                    }
+                                    <span class="fw-bold @pctClass">@unit.DepositPercent%</span>
+                                </td>
+                                <td class="text-end">
+                                    @if (unit.InterestEarned > 0)
+                                    {
+                                        <span class="text-info">$@unit.InterestEarned.ToString("N2")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (unit.NextDueDate.HasValue)
+                                    {
+                                        var daysUntil = (unit.NextDueDate.Value - DateTime.Today).Days;
+                                        var dueBadge = daysUntil < 0 ? "bg-danger" : daysUntil <= 7 ? "bg-warning text-dark" : "bg-secondary";
+                                        <span class="badge @dueBadge">@unit.NextDueDate.Value.ToString("MMM dd")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (unit.HasOverdue)
+                                    {
+                                        <span class="badge bg-danger">Overdue</span>
+                                    }
+                                    else if (unit.PendingDeposits > 0)
+                                    {
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    }
+                                    else if (unit.TotalDeposits > 0)
+                                    {
+                                        <span class="badge bg-success">Complete</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">No Deposits</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Footer Summary -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <i class="bi bi-cash-coin text-success me-2"></i>
+                        <span class="text-muted">Total Collected:</span>
+                        <span class="h5 text-success ms-2">$@Model.TotalDepositsPaid.ToString("N0")</span>
+                    </div>
+                    <div class="col-md-4">
+                        <i class="bi bi-hourglass-split text-warning me-2"></i>
+                        <span class="text-muted">Outstanding:</span>
+                        <span class="h5 text-warning ms-2">$@Model.TotalDepositsOutstanding.ToString("N0")</span>
+                    </div>
+                    <div class="col-md-4">
+                        <i class="bi bi-percent text-info me-2"></i>
+                        <span class="text-muted">Interest Earned:</span>
+                        <span class="h5 text-info ms-2">$@Model.TotalInterestEarned.ToString("N2")</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-cash-stack text-muted" style="font-size: 4rem;"></i>
+                <h4 class="mt-3">No Deposits Yet</h4>
+                <p class="text-muted">Units in this project don't have any deposits recorded yet.</p>
+            </div>
+        </div>
+    }
+</div>
+
+@section Styles {
+<style>
+    .table th { font-size: 0.8rem; white-space: nowrap; }
+    .table td { font-size: 0.875rem; vertical-align: middle; }
+    @@media print {
+        .btn, .form-control, .form-select, nav, .breadcrumb { display: none !important; }
+    }
+</style>
+}
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+    // Collection Status Doughnut
+    new Chart(document.getElementById('collectionChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Paid', 'Pending', 'Overdue'],
+            datasets: [{
+                data: [@Model.DepositsPaidCount, @Model.DepositsPendingCount, @Model.DepositsOverdueCount],
+                backgroundColor: ['#198754', '#ffc107', '#dc3545'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 15 } }
+            }
+        }
+    });
+
+    // Holder Breakdown Doughnut
+    new Chart(document.getElementById('holderChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Builder', 'Trust', 'Lawyer'],
+            datasets: [{
+                data: [@Model.HeldByBuilder, @Model.HeldInTrust, @Model.HeldByLawyer],
+                backgroundColor: ['#0d6efd', '#6f42c1', '#20c997'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 15 } },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            return ctx.label + ': $' + ctx.raw.toLocaleString();
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Filter
+    function filterTable() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const status = document.getElementById('statusFilter').value;
+        const rows = document.querySelectorAll('#depositTable tbody tr');
+        let count = 0;
+        rows.forEach(row => {
+            const unit = row.getAttribute('data-unit');
+            const purchaser = row.getAttribute('data-purchaser');
+            const rowStatus = row.getAttribute('data-status');
+            let show = true;
+            if (search && !unit.includes(search) && !purchaser.includes(search)) show = false;
+            if (status && rowStatus !== status) show = false;
+            row.style.display = show ? '' : 'none';
+            if (show) count++;
+        });
+        document.getElementById('visibleCount').textContent = count;
+    }
+</script>
+}

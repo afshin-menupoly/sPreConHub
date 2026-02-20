@@ -9,7 +9,7 @@ using PreConHub.Services;
 
 namespace PreConHub.Controllers
 {
-    [Authorize(Roles = "Admin,Builder")]
+    [Authorize(Roles = "Admin,SuperAdmin,Builder")]
     public class ReportsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -408,6 +408,165 @@ namespace PreConHub.Controllers
         }
 
         // ================================================================
+        // GET: /Reports/DepositTracking?projectId=5
+        // ================================================================
+        public async Task<IActionResult> DepositTracking(int? projectId)
+        {
+            var projects = await GetProjectsQuery().ToListAsync();
+            if (!projects.Any()) return RedirectToAction("Index");
+
+            var project = projectId.HasValue
+                ? projects.FirstOrDefault(p => p.Id == projectId.Value)
+                : projects.First();
+            if (project == null) return NotFound();
+
+            var units = project.Units.ToList();
+            var allDeposits = units.SelectMany(u => u.Deposits).ToList();
+            var today = DateTime.Today;
+
+            var unitItems = units.OrderBy(u => u.UnitNumber).Select(u =>
+            {
+                var deposits = u.Deposits.ToList();
+                var paid = deposits.Where(d => d.IsPaid).ToList();
+                var pending = deposits.Where(d => !d.IsPaid && d.DueDate >= today).ToList();
+                var overdue = deposits.Where(d => !d.IsPaid && d.DueDate < today).ToList();
+
+                return new DepositTrackingUnitItem
+                {
+                    UnitId = u.Id,
+                    UnitNumber = u.UnitNumber,
+                    PurchasePrice = u.PurchasePrice,
+                    PurchaserName = GetPrimaryPurchaserName(u),
+                    TotalDeposits = deposits.Count,
+                    PaidDeposits = paid.Count,
+                    PendingDeposits = pending.Count,
+                    OverdueDeposits = overdue.Count,
+                    TotalExpected = deposits.Sum(d => d.Amount),
+                    TotalPaid = paid.Sum(d => d.Amount),
+                    InterestEarned = deposits.Where(d => d.IsInterestEligible)
+                        .SelectMany(d => d.InterestPeriods)
+                        .Sum(p =>
+                        {
+                            var dep = deposits.First(d => d.InterestPeriods.Contains(p));
+                            var days = (decimal)(p.PeriodEnd - p.PeriodStart).TotalDays;
+                            return dep.Amount * (p.AnnualRate / 100m) * (days / 365m);
+                        }),
+                    NextDueDate = deposits.Where(d => !d.IsPaid).OrderBy(d => d.DueDate).FirstOrDefault()?.DueDate,
+                    HasOverdue = overdue.Any(),
+                    Deposits = deposits.OrderBy(d => d.DueDate).Select(d => new DepositLineItem
+                    {
+                        DepositName = d.DepositName,
+                        Amount = d.Amount,
+                        DueDate = d.DueDate,
+                        PaidDate = d.PaidDate,
+                        IsPaid = d.IsPaid,
+                        Status = !d.IsPaid && d.DueDate < today ? DepositStatus.Late : d.Status,
+                        Holder = d.Holder.ToString()
+                    }).ToList()
+                };
+            }).ToList();
+
+            var paidDeposits = allDeposits.Where(d => d.IsPaid).ToList();
+
+            var model = new DepositTrackingViewModel
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                ProjectAddress = project.Address,
+                AllProjects = projects.Select(p => new ProjectDropdownItem
+                    { Id = p.Id, Name = p.Name, UnitCount = p.Units.Count, Status = p.Status }).ToList(),
+                TotalUnits = units.Count,
+                UnitsWithDeposits = units.Count(u => u.Deposits.Any()),
+                TotalDepositsExpected = allDeposits.Sum(d => d.Amount),
+                TotalDepositsPaid = paidDeposits.Sum(d => d.Amount),
+                DepositsPaidCount = paidDeposits.Count,
+                DepositsPendingCount = allDeposits.Count(d => !d.IsPaid && d.DueDate >= today),
+                DepositsOverdueCount = allDeposits.Count(d => !d.IsPaid && d.DueDate < today),
+                TotalInterestEarned = unitItems.Sum(u => u.InterestEarned),
+                HeldByBuilder = paidDeposits.Where(d => d.Holder == DepositHolder.Builder).Sum(d => d.Amount),
+                HeldInTrust = paidDeposits.Where(d => d.Holder == DepositHolder.Trust).Sum(d => d.Amount),
+                HeldByLawyer = paidDeposits.Where(d => d.Holder == DepositHolder.Lawyer).Sum(d => d.Amount),
+                Units = unitItems
+            };
+
+            return View(model);
+        }
+
+        // ================================================================
+        // GET: /Reports/PurchaserDirectory?projectId=5
+        // ================================================================
+        public async Task<IActionResult> PurchaserDirectory(int? projectId)
+        {
+            var projects = await GetProjectsQuery().ToListAsync();
+            if (!projects.Any()) return RedirectToAction("Index");
+
+            var project = projectId.HasValue
+                ? projects.FirstOrDefault(p => p.Id == projectId.Value)
+                : projects.First();
+            if (project == null) return NotFound();
+
+            var units = project.Units.ToList();
+
+            var purchaserItems = units.SelectMany(u => u.Purchasers.Select(up =>
+            {
+                var mort = up.MortgageInfo;
+                var deposits = u.Deposits.ToList();
+                return new PurchaserDirectoryItem
+                {
+                    PurchaserId = up.PurchaserId,
+                    FullName = up.Purchaser != null ? $"{up.Purchaser.FirstName} {up.Purchaser.LastName}".Trim() : "Unknown",
+                    Email = up.Purchaser?.Email ?? "",
+                    Phone = up.Purchaser?.PhoneNumber,
+                    UnitId = u.Id,
+                    UnitNumber = u.UnitNumber,
+                    PurchasePrice = u.PurchasePrice,
+                    IsPrimary = up.IsPrimaryPurchaser,
+                    HasMortgageApproval = mort?.HasMortgageApproval ?? false,
+                    MortgageStatus = mort?.ApprovalType switch
+                    {
+                        MortgageApprovalType.FirmApproval => "Firm",
+                        MortgageApprovalType.PreApproval => "Pre-Approved",
+                        MortgageApprovalType.Blanket => "Blanket",
+                        MortgageApprovalType.Conditional => "Conditional",
+                        _ => "None"
+                    },
+                    MortgageBadgeClass = mort?.ApprovalType switch
+                    {
+                        MortgageApprovalType.FirmApproval => "bg-success",
+                        MortgageApprovalType.PreApproval => "bg-info",
+                        MortgageApprovalType.Blanket => "bg-primary",
+                        MortgageApprovalType.Conditional => "bg-warning text-dark",
+                        _ => "bg-danger"
+                    },
+                    MortgageProvider = mort?.MortgageProvider,
+                    MortgageAmount = mort?.ApprovedAmount ?? 0,
+                    DepositsPaid = deposits.Where(d => d.IsPaid).Sum(d => d.Amount),
+                    DepositsExpected = deposits.Sum(d => d.Amount),
+                    ShortfallAmount = u.ShortfallAnalysis?.ShortfallAmount ?? 0,
+                    Recommendation = u.Recommendation
+                };
+            })).OrderBy(p => p.UnitNumber).ThenByDescending(p => p.IsPrimary).ToList();
+
+            var model = new PurchaserDirectoryViewModel
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                ProjectAddress = project.Address,
+                AllProjects = projects.Select(p => new ProjectDropdownItem
+                    { Id = p.Id, Name = p.Name, UnitCount = p.Units.Count, Status = p.Status }).ToList(),
+                TotalPurchasers = purchaserItems.Count,
+                WithMortgageApproval = purchaserItems.Count(p => p.HasMortgageApproval),
+                WithoutMortgage = purchaserItems.Count(p => !p.HasMortgageApproval),
+                HighRiskPurchasers = purchaserItems.Count(p =>
+                    p.Recommendation == ClosingRecommendation.HighRiskDefault ||
+                    p.Recommendation == ClosingRecommendation.PotentialDefault),
+                Purchasers = purchaserItems
+            };
+
+            return View(model);
+        }
+
+        // ================================================================
         // GET: /Reports/AllProjects
         // ================================================================
         public async Task<IActionResult> AllProjects()
@@ -547,7 +706,7 @@ namespace PreConHub.Controllers
                 .Include(p => p.Units).ThenInclude(u => u.SOA)
                 .Include(p => p.Units).ThenInclude(u => u.Purchasers).ThenInclude(up => up.Purchaser)
                 .Include(p => p.Units).ThenInclude(u => u.Purchasers).ThenInclude(up => up.MortgageInfo)
-                .Include(p => p.Units).ThenInclude(u => u.Deposits)
+                .Include(p => p.Units).ThenInclude(u => u.Deposits).ThenInclude(d => d.InterestPeriods)
                 .AsNoTracking()
                 .AsQueryable();
 

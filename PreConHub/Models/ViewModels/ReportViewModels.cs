@@ -454,4 +454,166 @@ namespace PreConHub.Models.ViewModels
             _ => "bg-danger"
         };
     }
+
+    // ============================================================
+    // DEPOSIT TRACKING REPORT
+    // ============================================================
+
+    public class DepositTrackingViewModel
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = "";
+        public string ProjectAddress { get; set; } = "";
+        public List<ProjectDropdownItem> AllProjects { get; set; } = new();
+
+        // ── Summary ──
+        public int TotalUnits { get; set; }
+        public int UnitsWithDeposits { get; set; }
+        public decimal TotalDepositsExpected { get; set; }
+        public decimal TotalDepositsPaid { get; set; }
+        public decimal TotalDepositsOutstanding => TotalDepositsExpected - TotalDepositsPaid;
+        public decimal CollectionRate => TotalDepositsExpected > 0
+            ? Math.Round(TotalDepositsPaid / TotalDepositsExpected * 100, 1) : 0;
+
+        public int DepositsPaidCount { get; set; }
+        public int DepositsPendingCount { get; set; }
+        public int DepositsOverdueCount { get; set; }
+        public decimal TotalInterestEarned { get; set; }
+
+        // ── Holder Breakdown ──
+        public decimal HeldByBuilder { get; set; }
+        public decimal HeldInTrust { get; set; }
+        public decimal HeldByLawyer { get; set; }
+
+        // ── Unit Details ──
+        public List<DepositTrackingUnitItem> Units { get; set; } = new();
+    }
+
+    public class DepositTrackingUnitItem
+    {
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public decimal PurchasePrice { get; set; }
+        public string? PurchaserName { get; set; }
+
+        public int TotalDeposits { get; set; }
+        public int PaidDeposits { get; set; }
+        public int PendingDeposits { get; set; }
+        public int OverdueDeposits { get; set; }
+
+        public decimal TotalExpected { get; set; }
+        public decimal TotalPaid { get; set; }
+        public decimal Outstanding => TotalExpected - TotalPaid;
+        public decimal DepositPercent => PurchasePrice > 0
+            ? Math.Round(TotalPaid / PurchasePrice * 100, 1) : 0;
+
+        public decimal InterestEarned { get; set; }
+        public DateTime? NextDueDate { get; set; }
+        public bool HasOverdue { get; set; }
+
+        public List<DepositLineItem> Deposits { get; set; } = new();
+    }
+
+    public class DepositLineItem
+    {
+        public string DepositName { get; set; } = "";
+        public decimal Amount { get; set; }
+        public DateTime DueDate { get; set; }
+        public DateTime? PaidDate { get; set; }
+        public bool IsPaid { get; set; }
+        public DepositStatus Status { get; set; }
+        public string Holder { get; set; } = "";
+
+        public string StatusBadgeClass => Status switch
+        {
+            DepositStatus.Paid => "bg-success",
+            DepositStatus.Pending => DueDate < DateTime.Today ? "bg-danger" : "bg-warning text-dark",
+            DepositStatus.Late => "bg-danger",
+            DepositStatus.Refunded => "bg-info",
+            DepositStatus.Forfeited => "bg-dark",
+            _ => "bg-secondary"
+        };
+
+        public string StatusText => Status switch
+        {
+            DepositStatus.Paid => "Paid",
+            DepositStatus.Pending => DueDate < DateTime.Today ? "Overdue" : "Pending",
+            DepositStatus.Late => "Late",
+            DepositStatus.Refunded => "Refunded",
+            DepositStatus.Forfeited => "Forfeited",
+            _ => "Unknown"
+        };
+    }
+
+    // ============================================================
+    // PURCHASER DIRECTORY REPORT
+    // ============================================================
+
+    public class PurchaserDirectoryViewModel
+    {
+        public int ProjectId { get; set; }
+        public string ProjectName { get; set; } = "";
+        public string ProjectAddress { get; set; } = "";
+        public List<ProjectDropdownItem> AllProjects { get; set; } = new();
+
+        // ── Summary ──
+        public int TotalPurchasers { get; set; }
+        public int WithMortgageApproval { get; set; }
+        public int WithoutMortgage { get; set; }
+        public int HighRiskPurchasers { get; set; }
+
+        // ── Purchaser List ──
+        public List<PurchaserDirectoryItem> Purchasers { get; set; } = new();
+    }
+
+    public class PurchaserDirectoryItem
+    {
+        public string PurchaserId { get; set; } = "";
+        public string FullName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string? Phone { get; set; }
+
+        // Unit info
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public decimal PurchasePrice { get; set; }
+        public bool IsPrimary { get; set; }
+
+        // Financial readiness
+        public bool HasMortgageApproval { get; set; }
+        public string MortgageStatus { get; set; } = "";
+        public string MortgageBadgeClass { get; set; } = "";
+        public string? MortgageProvider { get; set; }
+        public decimal MortgageAmount { get; set; }
+
+        public decimal DepositsPaid { get; set; }
+        public decimal DepositsExpected { get; set; }
+        public decimal DepositPercent => DepositsExpected > 0
+            ? Math.Round(DepositsPaid / DepositsExpected * 100, 1) : 0;
+
+        public decimal ShortfallAmount { get; set; }
+        public ClosingRecommendation? Recommendation { get; set; }
+
+        public string RecommendationText => Recommendation switch
+        {
+            ClosingRecommendation.ProceedToClose => "Proceed to Close",
+            ClosingRecommendation.CloseWithDiscount => "Close with Discount",
+            ClosingRecommendation.VTBSecondMortgage => "VTB 2nd Mortgage",
+            ClosingRecommendation.VTBFirstMortgage => "VTB 1st Mortgage",
+            ClosingRecommendation.HighRiskDefault => "High Risk",
+            ClosingRecommendation.PotentialDefault => "Potential Default",
+            _ => "Pending"
+        };
+
+        public string RecommendationBadgeClass => Recommendation switch
+        {
+            ClosingRecommendation.ProceedToClose => "bg-success",
+            ClosingRecommendation.CloseWithDiscount => "bg-primary",
+            ClosingRecommendation.VTBSecondMortgage => "bg-warning text-dark",
+            ClosingRecommendation.VTBFirstMortgage => "bg-orange",
+            ClosingRecommendation.HighRiskDefault => "bg-danger",
+            ClosingRecommendation.PotentialDefault => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
 }

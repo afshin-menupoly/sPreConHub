@@ -1,0 +1,341 @@
+@model PreConHub.Models.ViewModels.PurchaserDirectoryViewModel
+@{
+    ViewData["Title"] = "Purchaser Directory";
+}
+
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a asp-action="Index">Reports</a></li>
+                    <li class="breadcrumb-item active">Purchaser Directory</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-1"><i class="bi bi-person-lines-fill me-2 text-primary"></i>Purchaser Directory</h1>
+            <p class="text-muted mb-0">@Model.ProjectName — @Model.ProjectAddress</p>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            @if (Model.AllProjects.Count > 1)
+            {
+                <select class="form-select form-select-sm" style="width:auto;" onchange="window.location.href='@Url.Action("PurchaserDirectory")?projectId='+this.value">
+                    @foreach (var p in Model.AllProjects)
+                    {
+                        <option value="@p.Id" selected="@(p.Id == Model.ProjectId)">@p.Name (@p.UnitCount units)</option>
+                    }
+                </select>
+            }
+            <button class="btn btn-outline-secondary btn-sm" onclick="window.print()">
+                <i class="bi bi-printer me-1"></i>Print
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Total Purchasers</div>
+                    <div class="h2 mb-0">@Model.TotalPurchasers</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">Mortgage Approved</div>
+                    <div class="h2 mb-0 text-success">@Model.WithMortgageApproval</div>
+                    @if (Model.TotalPurchasers > 0)
+                    {
+                        <div class="small text-muted">@(Math.Round((decimal)Model.WithMortgageApproval / Model.TotalPurchasers * 100, 0))%</div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">No Mortgage</div>
+                    <div class="h2 mb-0 text-warning">@Model.WithoutMortgage</div>
+                    @if (Model.TotalPurchasers > 0)
+                    {
+                        <div class="small text-muted">@(Math.Round((decimal)Model.WithoutMortgage / Model.TotalPurchasers * 100, 0))%</div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
+                <div class="card-body text-center">
+                    <div class="text-muted small mb-1">High Risk</div>
+                    <div class="h2 mb-0 text-danger">@Model.HighRiskPurchasers</div>
+                    @if (Model.TotalPurchasers > 0)
+                    {
+                        <div class="small text-muted">@(Math.Round((decimal)Model.HighRiskPurchasers / Model.TotalPurchasers * 100, 0))%</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart + Stats Row -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Mortgage Readiness</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="mortgageChart" style="max-height:220px;"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Recommendation Breakdown</h6>
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="recChart" style="max-height:220px;"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row align-items-center">
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm" id="searchInput"
+                           placeholder="Search by name, email, or unit..." onkeyup="filterTable()">
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="mortgageFilter" onchange="filterTable()">
+                        <option value="">All Mortgage Status</option>
+                        <option value="approved">Approved</option>
+                        <option value="none">None</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select form-select-sm" id="recFilter" onchange="filterTable()">
+                        <option value="">All Recommendations</option>
+                        <option value="proceed">Proceed to Close</option>
+                        <option value="discount">Close with Discount</option>
+                        <option value="vtb">VTB Mortgage</option>
+                        <option value="risk">High Risk / Default</option>
+                    </select>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span class="text-muted small">Showing <span id="visibleCount">@Model.Purchasers.Count</span> of @Model.Purchasers.Count</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchaser Table -->
+    @if (Model.Purchasers.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="purchaserTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Purchaser</th>
+                            <th>Contact</th>
+                            <th>Unit</th>
+                            <th class="text-center">Primary</th>
+                            <th class="text-end">Purchase Price</th>
+                            <th class="text-center">Mortgage</th>
+                            <th>Provider</th>
+                            <th class="text-end">Mortgage Amt</th>
+                            <th class="text-center">Deposits</th>
+                            <th class="text-end">Shortfall</th>
+                            <th class="text-center">Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.Purchasers.Count; i++)
+                        {
+                            var p = Model.Purchasers[i];
+                            var recClass = p.Recommendation switch {
+                                PreConHub.Models.Entities.ClosingRecommendation.ProceedToClose => "proceed",
+                                PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount => "discount",
+                                PreConHub.Models.Entities.ClosingRecommendation.VTBSecondMortgage => "vtb",
+                                PreConHub.Models.Entities.ClosingRecommendation.VTBFirstMortgage => "vtb",
+                                PreConHub.Models.Entities.ClosingRecommendation.HighRiskDefault => "risk",
+                                PreConHub.Models.Entities.ClosingRecommendation.PotentialDefault => "risk",
+                                _ => "pending"
+                            };
+                            <tr data-search="@p.FullName.ToLower() @p.Email.ToLower() @p.UnitNumber.ToLower()"
+                                data-mortgage="@(p.HasMortgageApproval ? "approved" : "none")"
+                                data-rec="@recClass">
+                                <td>@(i + 1)</td>
+                                <td>
+                                    <strong>@p.FullName</strong>
+                                </td>
+                                <td>
+                                    <div class="small">@p.Email</div>
+                                    @if (!string.IsNullOrEmpty(p.Phone))
+                                    {
+                                        <div class="small text-muted">@p.Phone</div>
+                                    }
+                                </td>
+                                <td>
+                                    <a href="@Url.Action("Details", "Units", new { id = p.UnitId })" class="text-decoration-none fw-bold">@p.UnitNumber</a>
+                                </td>
+                                <td class="text-center">
+                                    @if (p.IsPrimary)
+                                    {
+                                        <span class="badge bg-primary-subtle text-primary">Primary</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary">Co-Purchaser</span>
+                                    }
+                                </td>
+                                <td class="text-end">$@p.PurchasePrice.ToString("N0")</td>
+                                <td class="text-center">
+                                    <span class="badge @p.MortgageBadgeClass">@p.MortgageStatus</span>
+                                </td>
+                                <td>@(p.MortgageProvider ?? "—")</td>
+                                <td class="text-end">
+                                    @if (p.MortgageAmount > 0)
+                                    {
+                                        <text>$@p.MortgageAmount.ToString("N0")</text>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @{
+                                        var depPctClass = p.DepositPercent >= 100 ? "text-success" :
+                                                          p.DepositPercent >= 50 ? "text-primary" :
+                                                          p.DepositPercent >= 25 ? "text-warning" : "text-danger";
+                                    }
+                                    <span class="fw-bold @depPctClass">@p.DepositPercent%</span>
+                                    <div class="small text-muted">$@p.DepositsPaid.ToString("N0") / $@p.DepositsExpected.ToString("N0")</div>
+                                </td>
+                                <td class="text-end">
+                                    @if (p.ShortfallAmount > 0)
+                                    {
+                                        <span class="text-danger fw-bold">$@p.ShortfallAmount.ToString("N0")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-success">$0</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge @p.RecommendationBadgeClass">@p.RecommendationText</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-person-lines-fill text-muted" style="font-size: 4rem;"></i>
+                <h4 class="mt-3">No Purchasers Yet</h4>
+                <p class="text-muted">Units in this project don't have purchasers assigned yet.</p>
+            </div>
+        </div>
+    }
+</div>
+
+@section Styles {
+<style>
+    .bg-orange { background-color: #f97316 !important; }
+    .table th { font-size: 0.8rem; white-space: nowrap; }
+    .table td { font-size: 0.875rem; vertical-align: middle; }
+    @@media print {
+        .btn, .form-control, .form-select, nav, .breadcrumb { display: none !important; }
+    }
+</style>
+}
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script>
+    // Mortgage Readiness Doughnut
+    new Chart(document.getElementById('mortgageChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Approved', 'No Mortgage'],
+            datasets: [{
+                data: [@Model.WithMortgageApproval, @Model.WithoutMortgage],
+                backgroundColor: ['#198754', '#dc3545'],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 15 } }
+            }
+        }
+    });
+
+    // Recommendation Breakdown Bar
+    @{
+        var proceed = Model.Purchasers.Count(p => p.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.ProceedToClose);
+        var discount = Model.Purchasers.Count(p => p.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount);
+        var vtb = Model.Purchasers.Count(p => p.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.VTBSecondMortgage || p.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.VTBFirstMortgage);
+        var risk = Model.Purchasers.Count(p => p.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.HighRiskDefault || p.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.PotentialDefault);
+        var pending = Model.Purchasers.Count(p => p.Recommendation == null);
+    }
+    new Chart(document.getElementById('recChart'), {
+        type: 'bar',
+        data: {
+            labels: ['Proceed to Close', 'Close with Discount', 'VTB Mortgage', 'High Risk / Default', 'Pending'],
+            datasets: [{
+                label: 'Purchasers',
+                data: [@proceed, @discount, @vtb, @risk, @pending],
+                backgroundColor: ['#198754', '#0d6efd', '#ffc107', '#dc3545', '#6c757d'],
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+
+    // Filter
+    function filterTable() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const mortgage = document.getElementById('mortgageFilter').value;
+        const rec = document.getElementById('recFilter').value;
+        const rows = document.querySelectorAll('#purchaserTable tbody tr');
+        let count = 0;
+        rows.forEach(row => {
+            const searchData = row.getAttribute('data-search');
+            const mortData = row.getAttribute('data-mortgage');
+            const recData = row.getAttribute('data-rec');
+            let show = true;
+            if (search && !searchData.includes(search)) show = false;
+            if (mortgage && mortData !== mortgage) show = false;
+            if (rec && recData !== rec) show = false;
+            row.style.display = show ? '' : 'none';
+            if (show) count++;
+        });
+        document.getElementById('visibleCount').textContent = count;
+    }
+</script>
+}
