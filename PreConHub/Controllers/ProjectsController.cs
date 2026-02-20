@@ -954,6 +954,99 @@ namespace PreConHub.Controllers
             return RedirectToAction(nameof(Dashboard), new { id });
         }
 
+        // POST: /Projects/CreateMarketingAgencyUser/5
+        // Builder creates a new MA user inline from ManageMarketingAccess page
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreateMarketingAgencyUser(
+            int id,
+            string maFirstName,
+            string maLastName,
+            string maEmail,
+            string? maCompanyName)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && project.BuilderId != userId)
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(maEmail) || string.IsNullOrWhiteSpace(maFirstName) || string.IsNullOrWhiteSpace(maLastName))
+            {
+                TempData["Error"] = "First name, last name, and email are required.";
+                return RedirectToAction(nameof(ManageMarketingAccess), new { id });
+            }
+
+            // Check if user with this email already exists
+            var existingUser = await _userManager.FindByEmailAsync(maEmail);
+            if (existingUser != null)
+            {
+                // If they're already an MA user, just redirect back — they'll appear in the dropdown
+                if (await _userManager.IsInRoleAsync(existingUser, "MarketingAgency"))
+                {
+                    TempData["Success"] = $"{existingUser.FirstName} {existingUser.LastName} already exists. Select them from the dropdown below.";
+                    return RedirectToAction(nameof(ManageMarketingAccess), new { id });
+                }
+
+                TempData["Error"] = $"A user with email {maEmail} already exists with a different role.";
+                return RedirectToAction(nameof(ManageMarketingAccess), new { id });
+            }
+
+            var maUser = new ApplicationUser
+            {
+                UserName = maEmail,
+                Email = maEmail,
+                FirstName = maFirstName,
+                LastName = maLastName,
+                CompanyName = maCompanyName,
+                UserType = UserType.MarketingAgency,
+                CreatedByUserId = userId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow,
+                EmailConfirmed = false
+            };
+
+            var tempPassword = GenerateTemporaryPassword();
+            var createResult = await _userManager.CreateAsync(maUser, tempPassword);
+
+            if (!createResult.Succeeded)
+            {
+                var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+                TempData["Error"] = $"Failed to create MA account: {errors}";
+                return RedirectToAction(nameof(ManageMarketingAccess), new { id });
+            }
+
+            await _userManager.AddToRoleAsync(maUser, "MarketingAgency");
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "User",
+                EntityId = 0,
+                Action = "CreateMarketingAgencyUser",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    MAUserId = maUser.Id,
+                    MAEmail = maUser.Email,
+                    ProjectId = id
+                }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // Generate password reset link for invitation
+            var token = await _userManager.GeneratePasswordResetTokenAsync(maUser);
+            var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token }, Request.Scheme);
+
+            TempData["Success"] = $"Marketing Agency user {maFirstName} {maLastName} created successfully. Select them from the dropdown below.";
+            TempData["InvitationLink"] = resetLink;
+
+            return RedirectToAction(nameof(ManageMarketingAccess), new { id });
+        }
+
         // GET: /Projects/FeeReference
         // Ontario closing fee reference for builders — shows LTT rates and live flat fee schedule
         public async Task<IActionResult> FeeReference()

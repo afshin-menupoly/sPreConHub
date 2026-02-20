@@ -16,6 +16,30 @@
         </ol>
     </nav>
 
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["InvitationLink"] != null)
+    {
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <i class="bi bi-link-45deg me-2"></i><strong>Invitation Link:</strong>
+            <br><code class="user-select-all">@TempData["InvitationLink"]</code>
+            <div class="form-text mt-1">Share this link with the MA user so they can set their password and log in.</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
     <div class="card border-0 shadow-sm">
         <div class="card-header bg-warning text-dark">
             <h5 class="mb-0"><i class="bi bi-megaphone me-2"></i>Marketing Agency Access — @projectName</h5>
@@ -57,7 +81,7 @@
                         {
                             <div class="alert alert-warning small mb-0">
                                 <i class="bi bi-exclamation-triangle me-1"></i>
-                                No Marketing Agency users found. Create a user with the MarketingAgency role first.
+                                No Marketing Agency users found. Use the form below to create one.
                             </div>
                         }
                     </div>
@@ -72,6 +96,45 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Create New MA User -->
+    <div class="card border-0 shadow-sm mt-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center"
+             style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#createMASection">
+            <h6 class="mb-0"><i class="bi bi-person-plus me-2"></i>Create New Marketing Agency User</h6>
+            <i class="bi bi-chevron-down"></i>
+        </div>
+        <div class="collapse @(maUsers.Any() ? "" : "show")" id="createMASection">
+            <div class="card-body">
+                <form asp-action="CreateMarketingAgencyUser" asp-route-id="@projectId" method="post">
+                    @Html.AntiForgeryToken()
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="maFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="maFirstName" name="maFirstName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="maLastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="maLastName" name="maLastName" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="maEmail" class="form-label">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="maEmail" name="maEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="maCompanyName" class="form-label">Company Name</label>
+                        <input type="text" class="form-control" id="maCompanyName" name="maCompanyName" placeholder="Optional">
+                    </div>
+
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-person-plus me-1"></i>Create MA User
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
