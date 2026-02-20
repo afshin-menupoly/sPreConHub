@@ -1769,4 +1769,41 @@ namespace PreConHub.Models.ViewModels
 
     #endregion
 
+    #region SOA Version History ViewModels
+
+    public class SOAVersionHistoryViewModel
+    {
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+        public List<SOAVersionItem> Versions { get; set; } = new();
+    }
+
+    public class SOAVersionItem
+    {
+        public int Id { get; set; }
+        public int VersionNumber { get; set; }
+        public string Source { get; set; } = "";
+        public string SourceBadgeClass { get; set; } = "bg-secondary";
+        public decimal BalanceDueOnClosing { get; set; }
+        public decimal TotalVendorCredits { get; set; }
+        public decimal TotalPurchaserCredits { get; set; }
+        public decimal CashRequiredToClose { get; set; }
+        public string? UploadedFilePath { get; set; }
+        public string CreatedByName { get; set; } = "";
+        public string CreatedByRole { get; set; } = "";
+        public DateTime CreatedAt { get; set; }
+        public string? Notes { get; set; }
+
+        public string SourceDisplayName => Source switch
+        {
+            "SystemCalculation" => "System Calculation",
+            "LawyerUpload" => "Lawyer Upload",
+            "BuilderUpload" => "Builder Upload",
+            _ => Source
+        };
+    }
+
+    #endregion
+
 }

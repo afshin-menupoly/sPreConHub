@@ -29,6 +29,9 @@
             <a href="@Url.Action("DownloadSOA", "Units", new { id = Model.UnitId })" class="btn btn-outline-secondary">
                 <i class="bi bi-file-pdf me-1"></i>Download SOA
             </a>
+            <a href="@Url.Action("SOAVersionHistory", "Units", new { id = Model.UnitId })" class="btn btn-outline-primary">
+                <i class="bi bi-clock-history me-1"></i>SOA History
+            </a>
             <a href="@Url.Action("AssignLawyer", "Units", new { id = Model.UnitId })" class="btn btn-outline-info">
                 <i class="bi bi-briefcase me-2"></i>Assign Lawyer
             </a>

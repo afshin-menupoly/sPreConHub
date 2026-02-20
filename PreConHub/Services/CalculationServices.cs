@@ -9,7 +9,7 @@ namespace PreConHub.Services
 
     public interface ISoaCalculationService
     {
-        Task<StatementOfAdjustments> CalculateSOAAsync(int unitId);
+        Task<StatementOfAdjustments> CalculateSOAAsync(int unitId, string? createdByUserId = null, string? createdByRole = null);
         Task<StatementOfAdjustments> RecalculateSOAAsync(int unitId);
         decimal CalculateLandTransferTax(decimal purchasePrice, bool isFirstTimeBuyer = false);
         decimal CalculateTorontoLandTransferTax(decimal purchasePrice, bool isFirstTimeBuyer = false);
@@ -44,7 +44,7 @@ namespace PreConHub.Services
             _logger = logger;
         }
 
-        public async Task<StatementOfAdjustments> CalculateSOAAsync(int unitId)
+        public async Task<StatementOfAdjustments> CalculateSOAAsync(int unitId, string? createdByUserId = null, string? createdByRole = null)
         {
             var unit = await _context.Units
                 .Include(u => u.Project)
@@ -324,6 +324,32 @@ namespace PreConHub.Services
             }
 
             await _context.SaveChangesAsync();
+
+            // Create SOAVersion snapshot for audit trail (only if user context available)
+            if (!string.IsNullOrEmpty(createdByUserId))
+            {
+                var lastVersion = await _context.SOAVersions
+                    .Where(v => v.UnitId == unitId)
+                    .OrderByDescending(v => v.VersionNumber)
+                    .Select(v => v.VersionNumber)
+                    .FirstOrDefaultAsync();
+
+                _context.SOAVersions.Add(new SOAVersion
+                {
+                    UnitId = unitId,
+                    VersionNumber = lastVersion + 1,
+                    Source = SOAVersionSource.SystemCalculation,
+                    BalanceDueOnClosing = soa.BalanceDueOnClosing,
+                    TotalVendorCredits = soa.TotalVendorCredits,
+                    TotalPurchaserCredits = soa.TotalPurchaserCredits,
+                    CashRequiredToClose = soa.CashRequiredToClose,
+                    CreatedByUserId = createdByUserId,
+                    CreatedByRole = createdByRole ?? "System",
+                    CreatedAt = DateTime.UtcNow,
+                    Notes = $"Auto-calculated. Balance: {soa.BalanceDueOnClosing:C2}"
+                });
+                await _context.SaveChangesAsync();
+            }
 
             _logger.LogInformation("SOA calculated for Unit {UnitId}. Balance Due: {Balance}, HST: {HST}",
                 unitId, soa.BalanceDueOnClosing, soa.NetHSTPayable);

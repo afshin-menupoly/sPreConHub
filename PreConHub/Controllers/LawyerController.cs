@@ -673,6 +673,30 @@ namespace PreConHub.Controllers
 
             await _context.SaveChangesAsync();
 
+            // Create SOAVersion record for lawyer upload
+            var lastVersion = await _context.SOAVersions
+                .Where(v => v.UnitId == unit.Id)
+                .OrderByDescending(v => v.VersionNumber)
+                .Select(v => v.VersionNumber)
+                .FirstOrDefaultAsync();
+
+            _context.SOAVersions.Add(new SOAVersion
+            {
+                UnitId = unit.Id,
+                VersionNumber = lastVersion + 1,
+                Source = SOAVersionSource.LawyerUpload,
+                BalanceDueOnClosing = model.LawyerBalanceDue,
+                TotalVendorCredits = unit.SOA?.TotalVendorCredits ?? 0,
+                TotalPurchaserCredits = unit.SOA?.TotalPurchaserCredits ?? 0,
+                CashRequiredToClose = unit.SOA?.CashRequiredToClose ?? 0,
+                UploadedFilePath = document.FilePath,
+                CreatedByUserId = userId!,
+                CreatedByRole = "Lawyer",
+                CreatedAt = DateTime.UtcNow,
+                Notes = $"Lawyer upload. Balance: {model.LawyerBalanceDue:C2}"
+            });
+            await _context.SaveChangesAsync();
+
             // Notify builder
             var lawyer = await _userManager.GetUserAsync(User);
             var lawyerName = $"{lawyer?.FirstName} {lawyer?.LastName}".Trim();
@@ -749,7 +773,52 @@ namespace PreConHub.Controllers
             return File(pdfBytes, "application/pdf", fileName);
         }
 
+        // GET: /Lawyer/SOAVersionHistory/5 (UnitId)
+        public async Task<IActionResult> SOAVersionHistory(int id)
+        {
+            var userId = _userManager.GetUserId(User);
 
+            // Verify lawyer is assigned to this unit
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit)
+                    .ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId);
+
+            if (assignment == null)
+                return NotFound();
+
+            var versions = await _context.SOAVersions
+                .Where(v => v.UnitId == id)
+                .Include(v => v.CreatedByUser)
+                .OrderByDescending(v => v.VersionNumber)
+                .ToListAsync();
+
+            var vm = new SOAVersionHistoryViewModel
+            {
+                UnitId = id,
+                UnitNumber = assignment.Unit.UnitNumber,
+                ProjectName = assignment.Unit.Project.Name,
+                Versions = versions.Select(v => new SOAVersionItem
+                {
+                    Id = v.Id,
+                    VersionNumber = v.VersionNumber,
+                    Source = v.Source.ToString(),
+                    SourceBadgeClass = v.Source == SOAVersionSource.SystemCalculation ? "bg-info" :
+                                       v.Source == SOAVersionSource.LawyerUpload ? "bg-primary" : "bg-warning",
+                    BalanceDueOnClosing = v.BalanceDueOnClosing,
+                    TotalVendorCredits = v.TotalVendorCredits,
+                    TotalPurchaserCredits = v.TotalPurchaserCredits,
+                    CashRequiredToClose = v.CashRequiredToClose,
+                    UploadedFilePath = v.UploadedFilePath,
+                    CreatedByName = $"{v.CreatedByUser.FirstName} {v.CreatedByUser.LastName}".Trim(),
+                    CreatedByRole = v.CreatedByRole,
+                    CreatedAt = v.CreatedAt,
+                    Notes = v.Notes
+                }).ToList()
+            };
+
+            return View("~/Views/Units/SOAVersionHistory.cshtml", vm);
+        }
 
     }
 }

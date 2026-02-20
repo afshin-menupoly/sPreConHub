@@ -2461,6 +2461,57 @@ namespace PreConHub.Controllers
 
         #endregion
 
+        #region SOA Version History
+
+        // GET: /Units/SOAVersionHistory/5 (UnitId)
+        public async Task<IActionResult> SOAVersionHistory(int id)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null)
+                return NotFound();
+
+            // Verify access: builder owns project or admin
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            var versions = await _context.SOAVersions
+                .Where(v => v.UnitId == id)
+                .Include(v => v.CreatedByUser)
+                .OrderByDescending(v => v.VersionNumber)
+                .ToListAsync();
+
+            var vm = new SOAVersionHistoryViewModel
+            {
+                UnitId = id,
+                UnitNumber = unit.UnitNumber,
+                ProjectName = unit.Project.Name,
+                Versions = versions.Select(v => new SOAVersionItem
+                {
+                    Id = v.Id,
+                    VersionNumber = v.VersionNumber,
+                    Source = v.Source.ToString(),
+                    SourceBadgeClass = v.Source == SOAVersionSource.SystemCalculation ? "bg-info" :
+                                       v.Source == SOAVersionSource.LawyerUpload ? "bg-primary" : "bg-warning",
+                    BalanceDueOnClosing = v.BalanceDueOnClosing,
+                    TotalVendorCredits = v.TotalVendorCredits,
+                    TotalPurchaserCredits = v.TotalPurchaserCredits,
+                    CashRequiredToClose = v.CashRequiredToClose,
+                    UploadedFilePath = v.UploadedFilePath,
+                    CreatedByName = $"{v.CreatedByUser.FirstName} {v.CreatedByUser.LastName}".Trim(),
+                    CreatedByRole = v.CreatedByRole,
+                    CreatedAt = v.CreatedAt,
+                    Notes = v.Notes
+                }).ToList()
+            };
+
+            return View(vm);
+        }
+
+        #endregion
 
     }
 }
