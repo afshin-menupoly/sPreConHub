@@ -35,8 +35,8 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
                         </li>
-                        @* Projects - Only visible to Builders and Admins *@
-                        @if (User.IsInRole("Builder") || User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                        @* Projects - Only visible to Builders *@
+                        @if (User.IsInRole("Builder"))
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-area="" asp-controller="Projects" asp-action="Index">
@@ -53,8 +53,17 @@
                                 </a>
                             </li>
                         }
-                        @* Extension Requests - Builders and Admins *@
-                        @if (User.IsInRole("Builder") || User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                        @* Fee Reference - Builder only *@
+                        @if (User.IsInRole("Builder"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="Projects" asp-action="FeeReference">
+                                    <i class="bi bi-receipt me-1"></i>Fee Reference
+                                </a>
+                            </li>
+                        }
+                        @* Extension Requests - Builder only *@
+                        @if (User.IsInRole("Builder"))
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="ExtensionRequest" asp-action="Index">
@@ -62,8 +71,8 @@
                                 </a>
                             </li>
                         }
-                        @* Reports - Visible to Builders and Admins *@
-                        @if (User.IsInRole("Builder") || User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                        @* Reports - Builder only *@
+                        @if (User.IsInRole("Builder"))
                         {
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle text-dark" href="#" id="reportsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -166,12 +175,99 @@
                                 </a>
                             </li>
                         }
-                        @if (User.IsInRole("Admin"))
+                        @if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Admin" asp-action="Dashboard">
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle text-dark" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="bi bi-shield-lock me-1"></i>Admin
                                 </a>
+                                <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                                    <li><h6 class="dropdown-header">Management</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Admin" asp-action="Dashboard">
+                                            <i class="bi bi-speedometer2 me-2"></i>Dashboard
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Admin" asp-action="Users">
+                                            <i class="bi bi-people me-2"></i>Users
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Admin" asp-action="CreateBuilder">
+                                            <i class="bi bi-person-plus me-2"></i>Create Builder
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Admin" asp-action="FeeSchedule">
+                                            <i class="bi bi-receipt me-2"></i>Fee Schedule
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li><h6 class="dropdown-header">Reports</h6></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="Index">
+                                            <i class="bi bi-house-door me-2"></i>Reports Hub
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="ProjectReport">
+                                            <i class="bi bi-bar-chart-fill me-2"></i>Project Dashboard
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="FinancialExposure">
+                                            <i class="bi bi-shield-exclamation me-2"></i>Financial Exposure
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="ClosingTimeline">
+                                            <i class="bi bi-calendar-event me-2"></i>Closing Timeline
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="MortgageTracking">
+                                            <i class="bi bi-bank me-2"></i>Mortgage Tracking
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="DepositTracking">
+                                            <i class="bi bi-cash-stack me-2"></i>Deposit Tracking
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="PurchaserDirectory">
+                                            <i class="bi bi-person-lines-fill me-2"></i>Purchaser Directory
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="UnitCards">
+                                            <i class="bi bi-grid-3x3-gap me-2"></i>Unit Cards
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="AllProjects">
+                                            <i class="bi bi-building me-2"></i>All Projects
+                                        </a>
+                                    </li>
+                                    <li><hr class="dropdown-divider" /></li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="CreditScoreDistribution">
+                                            <i class="bi bi-speedometer2 me-2"></i>Credit Scores
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="ExtensionRequestReport">
+                                            <i class="bi bi-calendar-range me-2"></i>Extensions
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a class="dropdown-item" asp-controller="Reports" asp-action="ProjectInvestmentReport">
+                                            <i class="bi bi-piggy-bank me-2"></i>Investment
+                                        </a>
+                                    </li>
+                                </ul>
                             </li>
                         }
                     </ul>
