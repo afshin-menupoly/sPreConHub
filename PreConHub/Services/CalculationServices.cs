@@ -52,6 +52,7 @@ namespace PreConHub.Services
                 .Include(u => u.Project)
                     .ThenInclude(p => p.LevyCaps)  // NEW: Include levy caps
                 .Include(u => u.Deposits)
+                    .ThenInclude(d => d.InterestPeriods)
                 .Include(u => u.Fees)
                 .Include(u => u.OccupancyFees)
                 .Include(u => u.Purchasers)
@@ -60,6 +61,9 @@ namespace PreConHub.Services
 
             if (unit == null)
                 throw new ArgumentException($"Unit with ID {unitId} not found");
+
+            // Load admin-editable system fee configuration
+            var systemFees = await _context.SystemFeeConfigs.ToListAsync();
 
             // Check if SOA is locked - prevent recalculation
             var existingSoa = await _context.StatementsOfAdjustments
@@ -153,10 +157,10 @@ namespace PreConHub.Services
             // 11. Common Expense Adjustment (prorated)
             soa.CommonExpenseAdjustment = CalculateCommonExpenseAdjustment(unit);
 
-            // 12. Occupancy Fees Owing
-            soa.OccupancyFeesOwing = unit.OccupancyFees
-                .Where(o => !o.IsPaid)
-                .Sum(o => o.TotalMonthlyFee);
+            // 12. Occupancy Fees (split: chargeable vs paid)
+            soa.OccupancyFeesChargeable = unit.OccupancyFees.Sum(o => o.TotalMonthlyFee);
+            soa.OccupancyFeesPaid = unit.OccupancyFees.Where(o => o.IsPaid).Sum(o => o.TotalMonthlyFee);
+            soa.OccupancyFeesOwing = soa.OccupancyFeesChargeable - soa.OccupancyFeesPaid;
 
             // 13. Parking
             soa.ParkingPrice = unit.HasParking ? unit.ParkingPrice : 0;
@@ -195,10 +199,15 @@ namespace PreConHub.Services
                 .Sum(f => f.Amount);
             soa.OtherDebits = otherProjectFees;
 
-            // Calculate Total Debits
-            soa.TotalDebits = soa.PurchasePrice
-                + soa.LandTransferTax
-                + soa.TorontoLandTransferTax
+            // 19. System Fees (loaded from SystemFeeConfig, with HST applied)
+            soa.HCRAFee = GetSystemFeeWithHST(systemFees, "HCRA");
+            soa.ElectronicRegFee = GetSystemFeeWithHST(systemFees, "ElectronicReg");
+            soa.StatusCertFee = GetSystemFeeWithHST(systemFees, "StatusCert");
+            soa.TransactionLevyFee = GetSystemFeeWithHST(systemFees, "TransactionLevy");
+
+            // Calculate Total Vendor Credits (Credit Vendor — amounts owed TO vendor)
+            // NOTE: LTT is informational only — excluded from balance
+            soa.TotalVendorCredits = soa.PurchasePrice
                 + soa.DevelopmentCharges
                 + soa.EducationDevelopmentCharges
                 + soa.ParklandLevy
@@ -207,13 +216,19 @@ namespace PreConHub.Services
                 + soa.UtilityConnectionFees
                 + soa.PropertyTaxAdjustment
                 + soa.CommonExpenseAdjustment
-                + soa.OccupancyFeesOwing
+                + soa.OccupancyFeesChargeable
                 + soa.ParkingPrice
                 + soa.LockerPrice
                 + soa.Upgrades
                 + soa.LegalFeesEstimate
-                + soa.NetHSTPayable  // Use net HST (after rebate if assigned)
+                + soa.NetHSTPayable
+                + soa.HCRAFee
+                + soa.ElectronicRegFee
+                + soa.StatusCertFee
+                + soa.TransactionLevyFee
                 + soa.OtherDebits;
+
+            soa.TotalDebits = soa.TotalVendorCredits; // backward compat
 
             // =====================================
             // CREDITS (Amounts reducing obligation)
@@ -224,8 +239,11 @@ namespace PreConHub.Services
                 .Where(d => d.IsPaid)
                 .Sum(d => d.Amount);
 
-            // 2. Deposit Interest (enhanced calculation)
-            soa.DepositInterest = CalculateDepositInterestEnhanced(unit);
+            // 2. Deposit Interest (per-period daily simple interest)
+            soa.DepositInterest = CalculatePerPeriodDepositInterest(unit);
+
+            // 3. Interest on Deposit Interest (OccupancyDate to ClosingDate)
+            soa.InterestOnDepositInterest = CalculateInterestOnDepositInterest(unit, soa.DepositInterest);
 
             // 3. Builder Credits (unit-specific credits)
             soa.BuilderCredits = unit.Fees
@@ -255,18 +273,23 @@ namespace PreConHub.Services
                     && !f.FeeName.Contains("Cash", StringComparison.OrdinalIgnoreCase))
                 .Sum(f => f.Amount);
 
-            // Calculate Total Credits
-            soa.TotalCredits = soa.DepositsPaid
+            // Calculate Total Purchaser Credits (Credit Purchaser — amounts owed TO purchaser)
+            soa.TotalPurchaserCredits = soa.DepositsPaid
                 + soa.DepositInterest
+                + soa.InterestOnDepositInterest
+                + soa.OccupancyFeesPaid
+                + soa.SecurityDepositRefund
                 + soa.BuilderCredits
                 + soa.OtherCredits;
+
+            soa.TotalCredits = soa.TotalPurchaserCredits; // backward compat
 
             // =====================================
             // FINAL CALCULATIONS
             // =====================================
 
-            // Balance Due on Closing
-            soa.BalanceDueOnClosing = soa.TotalDebits - soa.TotalCredits;
+            // Balance Due on Closing (two-column: Vendor - Purchaser)
+            soa.BalanceDueOnClosing = soa.TotalVendorCredits - soa.TotalPurchaserCredits;
 
             // Mortgage Amount (from primary purchaser)
             soa.MortgageAmount = primaryPurchaser?.MortgageInfo?.ApprovedAmount ?? 0;
@@ -309,43 +332,76 @@ namespace PreConHub.Services
         }
 
         /// <summary>
-        /// Calculate deposit interest based on individual deposit terms
+        /// Per-period daily simple interest: Amount × (Rate/100) × (DaysInPeriod/365).
+        /// Uses DepositInterestPeriod rows if available; falls back to deposit-level InterestRate.
         /// </summary>
-        private decimal CalculateDepositInterestEnhanced(Unit unit)
+        private decimal CalculatePerPeriodDepositInterest(Unit unit)
         {
             decimal totalInterest = 0;
-            var closingDate = unit.ClosingDate ?? DateTime.Now;
+            var closingDate = unit.ClosingDate ?? DateTime.UtcNow;
 
-            foreach (var deposit in unit.Deposits.Where(d => d.IsPaid && d.IsInterestEligible))
+            foreach (var deposit in unit.Deposits.Where(d => d.IsPaid && d.PaidDate.HasValue))
             {
-                if (deposit.InterestRate.HasValue && deposit.PaidDate.HasValue)
+                var depositDate = deposit.PaidDate!.Value;
+
+                if (deposit.InterestPeriods.Any())
                 {
-                    var daysHeld = (closingDate - deposit.PaidDate.Value).Days;
-
-                    switch (deposit.CompoundingType)
+                    // Per-period daily simple interest from DepositInterestPeriod rows
+                    foreach (var period in deposit.InterestPeriods.OrderBy(p => p.PeriodStart))
                     {
-                        case Models.Entities.InterestCompoundingType.Simple:
-                            // Simple Interest = Principal � Rate � (Days / 365)
-                            totalInterest += deposit.Amount * deposit.InterestRate.Value * (daysHeld / 365m);
-                            break;
+                        var effectiveStart = depositDate > period.PeriodStart ? depositDate : period.PeriodStart;
+                        var effectiveEnd = closingDate < period.PeriodEnd ? closingDate : period.PeriodEnd;
 
-                        case Models.Entities.InterestCompoundingType.Annual:
-                            // Compound annually
-                            var years = daysHeld / 365m;
-                            totalInterest += deposit.Amount * ((decimal)Math.Pow((double)(1 + deposit.InterestRate.Value), (double)years) - 1);
-                            break;
-
-                        case Models.Entities.InterestCompoundingType.Monthly:
-                            // Compound monthly
-                            var months = daysHeld / 30m;
-                            var monthlyRate = deposit.InterestRate.Value / 12;
-                            totalInterest += deposit.Amount * ((decimal)Math.Pow((double)(1 + monthlyRate), (double)months) - 1);
-                            break;
+                        if (effectiveEnd > effectiveStart)
+                        {
+                            var daysInPeriod = (effectiveEnd - effectiveStart).Days;
+                            totalInterest += deposit.Amount * (period.AnnualRate / 100m) * (daysInPeriod / 365m);
+                        }
                     }
+                }
+                else if (deposit.IsInterestEligible && deposit.InterestRate.HasValue)
+                {
+                    // Fallback: use deposit-level rate with simple interest
+                    var daysHeld = (closingDate - depositDate).Days;
+                    totalInterest += deposit.Amount * deposit.InterestRate.Value * (daysHeld / 365m);
                 }
             }
 
             return Math.Round(totalInterest, 2);
+        }
+
+        /// <summary>
+        /// Interest on the total deposit interest amount, from OccupancyDate to ClosingDate
+        /// at the last applicable government rate.
+        /// </summary>
+        private decimal CalculateInterestOnDepositInterest(Unit unit, decimal depositInterest)
+        {
+            if (depositInterest <= 0) return 0;
+            if (!unit.OccupancyDate.HasValue || !unit.ClosingDate.HasValue) return 0;
+            if (unit.ClosingDate.Value <= unit.OccupancyDate.Value) return 0;
+
+            // Use the last applicable rate from any deposit's interest periods
+            var lastRate = unit.Deposits
+                .SelectMany(d => d.InterestPeriods)
+                .OrderByDescending(p => p.PeriodEnd)
+                .Select(p => p.AnnualRate)
+                .FirstOrDefault();
+
+            if (lastRate <= 0) return 0;
+
+            var days = (unit.ClosingDate.Value - unit.OccupancyDate.Value).Days;
+            return Math.Round(depositInterest * (lastRate / 100m) * (days / 365m), 2);
+        }
+
+        /// <summary>
+        /// Look up a SystemFeeConfig by key and return the effective amount with HST applied.
+        /// </summary>
+        private static decimal GetSystemFeeWithHST(List<SystemFeeConfig> fees, string key)
+        {
+            var fee = fees.FirstOrDefault(f => f.Key == key);
+            if (fee == null) return 0;
+            if (fee.HSTApplicable) return Math.Round(fee.Amount * 1.13m, 2);
+            return fee.Amount; // HSTIncluded or no HST
         }
 
         /// <summary>
@@ -507,38 +563,34 @@ namespace PreConHub.Services
         private decimal CalculatePropertyTaxAdjustment(Unit unit)
         {
             if (unit.ClosingDate == null) return 0;
-            decimal annualTax = unit.PurchasePrice * 0.01m;
+
+            // Use actual land tax if builder entered it; otherwise estimate at 1% of purchase price
+            decimal annualTax = (unit.ActualAnnualLandTax.HasValue && unit.ActualAnnualLandTax.Value > 0)
+                ? unit.ActualAnnualLandTax.Value
+                : unit.PurchasePrice * 0.01m;
+
             int daysInYear = DateTime.IsLeapYear(unit.ClosingDate.Value.Year) ? 366 : 365;
-            int daysRemaining = daysInYear - unit.ClosingDate.Value.DayOfYear;
-            return Math.Round((annualTax / daysInYear) * daysRemaining, 2);
+            // Purchaser reimburses vendor for remaining days of the year after closing
+            int purchaserDays = daysInYear - unit.ClosingDate.Value.DayOfYear;
+            return Math.Round(annualTax * purchaserDays / daysInYear, 2);
         }
 
         private decimal CalculateCommonExpenseAdjustment(Unit unit)
         {
             if (unit.ClosingDate == null) return 0;
-            decimal monthlyFee = unit.SquareFootage * 0.60m;
+
+            // Use actual maintenance fee if builder entered it; otherwise estimate at $0.60/sqft
+            decimal monthlyFee = (unit.ActualMonthlyMaintenanceFee.HasValue && unit.ActualMonthlyMaintenanceFee.Value > 0)
+                ? unit.ActualMonthlyMaintenanceFee.Value
+                : unit.SquareFootage * 0.60m;
+
             int daysInMonth = DateTime.DaysInMonth(unit.ClosingDate.Value.Year, unit.ClosingDate.Value.Month);
+            // Purchaser reimburses vendor for remaining days of the closing month
             int daysRemaining = daysInMonth - unit.ClosingDate.Value.Day;
             return Math.Round((monthlyFee / daysInMonth) * daysRemaining, 2);
         }
 
-        private decimal CalculateDepositInterest(Unit unit)
-        {
-            decimal totalDeposits = unit.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount);
-            if (totalDeposits == 0) return 0;
 
-            decimal totalInterest = 0;
-            decimal annualRate = 0.02m;
-
-            foreach (var deposit in unit.Deposits.Where(d => d.IsPaid && d.PaidDate.HasValue))
-            {
-                var holdingDays = (DateTime.UtcNow - deposit.PaidDate!.Value).Days;
-                decimal interest = deposit.Amount * annualRate * (holdingDays / 365m);
-                totalInterest += interest;
-            }
-
-            return Math.Round(totalInterest, 2);
-        }
 
         private decimal EstimateLegalFees(decimal purchasePrice)
         {
