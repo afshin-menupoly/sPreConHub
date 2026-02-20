@@ -35,6 +35,25 @@
             <a href="@Url.Action("AssignLawyer", "Units", new { id = Model.UnitId })" class="btn btn-outline-info">
                 <i class="bi bi-briefcase me-2"></i>Assign Lawyer
             </a>
+            @if (Model.SOA != null && !Model.SOA.IsConfirmedByBuilder)
+            {
+                <form asp-action="ConfirmSOA" asp-route-id="@Model.UnitId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-success" onclick="return confirm('Confirm the SOA for this unit? This signals builder approval of the calculated amounts.')">
+                        <i class="bi bi-check-circle me-1"></i>Confirm SOA
+                    </button>
+                </form>
+            }
+            else if (Model.SOA != null && Model.SOA.IsConfirmedByBuilder)
+            {
+                <span class="btn btn-outline-success disabled">
+                    <i class="bi bi-check-circle-fill me-1"></i>SOA Confirmed
+                    @if (Model.SOA.IsLocked)
+                    {
+                        <i class="bi bi-lock-fill ms-1"></i>
+                    }
+                </span>
+            }
         </div>
     </div>
 

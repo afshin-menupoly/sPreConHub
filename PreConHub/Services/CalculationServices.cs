@@ -11,6 +11,8 @@ namespace PreConHub.Services
     {
         Task<StatementOfAdjustments> CalculateSOAAsync(int unitId, string? createdByUserId = null, string? createdByRole = null);
         Task<StatementOfAdjustments> RecalculateSOAAsync(int unitId);
+        Task<bool> LockSOAAsync(int unitId, string userId);
+        Task<bool> UnlockSOAAsync(int unitId, string userId, string reason);
         decimal CalculateLandTransferTax(decimal purchasePrice, bool isFirstTimeBuyer = false);
         decimal CalculateTorontoLandTransferTax(decimal purchasePrice, bool isFirstTimeBuyer = false);
     }
@@ -745,11 +747,13 @@ namespace PreConHub.Services
             analysis.SOAAmount = soa.BalanceDueOnClosing;
             analysis.MortgageApproved = mortgageInfo?.ApprovedAmount ?? 0;
             analysis.DepositsPaid = unit.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount);
-            analysis.AdditionalCashAvailable = financials?.AdditionalCashAvailable ?? 0;
+            // Use TotalFundsAvailable (includes RRSP, Gift, ProceedsFromSale, OtherFunds + AdditionalCash)
+            // so all personal funds are considered in the shortfall calculation (spec Step 1).
+            analysis.AdditionalCashAvailable = financials?.TotalFundsAvailable ?? financials?.AdditionalCashAvailable ?? 0;
 
             // Calculate total funds available
-            analysis.TotalFundsAvailable = analysis.MortgageApproved 
-                + analysis.DepositsPaid 
+            analysis.TotalFundsAvailable = analysis.MortgageApproved
+                + analysis.DepositsPaid
                 + analysis.AdditionalCashAvailable;
 
             // Calculate shortfall
@@ -825,9 +829,14 @@ namespace PreConHub.Services
                         analysis.SuggestedVTBAmount = null;
                         break;
                     case ClosingRecommendation.VTBSecondMortgage:
-                    case ClosingRecommendation.VTBFirstMortgage:
                         analysis.SuggestedDiscount = discountAllocated > 0 ? discountAllocated : null;
                         analysis.SuggestedVTBAmount = vtbAllocated;
+                        break;
+                    case ClosingRecommendation.VTBFirstMortgage:
+                        // Spec Step 3: VTB First capped at min(75% of APS_Unit, MaxBuilderCapital)
+                        decimal vtbFirstCap = Math.Min(unit.PurchasePrice * 0.75m, vtbCapPerUnit);
+                        analysis.SuggestedDiscount = discountAllocated > 0 ? discountAllocated : null;
+                        analysis.SuggestedVTBAmount = Math.Min(analysis.ShortfallAmount - (discountAllocated > 0 ? discountAllocated : 0), vtbFirstCap);
                         break;
                     case ClosingRecommendation.CombinationSuggestion:
                         analysis.SuggestedDiscount = discountAllocated > 0 ? discountAllocated : null;
@@ -1038,6 +1047,7 @@ namespace PreConHub.Services
             var project = await _context.Projects
                 .Include(p => p.Units)
                     .ThenInclude(u => u.ShortfallAnalysis)
+                .Include(p => p.Financials)
                 .FirstOrDefaultAsync(p => p.Id == projectId);
 
             if (project == null)
@@ -1049,6 +1059,44 @@ namespace PreConHub.Services
             if (totalUnits == 0)
             {
                 return new ProjectSummary { ProjectId = projectId, TotalUnits = 0 };
+            }
+
+            // Spec Step 4: Proportional scaling of discount/VTB if aggregate exceeds budget
+            var financials = project.Financials;
+            if (financials != null)
+            {
+                var unitsWithAnalysis = units.Where(u => u.ShortfallAnalysis != null && u.Status != UnitStatus.Closed).ToList();
+
+                decimal totalDiscountAllocated = unitsWithAnalysis.Sum(u => u.ShortfallAnalysis!.SuggestedDiscount ?? 0);
+                decimal totalVTBAllocated = unitsWithAnalysis.Sum(u => u.ShortfallAnalysis!.SuggestedVTBAmount ?? 0);
+                bool changed = false;
+
+                // Scale discounts proportionally if they exceed ProfitAvailable
+                if (totalDiscountAllocated > financials.ProfitAvailable && totalDiscountAllocated > 0)
+                {
+                    decimal scaleFactor = financials.ProfitAvailable / totalDiscountAllocated;
+                    foreach (var u in unitsWithAnalysis.Where(u => u.ShortfallAnalysis!.SuggestedDiscount > 0))
+                    {
+                        u.ShortfallAnalysis!.SuggestedDiscount = Math.Round(u.ShortfallAnalysis.SuggestedDiscount!.Value * scaleFactor, 2);
+                    }
+                    changed = true;
+                }
+
+                // Scale VTB proportionally if it exceeds MaxBuilderCapital
+                if (totalVTBAllocated > financials.MaxBuilderCapital && totalVTBAllocated > 0)
+                {
+                    decimal scaleFactor = financials.MaxBuilderCapital / totalVTBAllocated;
+                    foreach (var u in unitsWithAnalysis.Where(u => u.ShortfallAnalysis!.SuggestedVTBAmount > 0))
+                    {
+                        u.ShortfallAnalysis!.SuggestedVTBAmount = Math.Round(u.ShortfallAnalysis.SuggestedVTBAmount!.Value * scaleFactor, 2);
+                    }
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    await _context.SaveChangesAsync();
+                }
             }
 
             // Count by status

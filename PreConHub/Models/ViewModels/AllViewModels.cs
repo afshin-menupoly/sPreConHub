@@ -257,6 +257,8 @@ namespace PreConHub.Models.ViewModels
         // Meta
         public DateTime CalculatedAt { get; set; }
         public bool IsConfirmedByLawyer { get; set; }
+        public bool IsConfirmedByBuilder { get; set; }
+        public bool IsLocked { get; set; }
         public string? LawyerNotes { get; set; }
 
         // Lawyer SOA comparison

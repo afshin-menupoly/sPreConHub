@@ -524,6 +524,8 @@ namespace PreConHub.Controllers
                     CashRequiredToClose = unit.SOA.CashRequiredToClose,
                     CalculatedAt = unit.SOA.CalculatedAt,
                     IsConfirmedByLawyer = unit.SOA.IsConfirmedByLawyer,
+                    IsConfirmedByBuilder = unit.SOA.IsConfirmedByBuilder,
+                    IsLocked = unit.SOA.IsLocked,
                     LawyerNotes = unit.SOA.LawyerNotes,
                     LawyerUploadedBalanceDue = unit.SOA.LawyerUploadedBalanceDue
                 };
@@ -2536,6 +2538,79 @@ namespace PreConHub.Controllers
             };
 
             return View(vm);
+        }
+
+        #endregion
+
+        #region SOA Confirmation
+
+        // POST: /Units/ConfirmSOA/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmSOA(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            var unit = await _context.Units
+                .Include(u => u.SOA)
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null) return NotFound();
+
+            // Verify builder owns this project (or admin)
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (unit.SOA == null)
+            {
+                TempData["Error"] = "No SOA exists for this unit. Calculate or upload SOA first.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            if (unit.SOA.IsConfirmedByBuilder)
+            {
+                TempData["Info"] = "SOA is already confirmed by builder.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            // Set builder confirmation
+            unit.SOA.IsConfirmedByBuilder = true;
+            unit.SOA.BuilderConfirmedAt = DateTime.UtcNow;
+            unit.SOA.ConfirmedByBuilderId = userId;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "SOA",
+                EntityId = id,
+                Action = "ConfirmSOA",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            // Attempt auto-lock if both parties have confirmed
+            try
+            {
+                var locked = await _soaService.LockSOAAsync(id, userId!);
+                if (locked)
+                {
+                    TempData["Success"] = $"SOA confirmed and locked for Unit {unit.UnitNumber}. Both builder and lawyer have confirmed.";
+                }
+                else
+                {
+                    TempData["Success"] = $"SOA confirmed by builder for Unit {unit.UnitNumber}. Awaiting lawyer confirmation to lock.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "SOA auto-lock not triggered for Unit {UnitId}", id);
+                TempData["Success"] = $"SOA confirmed by builder for Unit {unit.UnitNumber}. Awaiting lawyer confirmation to lock.";
+            }
+
+            return RedirectToAction("Details", new { id });
         }
 
         #endregion

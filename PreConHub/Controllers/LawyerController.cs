@@ -20,6 +20,7 @@ namespace PreConHub.Controllers
         private readonly IEmailService _emailService;
         private readonly IPdfService _pdfService;
         private readonly INotificationService _notificationService;
+        private readonly ISoaCalculationService _soaService;
         private readonly IWebHostEnvironment _environment;
 
 
@@ -30,6 +31,7 @@ namespace PreConHub.Controllers
             IEmailService emailService,
             IPdfService pdfService,
             INotificationService notificationService,
+            ISoaCalculationService soaService,
             IWebHostEnvironment environment,
             ILogger<LawyerController> logger)
         {
@@ -39,6 +41,7 @@ namespace PreConHub.Controllers
             _emailService = emailService;
             _pdfService = pdfService;
             _notificationService = notificationService;
+            _soaService = soaService;
             _environment = environment;
             _logger = logger;
         }
@@ -285,6 +288,7 @@ namespace PreConHub.Controllers
             var userId = _userManager.GetUserId(User);
             var assignment = await _context.LawyerAssignments
                 .Include(la => la.Unit)
+                    .ThenInclude(u => u.SOA)
                 .FirstOrDefaultAsync(la => la.Id == id && la.LawyerId == userId);
 
             if (assignment == null)
@@ -298,6 +302,14 @@ namespace PreConHub.Controllers
             assignment.Unit.LawyerConfirmed = true;
             assignment.Unit.LawyerConfirmedAt = DateTime.UtcNow;
             assignment.Unit.UpdatedAt = DateTime.UtcNow;
+
+            // Spec Section D: Lawyer confirms SOA — set SOA.IsConfirmedByLawyer and attempt auto-lock
+            if (assignment.Unit.SOA != null)
+            {
+                assignment.Unit.SOA.IsConfirmedByLawyer = true;
+                assignment.Unit.SOA.ConfirmedAt = DateTime.UtcNow;
+                assignment.Unit.SOA.ConfirmedByLawyerId = userId;
+            }
 
             // Add approval note
             if (!string.IsNullOrWhiteSpace(approvalNotes))
@@ -323,6 +335,19 @@ namespace PreConHub.Controllers
                 Timestamp = DateTime.UtcNow
             });
             await _context.SaveChangesAsync();
+
+            // Attempt auto-lock if both builder and lawyer have confirmed
+            if (assignment.Unit.SOA != null && assignment.UnitId.HasValue)
+            {
+                try
+                {
+                    await _soaService.LockSOAAsync(assignment.UnitId.Value, userId!);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "SOA auto-lock not triggered for Unit {UnitId} (builder confirmation may still be pending)", assignment.UnitId);
+                }
+            }
 
             var lawyer = await _userManager.GetUserAsync(User);
             var lawyerName = $"{lawyer?.FirstName} {lawyer?.LastName}".Trim();
