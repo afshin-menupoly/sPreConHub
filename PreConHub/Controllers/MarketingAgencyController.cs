@@ -26,12 +26,13 @@ namespace PreConHub.Controllers
         }
 
         // GET: /MarketingAgency/Dashboard
-        // Lists all projects where AllowMarketingAccess = true (spec Section H)
+        // Lists projects assigned to this MA user via Project.MarketingAgencyUserId (spec Section H)
         public async Task<IActionResult> Dashboard()
         {
+            var currentUserId = _userManager.GetUserId(User);
             var projects = await _context.Projects
                 .Include(p => p.Units)
-                .Where(p => p.AllowMarketingAccess)
+                .Where(p => p.AllowMarketingAccess && p.MarketingAgencyUserId == currentUserId)
                 .OrderByDescending(p => p.CreatedAt)
                 .ToListAsync();
 
@@ -158,6 +159,81 @@ namespace PreConHub.Controllers
 
             TempData["Success"] = $"Discount suggestion of {model.SuggestedAmount:C0} submitted for Unit {model.UnitNumber}.";
             return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });
+        }
+
+        // POST: /MarketingAgency/SuggestCreditAdjustment
+        // Logs MA credit adjustment suggestion in AuditLog (spec Section A.3)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SuggestCreditAdjustment(SuggestDiscountViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                TempData["Error"] = "Please correct the form errors and try again.";
+                return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });
+            }
+
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == model.UnitId);
+
+            if (unit == null)
+                return NotFound();
+
+            if (!unit.Project.AllowMarketingAccess)
+                return Forbid();
+
+            var userId = _userManager.GetUserId(User);
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "SuggestCreditAdjustment",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = "MarketingAgency",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    suggestedAmount = model.SuggestedAmount,
+                    notes = model.Notes,
+                    unitNumber = unit.UnitNumber,
+                    projectName = unit.Project.Name
+                }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Credit adjustment suggestion of {model.SuggestedAmount:C0} submitted for Unit {model.UnitNumber}.";
+            return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });
+        }
+
+        // GET: /MarketingAgency/SuggestionHistory/5
+        // Shows MA suggestion history for a project (spec Section H)
+        public async Task<IActionResult> SuggestionHistory(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+
+            var currentUserId = _userManager.GetUserId(User);
+            if (!project.AllowMarketingAccess || project.MarketingAgencyUserId != currentUserId)
+                return Forbid();
+
+            var unitIds = await _context.Units
+                .Where(u => u.ProjectId == id)
+                .Select(u => u.Id)
+                .ToListAsync();
+
+            var suggestions = await _context.AuditLogs
+                .Where(a => unitIds.Contains(a.EntityId)
+                         && a.UserId == currentUserId
+                         && (a.Action == "SuggestDiscount" || a.Action == "SuggestCreditAdjustment"))
+                .OrderByDescending(a => a.Timestamp)
+                .ToListAsync();
+
+            ViewBag.ProjectId = id;
+            ViewBag.ProjectName = project.Name;
+            return View(suggestions);
         }
 
         // GET: /MarketingAgency/AuditTrail

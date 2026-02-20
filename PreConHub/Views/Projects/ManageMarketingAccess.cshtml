@@ -1,0 +1,85 @@
+@{
+    ViewData["Title"] = "Manage Marketing Access";
+    var projectId = (int)ViewBag.ProjectId;
+    var projectName = (string)ViewBag.ProjectName;
+    var allowAccess = (bool)ViewBag.AllowMarketingAccess;
+    var selectedUserId = (string?)ViewBag.MarketingAgencyUserId;
+    var maUsers = (List<PreConHub.Models.Entities.ApplicationUser>)ViewBag.MAUsers;
+}
+
+<div class="container py-4" style="max-width: 700px;">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-3">
+            <li class="breadcrumb-item"><a asp-action="Index">Projects</a></li>
+            <li class="breadcrumb-item"><a asp-action="Dashboard" asp-route-id="@projectId">@projectName</a></li>
+            <li class="breadcrumb-item active">Marketing Access</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="bi bi-megaphone me-2"></i>Marketing Agency Access — @projectName</h5>
+        </div>
+        <div class="card-body">
+            <form asp-action="ManageMarketingAccess" asp-route-id="@projectId" method="post">
+                @Html.AntiForgeryToken()
+
+                <div class="mb-4">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch"
+                               id="allowAccess" name="allowAccess" value="true"
+                               @(allowAccess ? "checked" : "")
+                               onchange="toggleMASection(this.checked)">
+                        <label class="form-check-label fw-bold" for="allowAccess">
+                            Enable Marketing Agency Access
+                        </label>
+                    </div>
+                    <div class="form-text">When enabled, the assigned marketing agency user can view unit pricing and suggest discounts/credits for this project.</div>
+                </div>
+
+                <div id="maUserSection" style="display: @(allowAccess ? "block" : "none");">
+                    <div class="mb-4">
+                        <label for="marketingAgencyUserId" class="form-label fw-bold">Assigned Marketing Agency User</label>
+                        @if (maUsers.Any())
+                        {
+                            <select name="marketingAgencyUserId" id="marketingAgencyUserId" class="form-select">
+                                <option value="">— Select MA User —</option>
+                                @foreach (var u in maUsers)
+                                {
+                                    <option value="@u.Id" selected="@(u.Id == selectedUserId)">
+                                        @u.FirstName @u.LastName (@u.Email)@(u.CompanyName != null ? $" — {u.CompanyName}" : "")
+                                    </option>
+                                }
+                            </select>
+                            <div class="form-text">Only the selected user will see this project in their MA dashboard.</div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-warning small mb-0">
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                No Marketing Agency users found. Create a user with the MarketingAgency role first.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-action="Dashboard" asp-route-id="@projectId" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-1"></i>Back
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function toggleMASection(checked) {
+        document.getElementById('maUserSection').style.display = checked ? 'block' : 'none';
+    }
+</script>
+}

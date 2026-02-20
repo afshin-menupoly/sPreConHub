@@ -65,17 +65,12 @@
             @{
                 bool allowMA = ViewBag.AllowMarketingAccess == true;
             }
-            <form asp-action="ToggleMarketingAccess" asp-controller="Projects"
-                  asp-route-id="@Model.ProjectId" method="post" class="d-inline">
-                @Html.AntiForgeryToken()
-                <button type="submit"
-                        class="btn @(allowMA ? "btn-warning" : "btn-outline-warning")"
-                        title="@(allowMA ? "Revoke Marketing Agency access" : "Grant Marketing Agency access")"
-                        onclick="return confirm('@(allowMA ? "Revoke Marketing Agency access for this project?" : "Grant Marketing Agency access for this project?")')">
-                    <i class="bi bi-megaphone me-1"></i>
-                    @(allowMA ? "MA Access: ON" : "MA Access: OFF")
-                </button>
-            </form>
+            <a href="@Url.Action("ManageMarketingAccess", "Projects", new { id = Model.ProjectId })"
+               class="btn @(allowMA ? "btn-warning" : "btn-outline-warning")"
+               title="Manage Marketing Agency access and user assignment">
+                <i class="bi bi-megaphone me-1"></i>
+                @(allowMA ? "MA Access: ON" : "MA Access: OFF")
+            </a>
             @if (User.IsInRole("Builder") || User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
             {
                 <a href="@Url.Action("ProjectInvestment", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-dark" title="Manage project investment & financial data">

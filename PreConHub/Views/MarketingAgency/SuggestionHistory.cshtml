@@ -1,0 +1,85 @@
+@model List<PreConHub.Models.Entities.AuditLog>
+@{
+    ViewData["Title"] = "Suggestion History";
+    var projectId = (int)ViewBag.ProjectId;
+    var projectName = (string)ViewBag.ProjectName;
+}
+
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-3">
+            <li class="breadcrumb-item"><a asp-action="Dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-action="ProjectUnits" asp-route-id="@projectId">@projectName</a></li>
+            <li class="breadcrumb-item active">Suggestion History</li>
+        </ol>
+    </nav>
+
+    <h3 class="mb-3"><i class="bi bi-clock-history me-2"></i>Suggestion History — @projectName</h3>
+
+    @if (Model.Any())
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Unit</th>
+                            <th class="text-end">Amount</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in Model)
+                        {
+                            var details = new { suggestedAmount = 0m, notes = "", unitNumber = "", projectName = "" };
+                            try
+                            {
+                                details = System.Text.Json.JsonSerializer.Deserialize(
+                                    log.NewValues ?? "{}",
+                                    details.GetType(),
+                                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
+                                ) as dynamic ?? details;
+                            }
+                            catch { }
+                            var isDiscount = log.Action == "SuggestDiscount";
+                            <tr>
+                                <td>@log.Timestamp.ToString("MMM dd, yyyy HH:mm")</td>
+                                <td>
+                                    <span class="badge @(isDiscount ? "bg-primary" : "bg-info")">
+                                        @(isDiscount ? "Discount" : "Credit Adjustment")
+                                    </span>
+                                </td>
+                                <td><strong>@(details?.GetType().GetProperty("unitNumber")?.GetValue(details) ?? $"Unit #{log.EntityId}")</strong></td>
+                                <td class="text-end fw-bold">
+                                    @{
+                                        var amt = details?.GetType().GetProperty("suggestedAmount")?.GetValue(details);
+                                    }
+                                    @if (amt != null)
+                                    {
+                                        <text>$@(Convert.ToDecimal(amt).ToString("N0"))</text>
+                                    }
+                                </td>
+                                <td class="text-muted small">@(details?.GetType().GetProperty("notes")?.GetValue(details) ?? "—")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-inbox text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">No Suggestions Yet</h5>
+                <p class="text-muted">You haven't submitted any discount or credit adjustment suggestions for this project.</p>
+                <a asp-action="ProjectUnits" asp-route-id="@projectId" class="btn btn-primary">
+                    <i class="bi bi-arrow-left me-1"></i>View Project Units
+                </a>
+            </div>
+        </div>
+    }
+</div>

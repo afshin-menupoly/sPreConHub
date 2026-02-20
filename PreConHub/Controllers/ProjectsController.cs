@@ -891,6 +891,68 @@ namespace PreConHub.Controllers
             return RedirectToAction(nameof(Dashboard), new { id });
         }
 
+        // GET: /Projects/ManageMarketingAccess/5
+        // Per-project MA user assignment page (spec Section H)
+        public async Task<IActionResult> ManageMarketingAccess(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && project.BuilderId != userId)
+                return Forbid();
+
+            var maUsers = await _userManager.GetUsersInRoleAsync("MarketingAgency");
+
+            ViewBag.ProjectId = id;
+            ViewBag.ProjectName = project.Name;
+            ViewBag.AllowMarketingAccess = project.AllowMarketingAccess;
+            ViewBag.MarketingAgencyUserId = project.MarketingAgencyUserId;
+            ViewBag.MAUsers = maUsers.Where(u => u.IsActive).OrderBy(u => u.FirstName).ToList();
+
+            return View();
+        }
+
+        // POST: /Projects/ManageMarketingAccess/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ManageMarketingAccess(int id, bool allowAccess, string? marketingAgencyUserId)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && project.BuilderId != userId)
+                return Forbid();
+
+            project.AllowMarketingAccess = allowAccess;
+            project.MarketingAgencyUserId = allowAccess ? marketingAgencyUserId : null;
+            project.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Project",
+                EntityId = project.Id,
+                Action = "ManageMarketingAccess",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    AllowMarketingAccess = project.AllowMarketingAccess,
+                    MarketingAgencyUserId = project.MarketingAgencyUserId
+                }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = allowAccess
+                ? "Marketing Agency access configured successfully."
+                : "Marketing Agency access revoked.";
+
+            return RedirectToAction(nameof(Dashboard), new { id });
+        }
+
         // GET: /Projects/FeeReference
         // Ontario closing fee reference for builders — shows LTT rates and live flat fee schedule
         public async Task<IActionResult> FeeReference()
