@@ -1591,7 +1591,7 @@ namespace PreConHub.Controllers
 
                     try
                     {
-                        await soaSvc.CalculateSOAAsync(bgUnitId);
+                        await soaSvc.CalculateSOAAsync(bgUnitId, bgBuilderId, "Builder");
                         await sfSvc.AnalyzeShortfallAsync(bgUnitId);
 
                         await notifySvc.CreateAsync(

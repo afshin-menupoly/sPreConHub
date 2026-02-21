@@ -451,8 +451,8 @@ namespace PreConHub.Services
                 query = query.Where(n => !n.IsRead);
 
             return await query
-                .OrderByDescending(n => n.Priority)
-                .ThenByDescending(n => n.CreatedAt)
+                .OrderByDescending(n => n.CreatedAt)
+                .ThenByDescending(n => n.Priority)
                 .Take(count)
                 .ToListAsync();
         }
