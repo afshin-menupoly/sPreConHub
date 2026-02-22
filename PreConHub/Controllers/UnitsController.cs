@@ -515,6 +515,18 @@ namespace PreConHub.Controllers
                     OtherDebits = unit.SOA.OtherDebits,
                     NetHSTPayable = unit.SOA.NetHSTPayable,
                     TotalDebits = unit.SOA.TotalDebits,
+                    // Net Sale Price Breakdown
+                    SalePrice = unit.SOA.SalePrice,
+                    AdditionalConsideration = unit.SOA.AdditionalConsideration,
+                    TotalSalePrice = unit.SOA.TotalSalePrice,
+                    NetSalePrice = unit.SOA.NetSalePrice,
+                    FederalHST = unit.SOA.FederalHST,
+                    ProvincialHST = unit.SOA.ProvincialHST,
+                    HSTRebateFederal = unit.SOA.HSTRebateFederal,
+                    HSTRebateOntario = unit.SOA.HSTRebateOntario,
+                    ReserveFundContribution = unit.SOA.ReserveFundContribution,
+                    CommonExpensesFirstMonth = unit.SOA.CommonExpensesFirstMonth,
+                    // Credits
                     DepositsPaid = unit.SOA.DepositsPaid,
                     DepositInterest = unit.SOA.DepositInterest,
                     BuilderCredits = unit.SOA.BuilderCredits,

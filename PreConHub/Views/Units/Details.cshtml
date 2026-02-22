@@ -724,118 +724,171 @@
                 <div class="card-body">
                     @if (Model.SOA != null)
                     {
+                        <!-- 1. Breakdown of Sale Price -->
+                        <h6 class="text-primary border-bottom pb-2 mb-2">Breakdown of Sale Price</h6>
+                        <table class="table table-sm table-borderless mb-3">
+                            <tr><td>Dwelling</td><td class="text-end">$@Model.SOA.PurchasePrice.ToString("N2")</td></tr>
+                            @if (Model.SOA.ParkingPrice > 0)
+                            {
+                                <tr><td>Parking</td><td class="text-end">$@Model.SOA.ParkingPrice.ToString("N2")</td></tr>
+                            }
+                            @if (Model.SOA.LockerPrice > 0)
+                            {
+                                <tr><td>Locker</td><td class="text-end">$@Model.SOA.LockerPrice.ToString("N2")</td></tr>
+                            }
+                            <tr class="border-top fw-bold"><td>Sale Price</td><td class="text-end">$@Model.SOA.SalePrice.ToString("N2")</td></tr>
+                        </table>
+
+                        <!-- 2. Adjusted Sale Price -->
+                        <h6 class="text-primary border-bottom pb-2 mb-2">Adjusted Sale Price</h6>
+                        <table class="table table-sm table-borderless mb-3">
+                            <tr><td>Sale Price</td><td class="text-end">$@Model.SOA.SalePrice.ToString("N2")</td></tr>
+                            <tr><td>Additional Consideration (fees + HST)</td><td class="text-end">$@Model.SOA.AdditionalConsideration.ToString("N2")</td></tr>
+                            <tr class="fw-bold"><td>Total Sale Price</td><td class="text-end">$@Model.SOA.TotalSalePrice.ToString("N2")</td></tr>
+                            <tr><td>Federal HST (5%)</td><td class="text-end">$@Model.SOA.FederalHST.ToString("N2")</td></tr>
+                            <tr><td>Provincial HST (8%)</td><td class="text-end">$@Model.SOA.ProvincialHST.ToString("N2")</td></tr>
+                            @if (Model.SOA.HSTRebateFederal > 0)
+                            {
+                                <tr><td>Less: Federal HST Rebate</td><td class="text-end text-success">($@Model.SOA.HSTRebateFederal.ToString("N2"))</td></tr>
+                            }
+                            @if (Model.SOA.HSTRebateOntario > 0)
+                            {
+                                <tr><td>Less: Ontario HST Rebate</td><td class="text-end text-success">($@Model.SOA.HSTRebateOntario.ToString("N2"))</td></tr>
+                            }
+                            <tr class="border-top fw-bold bg-light"><td>NET SALE PRICE</td><td class="text-end">$@Model.SOA.NetSalePrice.ToString("N2")</td></tr>
+                        </table>
+
+                        <!-- 3. Credit Vendor / Credit Purchaser -->
                         <div class="row">
-                            <!-- Debits -->
                             <div class="col-md-6">
-                                <h6 class="text-danger mb-3">DEBITS (Amounts Owing)</h6>
+                                <h6 class="text-danger mb-2">Credit Vendor</h6>
                                 <table class="table table-sm table-borderless">
-                                    <tr><td>Purchase Price</td><td class="text-end">$@Model.SOA.PurchasePrice.ToString("N2")</td></tr>
-                                    <tr><td>Land Transfer Tax (ON)</td><td class="text-end">$@Model.SOA.LandTransferTax.ToString("N2")</td></tr>
-                                    @if (Model.SOA.TorontoLandTransferTax > 0)
+                                    <tr><td>Net Sale Price</td><td class="text-end">$@Model.SOA.NetSalePrice.ToString("N2")</td></tr>
+                                    <tr><td>Federal HST</td><td class="text-end">$@Model.SOA.FederalHST.ToString("N2")</td></tr>
+                                    <tr><td>Provincial HST</td><td class="text-end">$@Model.SOA.ProvincialHST.ToString("N2")</td></tr>
+                                    @if (Model.SOA.HSTRebateFederal + Model.SOA.HSTRebateOntario > 0)
                                     {
-                                        <tr><td>Toronto LTT</td><td class="text-end">$@Model.SOA.TorontoLandTransferTax.ToString("N2")</td></tr>
+                                        <tr><td>Less: HST Rebates</td><td class="text-end text-success">($@((Model.SOA.HSTRebateFederal + Model.SOA.HSTRebateOntario).ToString("N2")))</td></tr>
                                     }
-                                    <tr><td>Development Charges</td><td class="text-end">$@Model.SOA.DevelopmentCharges.ToString("N2")</td></tr>
-                                    <tr><td>Tarion Fee</td><td class="text-end">$@Model.SOA.TarionFee.ToString("N2")</td></tr>
-                                    <tr><td>Utility Connection</td><td class="text-end">$@Model.SOA.UtilityConnectionFees.ToString("N2")</td></tr>
-                                    <tr><td>Property Tax Adj.</td><td class="text-end">$@Model.SOA.PropertyTaxAdjustment.ToString("N2")</td></tr>
-                                    <tr><td>Common Expense Adj.</td><td class="text-end">$@Model.SOA.CommonExpenseAdjustment.ToString("N2")</td></tr>
+                                    @if (Model.SOA.PropertyTaxAdjustment > 0)
+                                    {
+                                        <tr><td>Property Tax Adj.</td><td class="text-end">$@Model.SOA.PropertyTaxAdjustment.ToString("N2")</td></tr>
+                                    }
+                                    @if (Model.SOA.CommonExpenseAdjustment > 0)
+                                    {
+                                        <tr><td>Common Expense Adj.</td><td class="text-end">$@Model.SOA.CommonExpenseAdjustment.ToString("N2")</td></tr>
+                                    }
                                     @if (Model.SOA.OccupancyFeesOwing > 0)
                                     {
-                                        <tr><td>Occupancy Fees Owing</td><td class="text-end">$@Model.SOA.OccupancyFeesOwing.ToString("N2")</td></tr>
+                                        <tr><td>Occupancy Fees</td><td class="text-end">$@Model.SOA.OccupancyFeesOwing.ToString("N2")</td></tr>
                                     }
-                                    @if (Model.SOA.ParkingPrice > 0)
+                                    @if (Model.SOA.ReserveFundContribution > 0)
                                     {
-                                        <tr><td>Parking</td><td class="text-end">$@Model.SOA.ParkingPrice.ToString("N2")</td></tr>
+                                        <tr><td>Reserve Fund (2 mo.)</td><td class="text-end">$@Model.SOA.ReserveFundContribution.ToString("N2")</td></tr>
                                     }
-                                    @if (Model.SOA.LockerPrice > 0)
+                                    @if (Model.SOA.CommonExpensesFirstMonth > 0)
                                     {
-                                        <tr><td>Locker</td><td class="text-end">$@Model.SOA.LockerPrice.ToString("N2")</td></tr>
+                                        <tr><td>Common Exp. 1st Month</td><td class="text-end">$@Model.SOA.CommonExpensesFirstMonth.ToString("N2")</td></tr>
                                     }
-                                    @if (Model.SOA.NetHSTPayable > 0)
-                                    {
-                                        <tr><td>Net HST Payable</td><td class="text-end">$@Model.SOA.NetHSTPayable.ToString("N2")</td></tr>
-                                    }
-                                    <tr><td>Legal Fees (Est.)</td><td class="text-end">$@Model.SOA.LegalFeesEstimate.ToString("N2")</td></tr>
                                     <tr class="border-top fw-bold">
-                                        <td>TOTAL DEBITS</td>
+                                        <td>TOTAL CREDIT VENDOR</td>
                                         <td class="text-end text-danger">$@Model.SOA.TotalDebits.ToString("N2")</td>
                                     </tr>
                                 </table>
                             </div>
-
-                            <!-- Credits -->
                             <div class="col-md-6">
-                                <h6 class="text-success mb-3">CREDITS (Amounts Paid)</h6>
+                                <h6 class="text-success mb-2">Credit Purchaser</h6>
                                 <table class="table table-sm table-borderless">
                                     <tr><td>Deposits Paid</td><td class="text-end">$@Model.SOA.DepositsPaid.ToString("N2")</td></tr>
-                                    <tr><td>Deposit Interest</td><td class="text-end">$@Model.SOA.DepositInterest.ToString("N2")</td></tr>
-                                    <tr><td>Builder Credits</td><td class="text-end">$@Model.SOA.BuilderCredits.ToString("N2")</td></tr>
-                                    <tr><td>Other Credits</td><td class="text-end">$@Model.SOA.OtherCredits.ToString("N2")</td></tr>
+                                    @if (Model.SOA.DepositInterest > 0)
+                                    {
+                                        <tr><td>Deposit Interest</td><td class="text-end">$@Model.SOA.DepositInterest.ToString("N2")</td></tr>
+                                    }
+                                    @if (Model.SOA.BuilderCredits > 0)
+                                    {
+                                        <tr><td>Builder Credits</td><td class="text-end">$@Model.SOA.BuilderCredits.ToString("N2")</td></tr>
+                                    }
+                                    @if (Model.SOA.OtherCredits > 0)
+                                    {
+                                        <tr><td>Other Credits</td><td class="text-end">$@Model.SOA.OtherCredits.ToString("N2")</td></tr>
+                                    }
                                     <tr class="border-top fw-bold">
-                                        <td>TOTAL CREDITS</td>
+                                        <td>TOTAL CREDIT PURCHASER</td>
                                         <td class="text-end text-success">$@Model.SOA.TotalCredits.ToString("N2")</td>
                                     </tr>
                                 </table>
-
-                                <hr class="my-3" />
-
-                                <!-- Final Calculations -->
-                                <table class="table table-sm table-borderless">
-                                    <tr class="fw-bold">
-                                        <td>Balance Due on Closing</td>
-                                        <td class="text-end">$@Model.SOA.BalanceDueOnClosing.ToString("N2")</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Less: Mortgage Amount</td>
-                                        <td class="text-end">($@Model.SOA.MortgageAmount.ToString("N2"))</td>
-                                    </tr>
-                                    <tr class="border-top fs-5 fw-bold">
-                                        <td>CASH REQUIRED TO CLOSE</td>
-                                        <td class="text-end text-primary">$@Model.SOA.CashRequiredToClose.ToString("N2")</td>
-                                    </tr>
-                                </table>
-
-                                <div class="text-muted small mt-3">
-                                    <i class="bi bi-clock me-1"></i>
-                                    Calculated: @Model.SOA.CalculatedAt.ToString("MMM dd, yyyy h:mm tt")
-                                </div>
-
-                                @if (Model.SOA.LawyerUploadedBalanceDue.HasValue)
-                                {
-                                    var systemBal = Model.SOA.BalanceDueOnClosing;
-                                    var lawyerBal = Model.SOA.LawyerUploadedBalanceDue.Value;
-                                    var diff = Math.Abs(systemBal - lawyerBal);
-                                    var match = diff < 1m;
-                                    <div class="alert @(match ? "alert-success" : "alert-danger") mt-3 mb-0">
-                                        <h6 class="alert-heading mb-2">
-                                            <i class="bi @(match ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
-                                            Lawyer SOA Comparison
-                                        </h6>
-                                        <div class="d-flex justify-content-between">
-                                            <span>System Balance Due:</span>
-                                            <strong>$@systemBal.ToString("N2")</strong>
-                                        </div>
-                                        <div class="d-flex justify-content-between">
-                                            <span>Lawyer Balance Due:</span>
-                                            <strong>$@lawyerBal.ToString("N2")</strong>
-                                        </div>
-                                        @if (!match)
-                                        {
-                                            <div class="d-flex justify-content-between border-top mt-1 pt-1">
-                                                <span class="text-danger fw-bold">Difference:</span>
-                                                <strong class="text-danger">$@diff.ToString("N2")</strong>
-                                            </div>
-                                            <small class="text-danger">Amounts do not match. Review before proceeding.</small>
-                                        }
-                                        else
-                                        {
-                                            <small class="text-success">System and lawyer SOA amounts match.</small>
-                                        }
-                                    </div>
-                                }
                             </div>
                         </div>
+
+                        <hr class="my-3" />
+
+                        <!-- Final Calculations -->
+                        <table class="table table-sm table-borderless">
+                            <tr class="fw-bold">
+                                <td>Balance Due on Closing</td>
+                                <td class="text-end">$@Model.SOA.BalanceDueOnClosing.ToString("N2")</td>
+                            </tr>
+                            <tr>
+                                <td>Less: Mortgage Amount</td>
+                                <td class="text-end">($@Model.SOA.MortgageAmount.ToString("N2"))</td>
+                            </tr>
+                            <tr class="border-top fs-5 fw-bold">
+                                <td>CASH REQUIRED TO CLOSE</td>
+                                <td class="text-end text-primary">$@Model.SOA.CashRequiredToClose.ToString("N2")</td>
+                            </tr>
+                        </table>
+
+                        <!-- LTT Info (informational) -->
+                        @if (Model.SOA.LandTransferTax > 0)
+                        {
+                            <div class="bg-light rounded p-2 mt-2 small text-muted">
+                                <strong>Land Transfer Tax (paid at registration, not included in balance):</strong><br/>
+                                Ontario LTT: $@Model.SOA.LandTransferTax.ToString("N2")
+                                @if (Model.SOA.TorontoLandTransferTax > 0)
+                                {
+                                    <text> | Toronto LTT: $@Model.SOA.TorontoLandTransferTax.ToString("N2")</text>
+                                }
+                            </div>
+                        }
+
+                        <div class="text-muted small mt-3">
+                            <i class="bi bi-clock me-1"></i>
+                            Calculated: @Model.SOA.CalculatedAt.ToString("MMM dd, yyyy h:mm tt")
+                        </div>
+
+                        @if (Model.SOA.LawyerUploadedBalanceDue.HasValue)
+                        {
+                            var systemBal = Model.SOA.BalanceDueOnClosing;
+                            var lawyerBal = Model.SOA.LawyerUploadedBalanceDue.Value;
+                            var diff = Math.Abs(systemBal - lawyerBal);
+                            var match = diff < 1m;
+                            <div class="alert @(match ? "alert-success" : "alert-danger") mt-3 mb-0">
+                                <h6 class="alert-heading mb-2">
+                                    <i class="bi @(match ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
+                                    Lawyer SOA Comparison
+                                </h6>
+                                <div class="d-flex justify-content-between">
+                                    <span>System Balance Due:</span>
+                                    <strong>$@systemBal.ToString("N2")</strong>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <span>Lawyer Balance Due:</span>
+                                    <strong>$@lawyerBal.ToString("N2")</strong>
+                                </div>
+                                @if (!match)
+                                {
+                                    <div class="d-flex justify-content-between border-top mt-1 pt-1">
+                                        <span class="text-danger fw-bold">Difference:</span>
+                                        <strong class="text-danger">$@diff.ToString("N2")</strong>
+                                    </div>
+                                    <small class="text-danger">Amounts do not match. Review before proceeding.</small>
+                                }
+                                else
+                                {
+                                    <small class="text-success">System and lawyer SOA amounts match.</small>
+                                }
+                            </div>
+                        }
                     }
                     else
                     {

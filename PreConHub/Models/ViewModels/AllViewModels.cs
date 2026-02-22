@@ -242,19 +242,31 @@ namespace PreConHub.Models.ViewModels
         public decimal OtherDebits { get; set; }
         public decimal NetHSTPayable { get; set; }
         public decimal TotalDebits { get; set; }
-        
+
+        // Net Sale Price Breakdown
+        public decimal SalePrice { get; set; }
+        public decimal AdditionalConsideration { get; set; }
+        public decimal TotalSalePrice { get; set; }
+        public decimal NetSalePrice { get; set; }
+        public decimal FederalHST { get; set; }
+        public decimal ProvincialHST { get; set; }
+        public decimal HSTRebateFederal { get; set; }
+        public decimal HSTRebateOntario { get; set; }
+        public decimal ReserveFundContribution { get; set; }
+        public decimal CommonExpensesFirstMonth { get; set; }
+
         // Credits
         public decimal DepositsPaid { get; set; }
         public decimal DepositInterest { get; set; }
         public decimal BuilderCredits { get; set; }
         public decimal OtherCredits { get; set; }
         public decimal TotalCredits { get; set; }
-        
+
         // Final
         public decimal BalanceDueOnClosing { get; set; }
         public decimal MortgageAmount { get; set; }
         public decimal CashRequiredToClose { get; set; }
-        
+
         // Meta
         public DateTime CalculatedAt { get; set; }
         public bool IsConfirmedByLawyer { get; set; }

@@ -91,10 +91,11 @@ namespace PreConHub.Services
             // 1. Purchase Price
             soa.PurchasePrice = unit.PurchasePrice;
 
-            // Total price includes parking and locker for tax/fee calculations
+            // Sale Price = Dwelling + Parking + Locker
             var parkingAmount = unit.HasParking ? unit.ParkingPrice : 0;
             var lockerAmount = unit.HasLocker ? unit.LockerPrice : 0;
-            var totalPrice = unit.PurchasePrice + parkingAmount + lockerAmount;
+            soa.SalePrice = unit.PurchasePrice + parkingAmount + lockerAmount;
+            var totalPrice = soa.SalePrice;
 
             // 2. Land Transfer Tax (Ontario) - with first-time buyer check
             soa.LandTransferTax = CalculateLandTransferTax(totalPrice, unit.IsFirstTimeBuyer);
@@ -186,54 +187,87 @@ namespace PreConHub.Services
                 .Sum(f => f.Amount);
             soa.LegalFeesEstimate = legalFees > 0 ? legalFees : EstimateLegalFees(totalPrice);
 
-            // 17. HST Calculation (NEW - CRITICAL)
-            var primaryPurchaser = unit.Purchasers.FirstOrDefault(p => p.IsPrimaryPurchaser);
-            bool isPrimaryResidence = unit.IsPrimaryResidence;
-            bool isRebateAssigned = true;   // Default for pre-construction
-
-            var hstCalc = CalculateHSTAndRebates(totalPrice, isPrimaryResidence, isRebateAssigned);
-            soa.HSTAmount = hstCalc.hst;
-            soa.IsHSTRebateEligible = isPrimaryResidence;
-            soa.HSTRebateFederal = hstCalc.federalRebate;
-            soa.HSTRebateOntario = hstCalc.ontarioRebate;
-            soa.HSTRebateTotal = hstCalc.federalRebate + hstCalc.ontarioRebate;
-            soa.IsHSTRebateAssignedToBuilder = isRebateAssigned;
-            soa.NetHSTPayable = hstCalc.netPayable;
-
-            // 18. Other Debits
+            // 17. Other Debits
             var otherProjectFees = unit.Project.Fees
                 .Where(f => f.FeeType == FeeType.Other && f.AppliesToAllUnits)
                 .Sum(f => f.Amount);
             soa.OtherDebits = otherProjectFees;
 
-            // 19. System Fees (loaded from SystemFeeConfig, with HST applied)
+            // 18. System Fees (loaded from SystemFeeConfig, with HST applied)
             soa.HCRAFee = GetSystemFeeWithHST(systemFees, "HCRA");
             soa.ElectronicRegFee = GetSystemFeeWithHST(systemFees, "ElectronicReg");
             soa.StatusCertFee = GetSystemFeeWithHST(systemFees, "StatusCert");
             soa.TransactionLevyFee = GetSystemFeeWithHST(systemFees, "TransactionLevy");
 
-            // Calculate Total Vendor Credits (Credit Vendor — amounts owed TO vendor)
-            // NOTE: LTT is informational only — excluded from balance
-            soa.TotalVendorCredits = soa.PurchasePrice
-                + soa.DevelopmentCharges
+            // 19. Reserve Fund Contribution (2 × monthly common expenses)
+            decimal monthlyCommonExpense = (unit.ActualMonthlyMaintenanceFee.HasValue && unit.ActualMonthlyMaintenanceFee.Value > 0)
+                ? unit.ActualMonthlyMaintenanceFee.Value
+                : unit.SquareFootage * 0.60m;
+            soa.ReserveFundContribution = Math.Round(monthlyCommonExpense * 2, 2);
+
+            // 20. Common Expenses First Month (full month after closing)
+            soa.CommonExpensesFirstMonth = Math.Round(monthlyCommonExpense, 2);
+
+            // =====================================
+            // NET SALE PRICE & HST (Reference Formula)
+            // =====================================
+            // AdditionalConsideration = sum of all fee items × 1.13 (each has HST)
+            // Fee items: DevCharges, EDC, Parkland, CBC, Tarion, Utilities, HCRA, ElecReg,
+            //            StatusCert, TransactionLevy, LegalFees, Upgrades, OtherDebits
+            decimal feeItemsBase = soa.DevelopmentCharges
                 + soa.EducationDevelopmentCharges
                 + soa.ParklandLevy
                 + soa.CommunityBenefitCharges
                 + soa.TarionFee
                 + soa.UtilityConnectionFees
+                + GetSystemFeeBase(systemFees, "HCRA")
+                + GetSystemFeeBase(systemFees, "ElectronicReg")
+                + GetSystemFeeBase(systemFees, "StatusCert")
+                + GetSystemFeeBase(systemFees, "TransactionLevy")
+                + soa.LegalFeesEstimate
+                + soa.Upgrades
+                + soa.OtherDebits;
+
+            soa.AdditionalConsideration = Math.Round(feeItemsBase * 1.13m, 2);
+            soa.TotalSalePrice = soa.SalePrice + soa.AdditionalConsideration;
+
+            // HST Rebates (calculated on totalPrice for eligibility, standard rebate rules)
+            var primaryPurchaser = unit.Purchasers.FirstOrDefault(p => p.IsPrimaryPurchaser);
+            bool isPrimaryResidence = unit.IsPrimaryResidence;
+            bool isRebateAssigned = true;   // Default for pre-construction
+
+            var rebateCalc = CalculateHSTRebates(totalPrice, isPrimaryResidence);
+            soa.IsHSTRebateEligible = isPrimaryResidence;
+            soa.HSTRebateFederal = rebateCalc.federalRebate;
+            soa.HSTRebateOntario = rebateCalc.ontarioRebate;
+            soa.HSTRebateTotal = rebateCalc.federalRebate + rebateCalc.ontarioRebate;
+            soa.IsHSTRebateAssignedToBuilder = isRebateAssigned;
+
+            // Net Sale Price = (TotalSalePrice + TotalHSTRebates) / 1.13
+            soa.NetSalePrice = Math.Round((soa.TotalSalePrice + soa.HSTRebateTotal) / 1.13m, 2);
+
+            // Federal HST = NetSalePrice × 5%, Provincial HST = NetSalePrice × 8%
+            soa.FederalHST = Math.Round(soa.NetSalePrice * 0.05m, 2);
+            soa.ProvincialHST = Math.Round(soa.NetSalePrice * 0.08m, 2);
+            soa.HSTAmount = soa.FederalHST + soa.ProvincialHST;
+
+            // Net HST payable = HST - rebates (if assigned to builder)
+            soa.NetHSTPayable = isRebateAssigned
+                ? soa.HSTAmount - soa.HSTRebateTotal
+                : soa.HSTAmount;
+
+            // Calculate Total Vendor Credits (Credit Vendor — amounts owed TO vendor)
+            // Based on: NetSalePrice + FederalHST + ProvincialHST + adjustments
+            // NOTE: LTT is informational only — excluded from balance
+            soa.TotalVendorCredits = soa.NetSalePrice
+                + soa.FederalHST
+                + soa.ProvincialHST
+                - soa.HSTRebateTotal
                 + soa.PropertyTaxAdjustment
                 + soa.CommonExpenseAdjustment
                 + soa.OccupancyFeesChargeable
-                + soa.ParkingPrice
-                + soa.LockerPrice
-                + soa.Upgrades
-                + soa.LegalFeesEstimate
-                + soa.NetHSTPayable
-                + soa.HCRAFee
-                + soa.ElectronicRegFee
-                + soa.StatusCertFee
-                + soa.TransactionLevyFee
-                + soa.OtherDebits;
+                + soa.ReserveFundContribution
+                + soa.CommonExpensesFirstMonth;
 
             soa.TotalDebits = soa.TotalVendorCredits; // backward compat
 
@@ -634,25 +668,19 @@ namespace PreConHub.Services
         }
 
         /// <summary>
-        /// Calculate HST and rebates for new home purchase
-        /// Ontario HST = 13% (5% federal + 8% provincial)
+        /// Calculate HST rebates for new home purchase.
+        /// HST itself is now derived from NetSalePrice in the main calculation.
+        /// This method computes the rebate amounts used to derive NetSalePrice.
         /// </summary>
-        private (decimal hst, decimal federalRebate, decimal ontarioRebate, decimal netPayable)
-            CalculateHSTAndRebates(decimal purchasePrice, bool isPrimaryResidence, bool isRebateAssignedToBuilder)
+        private (decimal federalRebate, decimal ontarioRebate)
+            CalculateHSTRebates(decimal purchasePrice, bool isPrimaryResidence)
         {
-            // HST in Ontario is 13%
-            decimal hstRate = 0.13m;
-            decimal hstAmount = purchasePrice * hstRate;
-
             decimal federalRebate = 0;
             decimal ontarioRebate = 0;
 
             if (isPrimaryResidence)
             {
                 // Federal New Housing Rebate (36% of 5% GST portion, max $6,300)
-                // Full rebate if price <= $350,000
-                // Partial rebate if $350,000 < price <= $450,000
-                // No rebate if price > $450,000
                 decimal gstPortion = purchasePrice * 0.05m;
 
                 if (purchasePrice <= 350000)
@@ -666,22 +694,22 @@ namespace PreConHub.Services
                 }
 
                 // Ontario New Housing Rebate (75% of 8% PST portion, max $24,000)
-                // Full rebate if price <= $400,000
-                // No rebate if price > $400,000 (but still available for new construction)
-                // For new construction: rebate available regardless of price (capped at $24,000)
+                // For new construction: available regardless of price (capped at $24,000)
                 decimal pstPortion = purchasePrice * 0.08m;
                 ontarioRebate = Math.Min(pstPortion * 0.75m, 24000);
             }
 
-            decimal totalRebate = federalRebate + ontarioRebate;
+            return (federalRebate, ontarioRebate);
+        }
 
-            // If rebate is assigned to builder, buyer pays net amount
-            // If not assigned, buyer pays full HST and receives rebate later
-            decimal netPayable = isRebateAssignedToBuilder
-                ? hstAmount - totalRebate
-                : hstAmount;
-
-            return (hstAmount, federalRebate, ontarioRebate, netPayable);
+        /// <summary>
+        /// Look up a SystemFeeConfig by key and return the base amount (before HST).
+        /// Used to compute AdditionalConsideration where HST is applied uniformly.
+        /// </summary>
+        private static decimal GetSystemFeeBase(List<SystemFeeConfig> fees, string key)
+        {
+            var fee = fees.FirstOrDefault(f => f.Key == key);
+            return fee?.Amount ?? 0;
         }
 
     }

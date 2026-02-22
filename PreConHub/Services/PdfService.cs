@@ -190,30 +190,77 @@ namespace PreConHub.Services
                     .Text("CREDIT PURCHASER").FontSize(9).Bold().FontColor(Colors.White);
 
                 // ══════════════════════════════════════════
-                // SALE PRICE
+                // BREAKDOWN OF SALE PRICE
                 // ══════════════════════════════════════════
-                SectionHeader(table, "SALE PRICE");
+                SectionHeader(table, "BREAKDOWN OF SALE PRICE");
 
-                CellDesc(table, "Agreed Sale Price (incl. HST)");
+                CellDesc(table, "Dwelling");
                 CellVendor(table, soa.PurchasePrice);
                 CellEmpty(table);
 
-                if (soa.HSTAmount > 0)
+                if (soa.ParkingPrice > 0)
                 {
-                    CellInfo(table, $"    HST (13%): ${soa.HSTAmount:N2}");
-
-                    if (soa.HSTRebateTotal > 0)
-                    {
-                        CellInfo(table, $"    HST Rebate: -${soa.HSTRebateTotal:N2} (assigned to builder)");
-                    }
-
-                    if (soa.NetHSTPayable > 0 && soa.NetHSTPayable != soa.HSTAmount)
-                    {
-                        CellDesc(table, "Net HST Payable");
-                        CellVendor(table, soa.NetHSTPayable);
-                        CellEmpty(table);
-                    }
+                    CellDesc(table, "Parking");
+                    CellVendor(table, soa.ParkingPrice);
+                    CellEmpty(table);
                 }
+                if (soa.LockerPrice > 0)
+                {
+                    CellDesc(table, "Locker");
+                    CellVendor(table, soa.LockerPrice);
+                    CellEmpty(table);
+                }
+
+                CellDescBold(table, "Sale Price");
+                table.Cell().PaddingHorizontal(6).PaddingVertical(3).AlignRight()
+                    .Text($"${soa.SalePrice:N2}").FontSize(9).Bold().FontColor(Colors.Blue.Darken2);
+                CellEmpty(table);
+
+                // ══════════════════════════════════════════
+                // ADJUSTED SALE PRICE
+                // ══════════════════════════════════════════
+                SectionHeader(table, "ADJUSTED SALE PRICE");
+
+                CellDesc(table, "Sale Price");
+                CellVendor(table, soa.SalePrice);
+                CellEmpty(table);
+
+                CellDesc(table, "Additional Consideration (fees + HST)");
+                CellVendor(table, soa.AdditionalConsideration);
+                CellEmpty(table);
+
+                CellDescBold(table, "Total Sale Price");
+                table.Cell().PaddingHorizontal(6).PaddingVertical(3).AlignRight()
+                    .Text($"${soa.TotalSalePrice:N2}").FontSize(9).Bold().FontColor(Colors.Blue.Darken2);
+                CellEmpty(table);
+
+                CellDesc(table, "Federal HST (5%)");
+                CellVendor(table, soa.FederalHST);
+                CellEmpty(table);
+
+                CellDesc(table, "Provincial HST (8%)");
+                CellVendor(table, soa.ProvincialHST);
+                CellEmpty(table);
+
+                if (soa.HSTRebateFederal > 0)
+                {
+                    CellDesc(table, "Less: Federal New Housing Rebate");
+                    CellEmpty(table);
+                    CellPurchaser(table, soa.HSTRebateFederal);
+                }
+                if (soa.HSTRebateOntario > 0)
+                {
+                    CellDesc(table, "Less: Ontario New Housing Rebate");
+                    CellEmpty(table);
+                    CellPurchaser(table, soa.HSTRebateOntario);
+                }
+
+                // Net Sale Price highlight row
+                table.Cell().Background(Colors.Blue.Lighten4).Padding(6)
+                    .Text("NET SALE PRICE").FontSize(10).Bold();
+                table.Cell().Background(Colors.Blue.Lighten4).Padding(6).AlignRight()
+                    .Text($"${soa.NetSalePrice:N2}").FontSize(10).Bold().FontColor(Colors.Blue.Darken2);
+                table.Cell().Background(Colors.Blue.Lighten4).Padding(6).Text("");
 
                 // ══════════════════════════════════════════
                 // DEPOSITS
@@ -226,7 +273,7 @@ namespace PreConHub.Services
                     foreach (var dep in paidDeposits)
                     {
                         var label = dep.PaidDate.HasValue
-                            ? $"{dep.PaidDate.Value:MMM dd, yyyy} — {dep.DepositName}"
+                            ? $"{dep.PaidDate.Value:MMM dd, yyyy} \u2014 {dep.DepositName}"
                             : dep.DepositName;
                         CellDesc(table, label);
                         CellEmpty(table);
@@ -256,7 +303,7 @@ namespace PreConHub.Services
                                 {
                                     var days = (effEnd - effStart).Days;
                                     var interest = dep.Amount * (period.AnnualRate / 100m) * (days / 365m);
-                                    CellDesc(table, $"    {dep.DepositName}: {effStart:MMM d, yyyy} – {effEnd:MMM d, yyyy} @ {period.AnnualRate:F3}% ({days} days)");
+                                    CellDesc(table, $"    {dep.DepositName}: {effStart:MMM d, yyyy} \u2013 {effEnd:MMM d, yyyy} @ {period.AnnualRate:F3}% ({days} days)");
                                     CellEmpty(table);
                                     CellPurchaser(table, Math.Round(interest, 2));
                                 }
@@ -266,7 +313,7 @@ namespace PreConHub.Services
                         {
                             var days = (closingDate - depositDate).Days;
                             var interest = dep.Amount * dep.InterestRate.Value * (days / 365m);
-                            CellDesc(table, $"    {dep.DepositName}: {depositDate:MMM d, yyyy} – {closingDate:MMM d, yyyy} ({days} days)");
+                            CellDesc(table, $"    {dep.DepositName}: {depositDate:MMM d, yyyy} \u2013 {closingDate:MMM d, yyyy} ({days} days)");
                             CellEmpty(table);
                             CellPurchaser(table, Math.Round(interest, 2));
                         }
@@ -315,6 +362,22 @@ namespace PreConHub.Services
                     CellEmpty(table);
                 }
 
+                // Reserve Fund Contribution
+                if (soa.ReserveFundContribution > 0)
+                {
+                    CellDesc(table, "Reserve Fund Contribution (2 months common expenses)");
+                    CellVendor(table, soa.ReserveFundContribution);
+                    CellEmpty(table);
+                }
+
+                // Common Expenses First Month
+                if (soa.CommonExpensesFirstMonth > 0)
+                {
+                    CellDesc(table, "Common Expenses \u2014 First Month After Closing");
+                    CellVendor(table, soa.CommonExpensesFirstMonth);
+                    CellEmpty(table);
+                }
+
                 // Occupancy Fees Chargeable (Credit Vendor)
                 if (soa.OccupancyFeesChargeable > 0)
                 {
@@ -337,102 +400,6 @@ namespace PreConHub.Services
                     CellDesc(table, "Security Deposit Refund");
                     CellEmpty(table);
                     CellPurchaser(table, soa.SecurityDepositRefund);
-                }
-
-                // ══════════════════════════════════════════
-                // CLOSING COSTS
-                // ══════════════════════════════════════════
-                SectionHeader(table, "CLOSING COSTS");
-
-                if (soa.TarionFee > 0)
-                {
-                    CellDesc(table, "Tarion Warranty Enrolment Fee");
-                    CellVendor(table, soa.TarionFee);
-                    CellEmpty(table);
-                }
-                if (soa.HCRAFee > 0)
-                {
-                    CellDesc(table, "HCRA Regulatory Oversight Fee (incl. HST)");
-                    CellVendor(table, soa.HCRAFee);
-                    CellEmpty(table);
-                }
-                if (soa.ElectronicRegFee > 0)
-                {
-                    CellDesc(table, "Electronic Registration Fee (HST incl.)");
-                    CellVendor(table, soa.ElectronicRegFee);
-                    CellEmpty(table);
-                }
-                if (soa.StatusCertFee > 0)
-                {
-                    CellDesc(table, "Status Certificate (HST incl.)");
-                    CellVendor(table, soa.StatusCertFee);
-                    CellEmpty(table);
-                }
-                if (soa.TransactionLevyFee > 0)
-                {
-                    CellDesc(table, "Transaction Levy Surcharge (incl. HST)");
-                    CellVendor(table, soa.TransactionLevyFee);
-                    CellEmpty(table);
-                }
-                if (soa.DevelopmentCharges > 0)
-                {
-                    CellDesc(table, "Development Charges Levy");
-                    CellVendor(table, soa.DevelopmentCharges);
-                    CellEmpty(table);
-                }
-                if (soa.EducationDevelopmentCharges > 0)
-                {
-                    CellDesc(table, "Education Development Charges");
-                    CellVendor(table, soa.EducationDevelopmentCharges);
-                    CellEmpty(table);
-                }
-                if (soa.ParklandLevy > 0)
-                {
-                    CellDesc(table, "Parkland Levy");
-                    CellVendor(table, soa.ParklandLevy);
-                    CellEmpty(table);
-                }
-                if (soa.CommunityBenefitCharges > 0)
-                {
-                    CellDesc(table, "Community Benefit Charges");
-                    CellVendor(table, soa.CommunityBenefitCharges);
-                    CellEmpty(table);
-                }
-                if (soa.UtilityConnectionFees > 0)
-                {
-                    CellDesc(table, "Utility Connection / Energization Fees");
-                    CellVendor(table, soa.UtilityConnectionFees);
-                    CellEmpty(table);
-                }
-                if (soa.ParkingPrice > 0)
-                {
-                    CellDesc(table, "Parking");
-                    CellVendor(table, soa.ParkingPrice);
-                    CellEmpty(table);
-                }
-                if (soa.LockerPrice > 0)
-                {
-                    CellDesc(table, "Locker");
-                    CellVendor(table, soa.LockerPrice);
-                    CellEmpty(table);
-                }
-                if (soa.Upgrades > 0)
-                {
-                    CellDesc(table, "Upgrades");
-                    CellVendor(table, soa.Upgrades);
-                    CellEmpty(table);
-                }
-                if (soa.LegalFeesEstimate > 0)
-                {
-                    CellDesc(table, "Legal Fees (Est.)");
-                    CellVendor(table, soa.LegalFeesEstimate);
-                    CellEmpty(table);
-                }
-                if (soa.OtherDebits > 0)
-                {
-                    CellDesc(table, "Other Charges");
-                    CellVendor(table, soa.OtherDebits);
-                    CellEmpty(table);
                 }
 
                 // ══════════════════════════════════════════

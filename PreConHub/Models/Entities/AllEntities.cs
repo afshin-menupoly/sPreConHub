@@ -775,6 +775,34 @@ namespace PreConHub.Models.Entities
         [Column(TypeName = "decimal(18,2)")] public decimal? LawyerUploadedBalanceDue { get; set; }
 
         // =====================================
+        // Net Sale Price Breakdown
+        // =====================================
+
+        /// <summary>Dwelling + Parking + Locker (before fees/HST)</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal SalePrice { get; set; }
+
+        /// <summary>Sum of all fee items × 1.13 (each with HST component)</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal AdditionalConsideration { get; set; }
+
+        /// <summary>SalePrice + AdditionalConsideration</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal TotalSalePrice { get; set; }
+
+        /// <summary>(TotalSalePrice + TotalHSTRebates) / 1.13 — the net amount before HST</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal NetSalePrice { get; set; }
+
+        /// <summary>NetSalePrice × 5% (federal GST portion)</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal FederalHST { get; set; }
+
+        /// <summary>NetSalePrice × 8% (provincial PST portion)</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal ProvincialHST { get; set; }
+
+        /// <summary>2 × monthly common expenses — reserve fund contribution on closing</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal ReserveFundContribution { get; set; }
+
+        /// <summary>First month common expenses after closing</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal CommonExpensesFirstMonth { get; set; }
+
+        // =====================================
         // NEW: HST & REBATE FIELDS (Critical)
         // =====================================
 

@@ -258,113 +258,83 @@
                             <small class="text-muted">Last calculated: @Model.SOA.CalculatedAt.ToString("MMM dd, yyyy h:mm tt")</small>
                         </div>
 
-                        <!-- Debits -->
-                        <h6 class="text-muted border-bottom pb-2 mb-2">DEBITS (Purchaser Owes)</h6>
+                        <!-- Sale Price Breakdown -->
+                        <h6 class="text-primary border-bottom pb-2 mb-2">Sale Price</h6>
                         <table class="table table-sm table-borderless">
-                            <tr>
-                                <td>Purchase Price</td>
-                                <td class="text-end">$@Model.SOA.PurchasePrice.ToString("N0")</td>
-                            </tr>
-                            @if (Model.SOA.LandTransferTax > 0)
-                            {
-                                <tr>
-                                    <td>Ontario Land Transfer Tax</td>
-                                    <td class="text-end">$@Model.SOA.LandTransferTax.ToString("N0")</td>
-                                </tr>
-                            }
-                            @if (Model.SOA.TorontoLandTransferTax > 0)
-                            {
-                                <tr>
-                                    <td>Toronto Land Transfer Tax</td>
-                                    <td class="text-end">$@Model.SOA.TorontoLandTransferTax.ToString("N0")</td>
-                                </tr>
-                            }
-                            @if (Model.SOA.DevelopmentCharges > 0)
-                            {
-                                <tr>
-                                    <td>Development Charges</td>
-                                    <td class="text-end">$@Model.SOA.DevelopmentCharges.ToString("N0")</td>
-                                </tr>
-                            }
-                            @if (Model.SOA.TarionFee > 0)
-                            {
-                                <tr>
-                                    <td>Tarion Fee</td>
-                                    <td class="text-end">$@Model.SOA.TarionFee.ToString("N0")</td>
-                                </tr>
-                            }
+                            <tr><td>Dwelling</td><td class="text-end">$@Model.SOA.PurchasePrice.ToString("N0")</td></tr>
                             @if (Model.SOA.ParkingPrice > 0)
                             {
-                                <tr>
-                                    <td>Parking</td>
-                                    <td class="text-end">$@Model.SOA.ParkingPrice.ToString("N0")</td>
-                                </tr>
+                                <tr><td>Parking</td><td class="text-end">$@Model.SOA.ParkingPrice.ToString("N0")</td></tr>
                             }
                             @if (Model.SOA.LockerPrice > 0)
                             {
-                                <tr>
-                                    <td>Locker</td>
-                                    <td class="text-end">$@Model.SOA.LockerPrice.ToString("N0")</td>
-                                </tr>
+                                <tr><td>Locker</td><td class="text-end">$@Model.SOA.LockerPrice.ToString("N0")</td></tr>
                             }
-                            @if (Model.SOA.Upgrades > 0)
+                            <tr class="fw-bold border-top"><td>Sale Price</td><td class="text-end">$@Model.SOA.SalePrice.ToString("N0")</td></tr>
+                        </table>
+
+                        <!-- Adjusted Sale Price -->
+                        <h6 class="text-primary border-bottom pb-2 mb-2 mt-3">Adjusted Sale Price</h6>
+                        <table class="table table-sm table-borderless">
+                            <tr><td>Addtl. Consideration</td><td class="text-end">$@Model.SOA.AdditionalConsideration.ToString("N0")</td></tr>
+                            <tr class="fw-bold"><td>Total Sale Price</td><td class="text-end">$@Model.SOA.TotalSalePrice.ToString("N0")</td></tr>
+                            <tr><td>Federal HST (5%)</td><td class="text-end">$@Model.SOA.FederalHST.ToString("N0")</td></tr>
+                            <tr><td>Provincial HST (8%)</td><td class="text-end">$@Model.SOA.ProvincialHST.ToString("N0")</td></tr>
+                            @if (Model.SOA.HSTRebateFederal + Model.SOA.HSTRebateOntario > 0)
                             {
-                                <tr>
-                                    <td>Upgrades</td>
-                                    <td class="text-end">$@Model.SOA.Upgrades.ToString("N0")</td>
-                                </tr>
+                                <tr><td>Less: HST Rebates</td><td class="text-end text-success">($@((Model.SOA.HSTRebateFederal + Model.SOA.HSTRebateOntario).ToString("N0")))</td></tr>
                             }
-                            @if (Model.SOA.NetHSTPayable > 0)
+                            <tr class="fw-bold border-top bg-light"><td>Net Sale Price</td><td class="text-end">$@Model.SOA.NetSalePrice.ToString("N0")</td></tr>
+                        </table>
+
+                        <!-- Credit Vendor -->
+                        <h6 class="text-muted border-bottom pb-2 mb-2 mt-3">Credit Vendor</h6>
+                        <table class="table table-sm table-borderless">
+                            @if (Model.SOA.PropertyTaxAdjustment > 0)
                             {
-                                <tr>
-                                    <td>Net HST Payable</td>
-                                    <td class="text-end">$@Model.SOA.NetHSTPayable.ToString("N0")</td>
-                                </tr>
+                                <tr><td>Property Tax Adj.</td><td class="text-end">$@Model.SOA.PropertyTaxAdjustment.ToString("N0")</td></tr>
                             }
-                            @if (Model.SOA.LegalFeesEstimate > 0)
+                            @if (Model.SOA.CommonExpenseAdjustment > 0)
                             {
-                                <tr>
-                                    <td>Legal Fees (Est.)</td>
-                                    <td class="text-end">$@Model.SOA.LegalFeesEstimate.ToString("N0")</td>
-                                </tr>
+                                <tr><td>Common Expense Adj.</td><td class="text-end">$@Model.SOA.CommonExpenseAdjustment.ToString("N0")</td></tr>
+                            }
+                            @if (Model.SOA.ReserveFundContribution > 0)
+                            {
+                                <tr><td>Reserve Fund (2 mo.)</td><td class="text-end">$@Model.SOA.ReserveFundContribution.ToString("N0")</td></tr>
+                            }
+                            @if (Model.SOA.CommonExpensesFirstMonth > 0)
+                            {
+                                <tr><td>Common Exp. 1st Month</td><td class="text-end">$@Model.SOA.CommonExpensesFirstMonth.ToString("N0")</td></tr>
                             }
                             <tr class="fw-bold border-top">
-                                <td>Total Debits</td>
-                                <td class="text-end text-danger">$@Model.SOA.TotalDebits.ToString("N0")</td>
+                                <td>Total Credit Vendor</td>
+                                <td class="text-end text-danger">$@Model.SOA.TotalVendorCredits.ToString("N0")</td>
                             </tr>
                         </table>
 
-                        <!-- Credits -->
-                        <h6 class="text-muted border-bottom pb-2 mb-2 mt-4">CREDITS (Purchaser Has)</h6>
+                        <!-- Credit Purchaser -->
+                        <h6 class="text-muted border-bottom pb-2 mb-2 mt-3">Credit Purchaser</h6>
                         <table class="table table-sm table-borderless">
-                            <tr>
-                                <td>Deposits Paid</td>
-                                <td class="text-end">$@Model.SOA.DepositsPaid.ToString("N0")</td>
-                            </tr>
+                            <tr><td>Deposits Paid</td><td class="text-end">$@Model.SOA.DepositsPaid.ToString("N0")</td></tr>
                             @if (Model.SOA.DepositInterest > 0)
                             {
-                                <tr>
-                                    <td>Deposit Interest</td>
-                                    <td class="text-end">$@Model.SOA.DepositInterest.ToString("N0")</td>
-                                </tr>
+                                <tr><td>Deposit Interest</td><td class="text-end">$@Model.SOA.DepositInterest.ToString("N0")</td></tr>
+                            }
+                            @if (Model.SOA.OccupancyFeesPaid > 0)
+                            {
+                                <tr><td>Occupancy Fees Paid</td><td class="text-end">$@Model.SOA.OccupancyFeesPaid.ToString("N0")</td></tr>
                             }
                             @if (Model.SOA.MortgageAmount > 0)
                             {
-                                <tr>
-                                    <td>Mortgage Proceeds</td>
-                                    <td class="text-end">$@Model.SOA.MortgageAmount.ToString("N0")</td>
-                                </tr>
+                                <tr><td>Mortgage Proceeds</td><td class="text-end">$@Model.SOA.MortgageAmount.ToString("N0")</td></tr>
                             }
                             @if (Model.SOA.BuilderCredits > 0)
                             {
-                                <tr>
-                                    <td>Builder Credits</td>
-                                    <td class="text-end">$@Model.SOA.BuilderCredits.ToString("N0")</td>
-                                </tr>
+                                <tr><td>Builder Credits</td><td class="text-end">$@Model.SOA.BuilderCredits.ToString("N0")</td></tr>
                             }
                             <tr class="fw-bold border-top">
-                                <td>Total Credits</td>
-                                <td class="text-end text-success">$@Model.SOA.TotalCredits.ToString("N0")</td>
+                                <td>Total Credit Purchaser</td>
+                                <td class="text-end text-success">$@Model.SOA.TotalPurchaserCredits.ToString("N0")</td>
                             </tr>
                         </table>
 
@@ -375,6 +345,19 @@
                                 <span class="fs-5 fw-bold">$@Model.SOA.CashRequiredToClose.ToString("N0")</span>
                             </div>
                         </div>
+
+                        <!-- LTT Info -->
+                        @if (Model.SOA.LandTransferTax > 0)
+                        {
+                            <div class="small text-muted mt-2">
+                                <strong>LTT (at registration):</strong>
+                                ON: $@Model.SOA.LandTransferTax.ToString("N0")
+                                @if (Model.SOA.TorontoLandTransferTax > 0)
+                                {
+                                    <text> | TO: $@Model.SOA.TorontoLandTransferTax.ToString("N0")</text>
+                                }
+                            </div>
+                        }
 
                         @if (Model.SOA.LawyerUploadedBalanceDue.HasValue)
                         {
