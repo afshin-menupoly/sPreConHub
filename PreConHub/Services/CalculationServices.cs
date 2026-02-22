@@ -243,8 +243,9 @@ namespace PreConHub.Services
             soa.HSTRebateTotal = rebateCalc.federalRebate + rebateCalc.ontarioRebate;
             soa.IsHSTRebateAssignedToBuilder = isRebateAssigned;
 
-            // Net Sale Price = (TotalSalePrice + TotalHSTRebates) / 1.13
-            soa.NetSalePrice = Math.Round((soa.TotalSalePrice + soa.HSTRebateTotal) / 1.13m, 2);
+            // Net Sale Price = (TotalSalePrice - CreditsOwingToPurchaser) / 1.13
+            // CreditsOwingToPurchaser = HSTRebateTotal (spec §2)
+            soa.NetSalePrice = Math.Round((soa.TotalSalePrice - soa.HSTRebateTotal) / 1.13m, 2);
 
             // Federal HST = NetSalePrice × 5%, Provincial HST = NetSalePrice × 8%
             soa.FederalHST = Math.Round(soa.NetSalePrice * 0.05m, 2);
@@ -259,10 +260,10 @@ namespace PreConHub.Services
             // Calculate Total Vendor Credits (Credit Vendor — amounts owed TO vendor)
             // Based on: NetSalePrice + FederalHST + ProvincialHST + adjustments
             // NOTE: LTT is informational only — excluded from balance
+            // Spec §7: HSTRebate goes to purchaser credits, not subtracted from vendor
             soa.TotalVendorCredits = soa.NetSalePrice
                 + soa.FederalHST
                 + soa.ProvincialHST
-                - soa.HSTRebateTotal
                 + soa.PropertyTaxAdjustment
                 + soa.CommonExpenseAdjustment
                 + soa.OccupancyFeesChargeable
@@ -315,13 +316,15 @@ namespace PreConHub.Services
                 .Sum(f => f.Amount);
 
             // Calculate Total Purchaser Credits (Credit Purchaser — amounts owed TO purchaser)
+            // Spec §7: HSTRebateTotal included in purchaser credits
             soa.TotalPurchaserCredits = soa.DepositsPaid
                 + soa.DepositInterest
                 + soa.InterestOnDepositInterest
                 + soa.OccupancyFeesPaid
                 + soa.SecurityDepositRefund
                 + soa.BuilderCredits
-                + soa.OtherCredits;
+                + soa.OtherCredits
+                + soa.HSTRebateTotal;
 
             soa.TotalCredits = soa.TotalPurchaserCredits; // backward compat
 
@@ -439,7 +442,7 @@ namespace PreConHub.Services
 
                         if (effectiveEnd > effectiveStart)
                         {
-                            var daysInPeriod = (effectiveEnd - effectiveStart).Days;
+                            var daysInPeriod = (effectiveEnd - effectiveStart).Days + 1; // +1 inclusive counting (spec §3)
                             totalInterest += deposit.Amount * (period.AnnualRate / 100m) * (daysInPeriod / 365m);
                         }
                     }
@@ -447,7 +450,7 @@ namespace PreConHub.Services
                 else if (deposit.IsInterestEligible && deposit.InterestRate.HasValue)
                 {
                     // Fallback: use deposit-level rate with simple interest
-                    var daysHeld = (closingDate - depositDate).Days;
+                    var daysHeld = (closingDate - depositDate).Days + 1; // +1 inclusive counting (spec §3)
                     totalInterest += deposit.Amount * deposit.InterestRate.Value * (daysHeld / 365m);
                 }
             }
@@ -655,8 +658,19 @@ namespace PreConHub.Services
                 : unit.PurchasePrice * 0.01m;
 
             int daysInYear = DateTime.IsLeapYear(unit.ClosingDate.Value.Year) ? 366 : 365;
-            // Purchaser reimburses vendor for remaining days of the year after closing
-            int purchaserDays = daysInYear - unit.ClosingDate.Value.DayOfYear;
+
+            // Spec §5: PurchaserDays = OccupancyDate to ClosingDate when available
+            int purchaserDays;
+            if (unit.OccupancyDate.HasValue && unit.OccupancyDate.Value < unit.ClosingDate.Value)
+            {
+                purchaserDays = (unit.ClosingDate.Value - unit.OccupancyDate.Value).Days;
+            }
+            else
+            {
+                // Fallback: remaining days of the year after closing
+                purchaserDays = daysInYear - unit.ClosingDate.Value.DayOfYear;
+            }
+
             return Math.Round(annualTax * purchaserDays / daysInYear, 2);
         }
 

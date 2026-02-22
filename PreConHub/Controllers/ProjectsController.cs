@@ -1552,7 +1552,8 @@ namespace PreConHub.Controllers
             financials.TotalRevenue = model.TotalRevenue;
             financials.TotalInvestment = model.TotalInvestment;
             financials.MarketingCost = model.MarketingCost;
-            financials.ProfitAvailable = model.ProfitAvailable;
+            // ProfitAvailable is auto-calculated, ignore submitted value
+            financials.ProfitAvailable = model.TotalRevenue - model.TotalInvestment - model.MarketingCost;
             financials.MaxBuilderCapital = model.MaxBuilderCapital;
             financials.Notes = model.Notes;
             financials.UpdatedAt = DateTime.UtcNow;

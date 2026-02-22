@@ -30,7 +30,7 @@
                         <label asp-for="TotalRevenue" class="form-label fw-bold"></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input asp-for="TotalRevenue" class="form-control" type="number" step="0.01" min="0" />
+                            <input asp-for="TotalRevenue" class="form-control" type="number" step="0.01" min="0" id="totalRevenue" oninput="recalcInvestment()" />
                         </div>
                         <div class="form-text">Total expected revenue from all unit sales.</div>
                         <span asp-validation-for="TotalRevenue" class="text-danger small"></span>
@@ -39,7 +39,7 @@
                         <label asp-for="TotalInvestment" class="form-label fw-bold"></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input asp-for="TotalInvestment" class="form-control" type="number" step="0.01" min="0" />
+                            <input asp-for="TotalInvestment" class="form-control" type="number" step="0.01" min="0" id="totalInvestment" oninput="recalcInvestment()" />
                         </div>
                         <div class="form-text">Land, construction, development costs.</div>
                         <span asp-validation-for="TotalInvestment" class="text-danger small"></span>
@@ -51,7 +51,7 @@
                         <label asp-for="MarketingCost" class="form-label fw-bold"></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input asp-for="MarketingCost" class="form-control" type="number" step="0.01" min="0" />
+                            <input asp-for="MarketingCost" class="form-control" type="number" step="0.01" min="0" id="marketingCost" oninput="recalcInvestment()" />
                         </div>
                         <div class="form-text">Sales, marketing, and agency costs.</div>
                         <span asp-validation-for="MarketingCost" class="text-danger small"></span>
@@ -60,9 +60,9 @@
                         <label asp-for="ProfitAvailable" class="form-label fw-bold"></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input asp-for="ProfitAvailable" class="form-control" type="number" step="0.01" min="0" />
+                            <input asp-for="ProfitAvailable" class="form-control" type="number" step="0.01" readonly id="profitAvailable" />
                         </div>
-                        <div class="form-text">Revenue - Investment - Marketing. Used for per-unit discount allocation.</div>
+                        <div class="form-text">Auto-calculated: Revenue - Investment - Marketing.</div>
                         <span asp-validation-for="ProfitAvailable" class="text-danger small"></span>
                     </div>
                 </div>
@@ -72,7 +72,7 @@
                         <label asp-for="MaxBuilderCapital" class="form-label fw-bold"></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input asp-for="MaxBuilderCapital" class="form-control" type="number" step="0.01" min="0" />
+                            <input asp-for="MaxBuilderCapital" class="form-control" type="number" step="0.01" min="0" id="maxBuilderCapital" oninput="recalcInvestment()" />
                         </div>
                         <div class="form-text">Maximum capital available for VTB mortgages across this project.</div>
                         <span asp-validation-for="MaxBuilderCapital" class="text-danger small"></span>
@@ -99,11 +99,11 @@
                             </div>
                             <div class="col-md-3">
                                 <div class="text-muted small">Profit / Unit</div>
-                                <div class="h5 text-success">@Model.CalculatedProfitPerUnit.ToString("C0")</div>
+                                <div class="h5 text-success" id="profitPerUnit">@Model.CalculatedProfitPerUnit.ToString("C0")</div>
                             </div>
                             <div class="col-md-3">
                                 <div class="text-muted small">Max VTB / Unit</div>
-                                <div class="h5 text-primary">@Model.CalculatedVTBPerUnit.ToString("C0")</div>
+                                <div class="h5 text-primary" id="vtbPerUnit">@Model.CalculatedVTBPerUnit.ToString("C0")</div>
                             </div>
                         </div>
                         <p class="text-muted small mb-0 mt-2">
@@ -126,3 +126,25 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    var unsoldUnits = @Model.UnsoldUnits;
+
+    function recalcInvestment() {
+        var revenue = parseFloat(document.getElementById('totalRevenue').value) || 0;
+        var investment = parseFloat(document.getElementById('totalInvestment').value) || 0;
+        var marketing = parseFloat(document.getElementById('marketingCost').value) || 0;
+        var vtb = parseFloat(document.getElementById('maxBuilderCapital').value) || 0;
+
+        var profit = revenue - investment - marketing;
+        document.getElementById('profitAvailable').value = profit.toFixed(2);
+
+        var profitPerUnit = unsoldUnits > 0 ? Math.round(profit / unsoldUnits) : 0;
+        var vtbPerUnit = unsoldUnits > 0 ? Math.round(vtb / unsoldUnits) : 0;
+
+        document.getElementById('profitPerUnit').textContent = '$' + profitPerUnit.toLocaleString('en-US');
+        document.getElementById('vtbPerUnit').textContent = '$' + vtbPerUnit.toLocaleString('en-US');
+    }
+</script>
+}
