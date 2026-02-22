@@ -200,16 +200,11 @@ namespace PreConHub.Services
 
                 if (soa.HSTAmount > 0)
                 {
-                    CellInfo(table, $"    HST: ${soa.HSTAmount:N2} (Federal 5% + Provincial 8%)");
+                    CellInfo(table, $"    HST (13%): ${soa.HSTAmount:N2}");
 
-                    if (soa.IsHSTRebateEligible)
+                    if (soa.HSTRebateTotal > 0)
                     {
-                        CellInfo(table, $"    Federal Rebate: ${soa.HSTRebateFederal:N2}  |  Provincial Rebate: ${soa.HSTRebateOntario:N2}");
-                    }
-
-                    if (soa.IsHSTRebateAssignedToBuilder && soa.HSTRebateTotal > 0)
-                    {
-                        CellInfo(table, $"    HST Rebate (${soa.HSTRebateTotal:N2}) assigned to builder");
+                        CellInfo(table, $"    HST Rebate: -${soa.HSTRebateTotal:N2} (assigned to builder)");
                     }
 
                     if (soa.NetHSTPayable > 0 && soa.NetHSTPayable != soa.HSTAmount)

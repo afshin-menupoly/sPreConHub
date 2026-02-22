@@ -513,6 +513,7 @@ namespace PreConHub.Controllers
                     Upgrades = unit.SOA.Upgrades,
                     LegalFeesEstimate = unit.SOA.LegalFeesEstimate,
                     OtherDebits = unit.SOA.OtherDebits,
+                    NetHSTPayable = unit.SOA.NetHSTPayable,
                     TotalDebits = unit.SOA.TotalDebits,
                     DepositsPaid = unit.SOA.DepositsPaid,
                     DepositInterest = unit.SOA.DepositInterest,

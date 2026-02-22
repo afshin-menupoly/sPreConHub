@@ -240,6 +240,7 @@ namespace PreConHub.Models.ViewModels
         public decimal Upgrades { get; set; }
         public decimal LegalFeesEstimate { get; set; }
         public decimal OtherDebits { get; set; }
+        public decimal NetHSTPayable { get; set; }
         public decimal TotalDebits { get; set; }
         
         // Credits

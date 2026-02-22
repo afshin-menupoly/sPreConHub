@@ -143,6 +143,13 @@
                                             <td class="text-end">$@soa.Upgrades.ToString("N2")</td>
                                         </tr>
                                     }
+                                    @if (soa.NetHSTPayable > 0)
+                                    {
+                                        <tr>
+                                            <td>Net HST Payable</td>
+                                            <td class="text-end">$@soa.NetHSTPayable.ToString("N2")</td>
+                                        </tr>
+                                    }
                                     <tr>
                                         <td>Legal Fees (Estimated)</td>
                                         <td class="text-end">$@soa.LegalFeesEstimate.ToString("N2")</td>

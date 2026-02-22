@@ -752,6 +752,10 @@
                                     {
                                         <tr><td>Locker</td><td class="text-end">$@Model.SOA.LockerPrice.ToString("N2")</td></tr>
                                     }
+                                    @if (Model.SOA.NetHSTPayable > 0)
+                                    {
+                                        <tr><td>Net HST Payable</td><td class="text-end">$@Model.SOA.NetHSTPayable.ToString("N2")</td></tr>
+                                    }
                                     <tr><td>Legal Fees (Est.)</td><td class="text-end">$@Model.SOA.LegalFeesEstimate.ToString("N2")</td></tr>
                                     <tr class="border-top fw-bold">
                                         <td>TOTAL DEBITS</td>
