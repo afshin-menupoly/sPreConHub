@@ -243,9 +243,9 @@ namespace PreConHub.Services
             soa.HSTRebateTotal = rebateCalc.federalRebate + rebateCalc.ontarioRebate;
             soa.IsHSTRebateAssignedToBuilder = isRebateAssigned;
 
-            // Net Sale Price = (TotalSalePrice - CreditsOwingToPurchaser) / 1.13
-            // CreditsOwingToPurchaser = HSTRebateTotal (spec §2)
-            soa.NetSalePrice = Math.Round((soa.TotalSalePrice - soa.HSTRebateTotal) / 1.13m, 2);
+            // Net Sale Price = (TotalSalePrice + HSTRebateTotal) / 1.13
+            // Rebates assigned to builder are added back before extracting the pre-HST base
+            soa.NetSalePrice = Math.Round((soa.TotalSalePrice + soa.HSTRebateTotal) / 1.13m, 2);
 
             // Federal HST = NetSalePrice × 5%, Provincial HST = NetSalePrice × 8%
             soa.FederalHST = Math.Round(soa.NetSalePrice * 0.05m, 2);
@@ -450,8 +450,9 @@ namespace PreConHub.Services
                 else if (deposit.IsInterestEligible && deposit.InterestRate.HasValue)
                 {
                     // Fallback: use deposit-level rate with simple interest
+                    // InterestRate stored as whole number (e.g. 2.0 = 2%), divide by 100 to match period-based path
                     var daysHeld = (closingDate - depositDate).Days + 1; // +1 inclusive counting (spec §3)
-                    totalInterest += deposit.Amount * deposit.InterestRate.Value * (daysHeld / 365m);
+                    totalInterest += deposit.Amount * (deposit.InterestRate.Value / 100m) * (daysHeld / 365m);
                 }
             }
 
