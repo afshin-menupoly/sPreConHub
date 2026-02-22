@@ -540,7 +540,13 @@ namespace PreConHub.Controllers
                     IsConfirmedByBuilder = unit.SOA.IsConfirmedByBuilder,
                     IsLocked = unit.SOA.IsLocked,
                     LawyerNotes = unit.SOA.LawyerNotes,
-                    LawyerUploadedBalanceDue = unit.SOA.LawyerUploadedBalanceDue
+                    LawyerUploadedBalanceDue = unit.SOA.LawyerUploadedBalanceDue,
+                    // Lawyer SOA confirmation
+                    IsLawyerSOAConfirmed = unit.SOA.IsLawyerSOAConfirmed,
+                    LawyerSOAConfirmedAt = unit.SOA.LawyerSOAConfirmedAt,
+                    LawyerSOAConfirmedByRole = unit.SOA.LawyerSOAConfirmedByRole,
+                    SystemBalanceDueOnClosing = unit.SOA.SystemBalanceDueOnClosing,
+                    SystemCashRequiredToClose = unit.SOA.SystemCashRequiredToClose
                 };
             }
 
@@ -2547,7 +2553,8 @@ namespace PreConHub.Controllers
                     VersionNumber = v.VersionNumber,
                     Source = v.Source.ToString(),
                     SourceBadgeClass = v.Source == SOAVersionSource.SystemCalculation ? "bg-info" :
-                                       v.Source == SOAVersionSource.LawyerUpload ? "bg-primary" : "bg-warning",
+                                       v.Source == SOAVersionSource.LawyerUpload ? "bg-primary" :
+                                       v.Source == SOAVersionSource.LawyerSOAConfirmation ? "bg-success" : "bg-warning",
                     BalanceDueOnClosing = v.BalanceDueOnClosing,
                     TotalVendorCredits = v.TotalVendorCredits,
                     TotalPurchaserCredits = v.TotalPurchaserCredits,
@@ -2633,6 +2640,121 @@ namespace PreConHub.Controllers
                 TempData["Success"] = $"SOA confirmed by builder for Unit {unit.UnitNumber}. Awaiting lawyer confirmation to lock.";
             }
 
+            return RedirectToAction("Details", new { id });
+        }
+
+        // POST: /Units/ConfirmLawyerSOA/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ConfirmLawyerSOA(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            var unit = await _context.Units
+                .Include(u => u.SOA)
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null) return NotFound();
+
+            // Verify builder owns this project (or admin)
+            if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (unit.SOA == null)
+            {
+                TempData["Error"] = "No SOA exists for this unit.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            if (!unit.SOA.LawyerUploadedBalanceDue.HasValue)
+            {
+                TempData["Error"] = "Lawyer has not uploaded an SOA yet.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            if (unit.SOA.IsLawyerSOAConfirmed)
+            {
+                TempData["Info"] = "Lawyer SOA has already been confirmed.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            var role = User.IsInRole("Admin") ? "Admin" : "Builder";
+
+            // Preserve system values before override
+            var oldBalance = unit.SOA.BalanceDueOnClosing;
+            var oldCash = unit.SOA.CashRequiredToClose;
+            unit.SOA.SystemBalanceDueOnClosing = oldBalance;
+            unit.SOA.SystemCashRequiredToClose = oldCash;
+
+            // Replace with lawyer values
+            unit.SOA.BalanceDueOnClosing = unit.SOA.LawyerUploadedBalanceDue.Value;
+            unit.SOA.CashRequiredToClose = unit.SOA.LawyerUploadedBalanceDue.Value - unit.SOA.MortgageAmount;
+
+            // Mark confirmed
+            unit.SOA.IsLawyerSOAConfirmed = true;
+            unit.SOA.LawyerSOAConfirmedAt = DateTime.UtcNow;
+            unit.SOA.LawyerSOAConfirmedByUserId = userId;
+            unit.SOA.LawyerSOAConfirmedByRole = role;
+
+            // Audit log
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "StatementOfAdjustments",
+                EntityId = id,
+                Action = "ConfirmLawyerSOA",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = role,
+                OldValues = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    BalanceDueOnClosing = oldBalance,
+                    CashRequiredToClose = oldCash
+                }),
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    BalanceDueOnClosing = unit.SOA.BalanceDueOnClosing,
+                    CashRequiredToClose = unit.SOA.CashRequiredToClose,
+                    LawyerUploadedBalanceDue = unit.SOA.LawyerUploadedBalanceDue
+                }),
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            // Create SOAVersion record for audit trail
+            var lastVersion = await _context.SOAVersions
+                .Where(v => v.UnitId == id)
+                .OrderByDescending(v => v.VersionNumber)
+                .Select(v => v.VersionNumber)
+                .FirstOrDefaultAsync();
+
+            _context.SOAVersions.Add(new SOAVersion
+            {
+                UnitId = id,
+                VersionNumber = lastVersion + 1,
+                Source = SOAVersionSource.LawyerSOAConfirmation,
+                BalanceDueOnClosing = unit.SOA.BalanceDueOnClosing,
+                TotalVendorCredits = unit.SOA.TotalVendorCredits,
+                TotalPurchaserCredits = unit.SOA.TotalPurchaserCredits,
+                CashRequiredToClose = unit.SOA.CashRequiredToClose,
+                CreatedByUserId = userId!,
+                CreatedByRole = role,
+                CreatedAt = DateTime.UtcNow,
+                Notes = $"Lawyer SOA confirmed by {role}. System balance was ${oldBalance:N2}, now using lawyer balance ${unit.SOA.BalanceDueOnClosing:N2}"
+            });
+            await _context.SaveChangesAsync();
+
+            // Re-run shortfall analysis with new numbers
+            try
+            {
+                await _shortfallService.AnalyzeShortfallAsync(id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Shortfall re-analysis failed after lawyer SOA confirmation for Unit {UnitId}", id);
+            }
+
+            TempData["Success"] = $"Lawyer SOA confirmed for Unit {unit.UnitNumber}. Lawyer's balance of ${unit.SOA.BalanceDueOnClosing:N2} is now the official figure.";
             return RedirectToAction("Details", new { id });
         }
 

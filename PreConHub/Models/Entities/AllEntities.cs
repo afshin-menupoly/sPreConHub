@@ -906,6 +906,29 @@ namespace PreConHub.Models.Entities
         [Column(TypeName = "decimal(18,2)")] public decimal TotalPurchaserCredits { get; set; }
 
         // =====================================
+        // Lawyer SOA Confirmation (lawyer values override system)
+        // =====================================
+
+        /// <summary>Has the lawyer-uploaded SOA been confirmed? When true, lawyer's BalanceDueOnClosing overrides the system calculation.</summary>
+        public bool IsLawyerSOAConfirmed { get; set; } = false;
+
+        /// <summary>When the lawyer SOA was confirmed.</summary>
+        public DateTime? LawyerSOAConfirmedAt { get; set; }
+
+        /// <summary>User who confirmed the lawyer SOA.</summary>
+        public string? LawyerSOAConfirmedByUserId { get; set; }
+
+        /// <summary>Role of the user who confirmed (Builder or Lawyer).</summary>
+        [StringLength(50)]
+        public string? LawyerSOAConfirmedByRole { get; set; }
+
+        /// <summary>System-calculated BalanceDueOnClosing before lawyer override. Preserved for audit.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? SystemBalanceDueOnClosing { get; set; }
+
+        /// <summary>System-calculated CashRequiredToClose before lawyer override. Preserved for audit.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? SystemCashRequiredToClose { get; set; }
+
+        // =====================================
         // NEW: Locking & Audit Fields
         // =====================================
 
@@ -1588,7 +1611,8 @@ namespace PreConHub.Models.Entities
     {
         SystemCalculation = 0,
         LawyerUpload = 1,
-        BuilderUpload = 2
+        BuilderUpload = 2,
+        LawyerSOAConfirmation = 3
     }
 
     /// <summary>

@@ -278,6 +278,13 @@ namespace PreConHub.Models.ViewModels
         public decimal? LawyerUploadedBalanceDue { get; set; }
         public bool HasSoaMismatch => LawyerUploadedBalanceDue.HasValue
             && Math.Abs(BalanceDueOnClosing - LawyerUploadedBalanceDue.Value) >= 1m;
+
+        // Lawyer SOA confirmation
+        public bool IsLawyerSOAConfirmed { get; set; }
+        public DateTime? LawyerSOAConfirmedAt { get; set; }
+        public string? LawyerSOAConfirmedByRole { get; set; }
+        public decimal? SystemBalanceDueOnClosing { get; set; }
+        public decimal? SystemCashRequiredToClose { get; set; }
     }
 
     public class ShortfallViewModel
@@ -1883,6 +1890,7 @@ namespace PreConHub.Models.ViewModels
             "SystemCalculation" => "System Calculation",
             "LawyerUpload" => "Lawyer Upload",
             "BuilderUpload" => "Builder Upload",
+            "LawyerSOAConfirmation" => "Lawyer SOA Confirmed",
             _ => Source
         };
     }

@@ -330,13 +330,30 @@ namespace PreConHub.Services
             // =====================================
 
             // Balance Due on Closing (two-column: Vendor - Purchaser)
-            soa.BalanceDueOnClosing = soa.TotalVendorCredits - soa.TotalPurchaserCredits;
+            var systemBalance = soa.TotalVendorCredits - soa.TotalPurchaserCredits;
 
             // Mortgage Amount (from primary purchaser)
             soa.MortgageAmount = primaryPurchaser?.MortgageInfo?.ApprovedAmount ?? 0;
 
-            // Cash Required to Close
-            soa.CashRequiredToClose = soa.BalanceDueOnClosing - soa.MortgageAmount;
+            // If lawyer SOA was previously confirmed, preserve the override
+            if (existingSoa?.IsLawyerSOAConfirmed == true && existingSoa.LawyerUploadedBalanceDue.HasValue)
+            {
+                // Store fresh system values for reference, keep lawyer values active
+                soa.SystemBalanceDueOnClosing = systemBalance;
+                soa.SystemCashRequiredToClose = systemBalance - soa.MortgageAmount;
+                soa.BalanceDueOnClosing = existingSoa.LawyerUploadedBalanceDue.Value;
+                soa.CashRequiredToClose = soa.BalanceDueOnClosing - soa.MortgageAmount;
+                soa.IsLawyerSOAConfirmed = existingSoa.IsLawyerSOAConfirmed;
+                soa.LawyerSOAConfirmedAt = existingSoa.LawyerSOAConfirmedAt;
+                soa.LawyerSOAConfirmedByUserId = existingSoa.LawyerSOAConfirmedByUserId;
+                soa.LawyerSOAConfirmedByRole = existingSoa.LawyerSOAConfirmedByRole;
+                soa.LawyerUploadedBalanceDue = existingSoa.LawyerUploadedBalanceDue;
+            }
+            else
+            {
+                soa.BalanceDueOnClosing = systemBalance;
+                soa.CashRequiredToClose = systemBalance - soa.MortgageAmount;
+            }
 
             // Save or update
             if (existingSoa != null)

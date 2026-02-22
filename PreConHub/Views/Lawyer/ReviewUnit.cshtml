@@ -361,41 +361,80 @@
 
                         @if (Model.SOA.LawyerUploadedBalanceDue.HasValue)
                         {
-                            var systemBalance = Model.SOA.BalanceDueOnClosing;
+                            var systemBalance = Model.SOA.SystemBalanceDueOnClosing ?? Model.SOA.BalanceDueOnClosing;
                             var lawyerBalance = Model.SOA.LawyerUploadedBalanceDue.Value;
                             var diff = Math.Abs(systemBalance - lawyerBalance);
                             var match = diff < 1m;
-                            <div class="alert @(match ? "alert-success" : "alert-danger") mt-3">
-                                <h6 class="alert-heading mb-2">
-                                    <i class="bi @(match ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
-                                    SOA Comparison
-                                </h6>
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tr>
-                                        <td>System Balance Due:</td>
-                                        <td class="text-end fw-bold">$@systemBalance.ToString("N2")</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Lawyer Balance Due:</td>
-                                        <td class="text-end fw-bold">$@lawyerBalance.ToString("N2")</td>
-                                    </tr>
+                            var systemCash = Model.SOA.SystemCashRequiredToClose ?? Model.SOA.CashRequiredToClose;
+                            var lawyerCash = lawyerBalance - Model.SOA.MortgageAmount;
+
+                            @if (Model.SOA.IsLawyerSOAConfirmed)
+                            {
+                                <div class="alert alert-success mt-3">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="bi bi-check-circle-fill me-2"></i>Lawyer SOA Confirmed
+                                    </h6>
+                                    <p class="small mb-1">Confirmed by <strong>@Model.SOA.LawyerSOAConfirmedByRole</strong> on @Model.SOA.LawyerSOAConfirmedAt?.ToString("MMM dd, yyyy h:mm tt")</p>
+                                    <p class="small mb-0">Lawyer's balance of <strong>$@lawyerBalance.ToString("N2")</strong> is the official figure.</p>
+                                    @if (Model.SOA.SystemBalanceDueOnClosing.HasValue)
+                                    {
+                                        <hr class="my-2"/>
+                                        <table class="table table-sm table-borderless small mb-0">
+                                            <tr><td>System (before):</td><td class="text-end">$@Model.SOA.SystemBalanceDueOnClosing.Value.ToString("N2")</td></tr>
+                                            <tr><td>Lawyer (active):</td><td class="text-end fw-bold">$@lawyerBalance.ToString("N2")</td></tr>
+                                            <tr class="border-top"><td>Difference:</td><td class="text-end">$@diff.ToString("N2")</td></tr>
+                                        </table>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert @(match ? "alert-info" : "alert-warning") mt-3">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="bi @(match ? "bi-check-circle" : "bi-exclamation-triangle") me-2"></i>
+                                        SOA Comparison
+                                    </h6>
+                                    <table class="table table-sm table-borderless mb-2">
+                                        <thead>
+                                            <tr class="border-bottom">
+                                                <th></th>
+                                                <th class="text-end small text-muted">System</th>
+                                                <th class="text-end small text-muted">Lawyer</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Balance Due</td>
+                                                <td class="text-end">$@systemBalance.ToString("N2")</td>
+                                                <td class="text-end fw-bold">$@lawyerBalance.ToString("N2")</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Cash to Close</td>
+                                                <td class="text-end">$@systemCash.ToString("N2")</td>
+                                                <td class="text-end fw-bold">$@lawyerCash.ToString("N2")</td>
+                                            </tr>
+                                            @if (!match)
+                                            {
+                                                <tr class="border-top">
+                                                    <td class="text-danger fw-bold">Difference</td>
+                                                    <td colspan="2" class="text-end text-danger fw-bold">$@diff.ToString("N2")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
                                     @if (!match)
                                     {
-                                        <tr class="border-top">
-                                            <td class="text-danger fw-bold">Difference:</td>
-                                            <td class="text-end text-danger fw-bold">$@diff.ToString("N2")</td>
-                                        </tr>
+                                        <small class="text-danger d-block mb-2">Amounts differ. Confirming will replace system values with your numbers.</small>
                                     }
-                                </table>
-                                @if (match)
-                                {
-                                    <small class="text-success">System and lawyer SOA amounts match.</small>
-                                }
-                                else
-                                {
-                                    <small class="text-danger">The amounts do not match. Please review before approving.</small>
-                                }
-                            </div>
+                                    <form asp-controller="Lawyer" asp-action="ConfirmLawyerSOA" asp-route-id="@Model.AssignmentId" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-warning btn-sm"
+                                                onclick="return confirm('Confirm Lawyer SOA? This will replace the system balance with your uploaded balance. This action is recorded in SOA history.')">
+                                            <i class="bi bi-check2-square me-1"></i>Confirm Lawyer SOA
+                                        </button>
+                                    </form>
+                                </div>
+                            }
                         }
                     }
                     else
