@@ -56,6 +56,29 @@
                             <input type="date" name="paidDate" class="form-control" />
                         </div>
 
+                        <div class="mb-3">
+                            <label class="form-label">Deposit Holder</label>
+                            <select name="holder" class="form-select">
+                                <option value="Builder">Builder</option>
+                                <option value="Trust" selected>Trust</option>
+                                <option value="Lawyer">Lawyer</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" name="isInterestEligible" value="true" class="form-check-input" id="isInterestEligible" checked>
+                                <label class="form-check-label" for="isInterestEligible">Interest Eligible</label>
+                            </div>
+                            <div class="form-text">Condo deposits are interest-eligible by Ontario law</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Annual Interest Rate (%)</label>
+                            <input type="number" name="interestRate" step="0.001" min="0" max="99.999" class="form-control" placeholder="e.g., 2.0" />
+                            <div class="form-text">APS-defined annual rate. Leave blank to use per-period rates instead.</div>
+                        </div>
+
                         <hr />
 
                         <!-- Quick Add Options -->

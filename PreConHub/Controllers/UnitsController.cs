@@ -647,7 +647,7 @@ namespace PreConHub.Controllers
         // POST: /Units/AddDeposit
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddDeposit(int unitId, string depositName, decimal amount, DateTime dueDate, bool isPaid, DateTime? paidDate)
+        public async Task<IActionResult> AddDeposit(int unitId, string depositName, decimal amount, DateTime dueDate, bool isPaid, DateTime? paidDate, string? holder, bool isInterestEligible, decimal? interestRate)
         {
             var unit = await _context.Units.FindAsync(unitId);
             if (unit == null)
@@ -663,7 +663,10 @@ namespace PreConHub.Controllers
                 IsPaid = isPaid,
                 PaidDate = isPaid ? (paidDate ?? DateTime.UtcNow) : null,
                 Status = isPaid ? DepositStatus.Paid : DepositStatus.Pending,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                Holder = ParseDepositHolder(holder),
+                IsInterestEligible = isInterestEligible,
+                InterestRate = interestRate.HasValue ? interestRate.Value / 100m : null
             };
 
             _context.Deposits.Add(deposit);

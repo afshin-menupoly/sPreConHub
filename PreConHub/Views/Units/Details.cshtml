@@ -541,6 +541,8 @@
                                         <th>Due Date</th>
                                         <th>Paid Date</th>
                                         <th class="text-center">Status</th>
+                                        <th>Holder</th>
+                                        <th class="text-end">Interest Rate</th>
                                         <th class="text-center">Interest Periods</th>
                                     </tr>
                                 </thead>
@@ -566,6 +568,17 @@
                                                     <span class="badge bg-warning text-dark">Pending</span>
                                                 }
                                             </td>
+                                            <td>@deposit.Holder</td>
+                                            <td class="text-end">
+                                                @if (deposit.InterestRate.HasValue)
+                                                {
+                                                    <span class="badge bg-info">@((deposit.InterestRate.Value * 100).ToString("0.0##"))%</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">—</span>
+                                                }
+                                            </td>
                                             <td class="text-center">
                                                 <button class="btn btn-sm btn-outline-info"
                                                         type="button"
@@ -579,7 +592,7 @@
                                         </tr>
                                         @* Collapsible rate periods row *@
                                         <tr class="collapse" id="periods-@deposit.Id">
-                                            <td colspan="6" class="bg-light p-0">
+                                            <td colspan="8" class="bg-light p-0">
                                                 <div class="p-3">
                                                     <h6 class="fw-semibold mb-2">
                                                         <i class="bi bi-percent text-info me-1"></i>
@@ -680,7 +693,7 @@
                                     <tr>
                                         <td class="fw-bold">Total</td>
                                         <td class="text-end fw-bold">$@Model.Deposits.Sum(d => d.Amount).ToString("N0")</td>
-                                        <td colspan="3"></td>
+                                        <td colspan="5"></td>
                                         <td class="text-center">
                                             <span class="text-success fw-bold">$@Model.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount).ToString("N0")</span>
                                             <span class="text-muted small">paid</span>
