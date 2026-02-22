@@ -91,13 +91,18 @@ namespace PreConHub.Services
             // 1. Purchase Price
             soa.PurchasePrice = unit.PurchasePrice;
 
+            // Total price includes parking and locker for tax/fee calculations
+            var parkingAmount = unit.HasParking ? unit.ParkingPrice : 0;
+            var lockerAmount = unit.HasLocker ? unit.LockerPrice : 0;
+            var totalPrice = unit.PurchasePrice + parkingAmount + lockerAmount;
+
             // 2. Land Transfer Tax (Ontario) - with first-time buyer check
-            soa.LandTransferTax = CalculateLandTransferTax(unit.PurchasePrice, unit.IsFirstTimeBuyer);
+            soa.LandTransferTax = CalculateLandTransferTax(totalPrice, unit.IsFirstTimeBuyer);
 
             // 3. Toronto Land Transfer Tax (if applicable)
             bool isInToronto = IsTorontoProperty(unit.Project.City);
             soa.TorontoLandTransferTax = isInToronto
-                ? CalculateTorontoLandTransferTax(unit.PurchasePrice, unit.IsFirstTimeBuyer)
+                ? CalculateTorontoLandTransferTax(totalPrice, unit.IsFirstTimeBuyer)
                 : 0;
 
             // 4. Development Charges with Levy Cap Logic
@@ -141,7 +146,7 @@ namespace PreConHub.Services
                 .Sum(f => f.Amount);
 
             // 8. Tarion Warranty Fee
-            soa.TarionFee = CalculateTarionFee(unit.PurchasePrice);
+            soa.TarionFee = CalculateTarionFee(totalPrice);
 
             // 9. Utility Connection Fees (combined)
             soa.UtilityConnectionFees = unit.Project.Fees
@@ -179,14 +184,14 @@ namespace PreConHub.Services
             var legalFees = unit.Project.Fees
                 .Where(f => f.FeeType == FeeType.LegalFees)
                 .Sum(f => f.Amount);
-            soa.LegalFeesEstimate = legalFees > 0 ? legalFees : EstimateLegalFees(unit.PurchasePrice);
+            soa.LegalFeesEstimate = legalFees > 0 ? legalFees : EstimateLegalFees(totalPrice);
 
             // 17. HST Calculation (NEW - CRITICAL)
             var primaryPurchaser = unit.Purchasers.FirstOrDefault(p => p.IsPrimaryPurchaser);
             bool isPrimaryResidence = unit.IsPrimaryResidence;
             bool isRebateAssigned = true;   // Default for pre-construction
 
-            var hstCalc = CalculateHSTAndRebates(unit.PurchasePrice, isPrimaryResidence, isRebateAssigned);
+            var hstCalc = CalculateHSTAndRebates(totalPrice, isPrimaryResidence, isRebateAssigned);
             soa.HSTAmount = hstCalc.hst;
             soa.IsHSTRebateEligible = isPrimaryResidence;
             soa.HSTRebateFederal = hstCalc.federalRebate;
