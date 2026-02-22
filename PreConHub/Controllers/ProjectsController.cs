@@ -170,7 +170,8 @@ namespace PreConHub.Controllers
                     TotalPaid = u.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount),
                     ShortfallAmount = u.ShortfallAnalysis?.ShortfallAmount ?? 0,
                     ShortfallPercent = u.ShortfallAnalysis?.ShortfallPercentage ?? 0,
-                    Recommendation = u.Recommendation ?? ClosingRecommendation.ProceedToClose
+                    Recommendation = u.Recommendation ?? ClosingRecommendation.ProceedToClose,
+                    BuilderDecision = u.BuilderDecision
                 }).ToList(),
                 TotalIncomeDueClosing = project.Units
                     .Where(u => u.SOA != null)
@@ -181,6 +182,47 @@ namespace PreConHub.Controllers
             };
 
             return View(viewModel);
+        }
+
+        // POST: /Projects/BulkSetBuilderDecision
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BulkSetBuilderDecision(int projectId, int[] unitIds, BuilderDecision decision)
+        {
+            var userId = _userManager.GetUserId(User);
+            var isAdmin = User.IsInRole("Admin");
+
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null) return NotFound();
+            if (!isAdmin && project.BuilderId != userId) return Forbid();
+
+            var units = await _context.Units
+                .Where(u => u.ProjectId == projectId && unitIds.Contains(u.Id))
+                .ToListAsync();
+
+            foreach (var unit in units)
+            {
+                unit.BuilderDecision = decision;
+                unit.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = projectId,
+                Action = "BulkSetBuilderDecision",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = isAdmin ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { unitIds, decision = decision.ToString() }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Builder decision set to '{decision}' for {units.Count} unit(s).";
+            return RedirectToAction(nameof(Dashboard), new { id = projectId });
         }
 
         // GET: /Projects/Create

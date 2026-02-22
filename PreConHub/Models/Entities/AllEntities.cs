@@ -276,6 +276,8 @@ namespace PreConHub.Models.Entities
 
         public ClosingRecommendation? Recommendation { get; set; }
 
+        public BuilderDecision? BuilderDecision { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdatedAt { get; set; }
@@ -347,6 +349,20 @@ namespace PreConHub.Models.Entities
         PotentialDefault = 5,       // Dark Red - very high risk
         MutualRelease = 6,          // Purple - purchaser paid enough to release contract
         CombinationSuggestion = 7   // Yellow - AI splits shortfall across discount + VTB + extension
+    }
+
+    public enum BuilderDecision
+    {
+        None = 0,
+        ProceedToClose = 1,
+        CloseWithDiscount = 2,
+        VTBSecondMortgage = 3,
+        VTBFirstMortgage = 4,
+        HighRiskDefault = 5,
+        PotentialDefault = 6,
+        MutualRelease = 7,
+        CombinationSuggestion = 8,
+        Downsizing = 9               // Manual-only, not in AI recommendations
     }
 
     #endregion

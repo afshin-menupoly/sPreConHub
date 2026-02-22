@@ -165,6 +165,31 @@
                             <div><span class="badge @recBadge fs-6">@Model.Recommendation</span></div>
                         </div>
                     }
+                    <div class="mb-3">
+                        <span class="text-muted small">Builder Decision</span>
+                        <div>
+                            @{
+                                var bdVal = (int)(Model.BuilderDecision ?? PreConHub.Models.Entities.BuilderDecision.None);
+                            }
+                            <select id="builderDecisionSelect" class="form-select form-select-sm mt-1" style="max-width: 220px;"
+                                    onchange="setBuilderDecision(this.value)">
+                                @foreach (var opt in new (int Val, string Label)[] {
+                                    (0, "No Decision"), (1, "Proceed to Close"), (2, "Close with Discount"),
+                                    (3, "VTB Second Mortgage"), (4, "VTB First Mortgage"), (5, "High Risk of Default"),
+                                    (6, "Potential Default"), (7, "Mutual Release"), (8, "Combination"), (9, "Downsizing") })
+                                {
+                                    if (opt.Val == bdVal)
+                                    {
+                                        <option value="@opt.Val" selected>@opt.Label</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@opt.Val">@opt.Label</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                    </div>
                     <div>
                         <span class="text-muted small">Lawyer Confirmed</span>
                         <div>
@@ -1097,4 +1122,26 @@
 <style>
     .bg-orange { background-color: #f97316 !important; }
 </style>
+}
+
+@section Scripts {
+<script>
+    function setBuilderDecision(value) {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        fetch('@Url.Action("SetBuilderDecision", "Units")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'unitId=@Model.UnitId&decision=' + value + '&__RequestVerificationToken=' + encodeURIComponent(token)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to set decision.');
+            }
+        })
+        .catch(() => alert('An error occurred.'));
+    }
+</script>
 }

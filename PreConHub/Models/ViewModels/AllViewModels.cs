@@ -62,7 +62,38 @@ namespace PreConHub.Models.ViewModels
         
         // Recommendation
         public ClosingRecommendation Recommendation { get; set; }
-        
+
+        // Builder Decision
+        public BuilderDecision? BuilderDecision { get; set; }
+
+        public string BuilderDecisionText => BuilderDecision switch
+        {
+            Entities.BuilderDecision.ProceedToClose => "Proceed to Close",
+            Entities.BuilderDecision.CloseWithDiscount => "Close with Discount",
+            Entities.BuilderDecision.VTBSecondMortgage => "VTB Second Mortgage",
+            Entities.BuilderDecision.VTBFirstMortgage => "VTB First Mortgage",
+            Entities.BuilderDecision.HighRiskDefault => "High Risk of Default",
+            Entities.BuilderDecision.PotentialDefault => "Potential Default",
+            Entities.BuilderDecision.MutualRelease => "Mutual Release",
+            Entities.BuilderDecision.CombinationSuggestion => "Combination",
+            Entities.BuilderDecision.Downsizing => "Downsizing",
+            _ => "No Decision"
+        };
+
+        public string BuilderDecisionBadgeClass => BuilderDecision switch
+        {
+            Entities.BuilderDecision.ProceedToClose => "bg-success",
+            Entities.BuilderDecision.CloseWithDiscount => "bg-lightgreen",
+            Entities.BuilderDecision.VTBSecondMortgage => "bg-lightyellow",
+            Entities.BuilderDecision.VTBFirstMortgage => "bg-orange",
+            Entities.BuilderDecision.HighRiskDefault => "bg-danger",
+            Entities.BuilderDecision.PotentialDefault => "bg-danger",
+            Entities.BuilderDecision.MutualRelease => "bg-purple",
+            Entities.BuilderDecision.CombinationSuggestion => "bg-combination",
+            Entities.BuilderDecision.Downsizing => "bg-info",
+            _ => "bg-secondary"
+        };
+
         // Computed display properties
         public string RecommendationText => Recommendation switch
         {
@@ -181,6 +212,7 @@ namespace PreConHub.Models.ViewModels
         // Status
         public UnitStatus Status { get; set; }
         public ClosingRecommendation? Recommendation { get; set; }
+        public BuilderDecision? BuilderDecision { get; set; }
         public bool IsConfirmedByLawyer { get; set; }
 
         // NEW: APS (Agreement of Purchase and Sale) date

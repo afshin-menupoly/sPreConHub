@@ -361,6 +361,7 @@ namespace PreConHub.Controllers
                 ClosingDate = unit.ClosingDate,
                 Status = unit.Status,
                 Recommendation = unit.Recommendation,
+                BuilderDecision = unit.BuilderDecision,
                 IsConfirmedByLawyer = unit.IsConfirmedByLawyer,
 
                 // Deposits
@@ -571,6 +572,42 @@ namespace PreConHub.Controllers
             }
 
             return View(viewModel);
+        }
+
+        // POST: /Units/SetBuilderDecision (AJAX)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetBuilderDecision(int unitId, BuilderDecision decision)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+
+            if (unit == null)
+                return Json(new { success = false, message = "Unit not found." });
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Json(new { success = false, message = "Access denied." });
+
+            unit.BuilderDecision = decision;
+            unit.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "SetBuilderDecision",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { decision = decision.ToString() }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = $"Builder decision set to '{decision}'." });
         }
 
         // POST: /Units/Delete/5

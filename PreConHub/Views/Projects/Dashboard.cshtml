@@ -262,6 +262,33 @@
         </div>
     </div>
 
+    <!-- Bulk Action Bar (hidden until checkboxes selected) -->
+    <div id="bulkActionBar" class="card border-0 shadow-sm mb-3" style="display:none;">
+        <div class="card-body py-2">
+            <form method="post" asp-action="BulkSetBuilderDecision" asp-controller="Projects" class="d-flex align-items-center gap-3">
+                <input type="hidden" name="projectId" value="@Model.ProjectId" />
+                <div id="bulkUnitIds"></div>
+                <span class="fw-bold"><span id="selectedCount">0</span> unit(s) selected</span>
+                <select name="decision" id="bulkDecisionSelect" class="form-select form-select-sm" style="width:220px;">
+                    <option value="">-- Select Decision --</option>
+                    <option value="1">Proceed to Close</option>
+                    <option value="2">Close with Discount</option>
+                    <option value="3">VTB Second Mortgage</option>
+                    <option value="4">VTB First Mortgage</option>
+                    <option value="5">High Risk of Default</option>
+                    <option value="6">Potential Default</option>
+                    <option value="7">Mutual Release</option>
+                    <option value="8">Combination</option>
+                    <option value="9">Downsizing</option>
+                    <option value="0">Clear Decision (None)</option>
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="bi bi-check2-all me-1"></i>Apply
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- Unit Closing Summary Table -->
     @if (Model.Units.Any())
     {
@@ -270,6 +297,9 @@
                 <table class="table table-hover mb-0" id="unitTable">
                     <thead class="table-light">
                         <tr>
+                            <th class="text-center" style="width:40px;">
+                                <input type="checkbox" id="selectAll" onclick="toggleSelectAll()" title="Select All" />
+                            </th>
                             <th>#</th>
                             <th>Unit</th>
                             <th class="text-center">Mortgage Approved</th>
@@ -282,6 +312,7 @@
                             <th class="text-end">Shortfall</th>
                             <th class="text-center">Shortfall %</th>
                             <th class="text-center">AI Recommendation</th>
+                            <th class="text-center">Builder Decision</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -289,9 +320,13 @@
                         @for (int i = 0; i < Model.Units.Count; i++)
                         {
                             var unit = Model.Units[i];
-                            <tr data-unit-id="@unit.UnitId" 
+                            <tr data-unit-id="@unit.UnitId"
                                 data-recommendation="@unit.RecommendationClass"
-                                data-mortgage="@(unit.HasMortgageApproval ? "yes" : "no")">
+                                data-mortgage="@(unit.HasMortgageApproval ? "yes" : "no")"
+                                data-ai-rec="@((int)(unit.Recommendation))">
+                                <td class="text-center">
+                                    <input type="checkbox" class="unit-checkbox" value="@unit.UnitId" onclick="updateBulkBar()" />
+                                </td>
                                 <td>@(i + 1)</td>
                                 <td><a href="@Url.Action("Details", "Units", new { id = unit.UnitId })" class="fw-bold text-decoration-none">@unit.UnitNumber</a></td>
                                 <td class="text-center">
@@ -372,6 +407,16 @@
                                         };
                                     }
                                     <span class="badge @badgeClass">@unit.RecommendationText</span>
+                                </td>
+                                <td class="text-center">
+                                    @if (unit.BuilderDecision.HasValue && unit.BuilderDecision != PreConHub.Models.Entities.BuilderDecision.None)
+                                    {
+                                        <span class="badge @unit.BuilderDecisionBadgeClass">@unit.BuilderDecisionText</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">—</span>
+                                    }
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
@@ -469,10 +514,10 @@
         let visibleCount = 0;
 
         for (let row of rows) {
-            const unitNumber = row.cells[1].textContent.toLowerCase();
+            const unitNumber = row.cells[2].textContent.toLowerCase(); // offset +1 for checkbox col
             const recommendation = row.getAttribute('data-recommendation');
             const mortgage = row.getAttribute('data-mortgage');
-            
+
             let showRow = true;
 
             if (searchInput && !unitNumber.includes(searchInput)) {
@@ -492,6 +537,54 @@
         }
 
         document.getElementById('visibleCount').textContent = visibleCount;
+    }
+
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('selectAll');
+        const checkboxes = document.querySelectorAll('.unit-checkbox');
+        checkboxes.forEach(cb => { cb.checked = selectAll.checked; });
+        updateBulkBar();
+    }
+
+    function updateBulkBar() {
+        const checked = document.querySelectorAll('.unit-checkbox:checked');
+        const bar = document.getElementById('bulkActionBar');
+        const countEl = document.getElementById('selectedCount');
+        const idsContainer = document.getElementById('bulkUnitIds');
+        const decisionSelect = document.getElementById('bulkDecisionSelect');
+
+        if (checked.length === 0) {
+            bar.style.display = 'none';
+            return;
+        }
+
+        bar.style.display = '';
+        countEl.textContent = checked.length;
+
+        // Rebuild hidden inputs
+        idsContainer.innerHTML = '';
+        checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'unitIds';
+            input.value = cb.value;
+            idsContainer.appendChild(input);
+        });
+
+        // Smart default: 1 unit → default to AI rec; multiple → blank
+        if (checked.length === 1) {
+            const row = checked[0].closest('tr');
+            const aiRec = row.getAttribute('data-ai-rec');
+            // AI rec enum maps 0-7 to BuilderDecision 1-8 (offset +1)
+            const mapped = parseInt(aiRec) + 1;
+            if (mapped >= 1 && mapped <= 8) {
+                decisionSelect.value = mapped;
+            } else {
+                decisionSelect.value = '';
+            }
+        } else {
+            decisionSelect.value = '';
+        }
     }
 </script>
 }

@@ -350,7 +350,7 @@ namespace PreConHub.Controllers
         public async Task<IActionResult> SubmitMortgageInfo(SubmitMortgageInfoViewModel model)
         {
             var userId = _userManager.GetUserId(User);
-            
+
             var unitPurchaser = await _context.UnitPurchasers
                 .Include(up => up.Unit)
                 .Include(up => up.MortgageInfo)
@@ -359,6 +359,13 @@ namespace PreConHub.Controllers
             if (unitPurchaser == null)
             {
                 return NotFound();
+            }
+
+            // Builder Decision lock check
+            if (unitPurchaser.Unit.BuilderDecision.HasValue && unitPurchaser.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision. Changes are no longer permitted.";
+                return RedirectToAction(nameof(Dashboard));
             }
 
             if (!ModelState.IsValid)
@@ -483,7 +490,7 @@ namespace PreConHub.Controllers
         public async Task<IActionResult> SubmitFinancials(SubmitFinancialsViewModel model)
         {
             var userId = _userManager.GetUserId(User);
-            
+
             var unitPurchaser = await _context.UnitPurchasers
                 .Include(up => up.Unit)
                 .Include(up => up.Financials)
@@ -492,6 +499,13 @@ namespace PreConHub.Controllers
             if (unitPurchaser == null)
             {
                 return NotFound();
+            }
+
+            // Builder Decision lock check
+            if (unitPurchaser.Unit.BuilderDecision.HasValue && unitPurchaser.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision. Changes are no longer permitted.";
+                return RedirectToAction(nameof(Dashboard));
             }
 
             if (!ModelState.IsValid)
@@ -747,6 +761,13 @@ namespace PreConHub.Controllers
                     return Json(response);
                 }
 
+                // Builder Decision lock check
+                if (unitPurchaser.Unit.BuilderDecision.HasValue && unitPurchaser.Unit.BuilderDecision != BuilderDecision.None)
+                {
+                    response.Message = "This unit is locked — the builder has made a closing decision. Changes are no longer permitted.";
+                    return Json(response);
+                }
+
                 // Validate file
                 if (model.File == null || model.File.Length == 0)
                 {
@@ -868,6 +889,16 @@ namespace PreConHub.Controllers
             if (document == null)
             {
                 return Json(new { success = false, message = "Document not found or access denied." });
+            }
+
+            // Builder Decision lock check
+            if (document.UnitId.HasValue)
+            {
+                var docUnit = await _context.Units.FindAsync(document.UnitId.Value);
+                if (docUnit != null && docUnit.BuilderDecision.HasValue && docUnit.BuilderDecision != BuilderDecision.None)
+                {
+                    return Json(new { success = false, message = "This unit is locked — the builder has made a closing decision. Changes are no longer permitted." });
+                }
             }
 
             try
@@ -1008,6 +1039,13 @@ namespace PreConHub.Controllers
 
             if (unitPurchaser == null)
                 return NotFound();
+
+            // Builder Decision lock check
+            if (unitPurchaser.Unit.BuilderDecision.HasValue && unitPurchaser.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision. Changes are no longer permitted.";
+                return RedirectToAction(nameof(Dashboard));
+            }
 
             if (!ModelState.IsValid)
                 return View(model);

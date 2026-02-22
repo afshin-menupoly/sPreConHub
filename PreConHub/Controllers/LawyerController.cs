@@ -269,10 +269,18 @@ namespace PreConHub.Controllers
         {
             var userId = _userManager.GetUserId(User);
             var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit)
                 .FirstOrDefaultAsync(la => la.Id == id && la.LawyerId == userId);
 
             if (assignment == null)
                 return NotFound();
+
+            // Builder Decision lock check
+            if (assignment.Unit != null && assignment.Unit.BuilderDecision.HasValue && assignment.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision.";
+                return RedirectToAction(nameof(ReviewUnit), new { id });
+            }
 
             assignment.ReviewStatus = LawyerReviewStatus.UnderReview;
             assignment.UpdatedAt = DateTime.UtcNow;
@@ -296,6 +304,13 @@ namespace PreConHub.Controllers
 
             if (assignment == null)
                 return NotFound();
+
+            // Builder Decision lock check
+            if (assignment.Unit.BuilderDecision.HasValue && assignment.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision.";
+                return RedirectToAction(nameof(ReviewUnit), new { id });
+            }
 
             assignment.ReviewStatus = LawyerReviewStatus.Approved;
             assignment.ReviewedAt = DateTime.UtcNow;
@@ -394,6 +409,13 @@ namespace PreConHub.Controllers
             if (assignment == null)
                 return NotFound();
 
+            // Builder Decision lock check
+            if (assignment.Unit.BuilderDecision.HasValue && assignment.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision.";
+                return RedirectToAction(nameof(ReviewUnit), new { id });
+            }
+
             if (string.IsNullOrWhiteSpace(revisionNotes))
             {
                 TempData["Error"] = "Please provide details about what needs to be revised.";
@@ -472,6 +494,13 @@ namespace PreConHub.Controllers
             var userId = _userManager.GetUserId(User);
             if (assignment.LawyerId != userId)
                 return Forbid();
+
+            // Builder Decision lock check
+            if (assignment.Unit != null && assignment.Unit.BuilderDecision.HasValue && assignment.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision.";
+                return RedirectToAction(nameof(ReviewUnit), new { id = assignmentId });
+            }
 
             var lawyerNote = new LawyerNote
             {
@@ -627,6 +656,13 @@ namespace PreConHub.Controllers
 
             if (assignment == null)
                 return NotFound();
+
+            // Builder Decision lock check
+            if (assignment.Unit.BuilderDecision.HasValue && assignment.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision.";
+                return RedirectToAction(nameof(ReviewUnit), new { id = model.AssignmentId });
+            }
 
             if (!ModelState.IsValid)
             {
@@ -866,6 +902,13 @@ namespace PreConHub.Controllers
                 .FirstOrDefaultAsync(la => la.Id == id && la.LawyerId == userId);
 
             if (assignment == null) return NotFound();
+
+            // Builder Decision lock check
+            if (assignment.Unit.BuilderDecision.HasValue && assignment.Unit.BuilderDecision != BuilderDecision.None)
+            {
+                TempData["Error"] = "This unit is locked — the builder has made a closing decision.";
+                return RedirectToAction(nameof(ReviewUnit), new { id });
+            }
 
             var unit = assignment.Unit;
 
