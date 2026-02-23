@@ -231,34 +231,51 @@
             </div>
         </div>
     </div>
-    <!-- Filter Bar -->
+    <!-- Search & Filter Bar -->
     <div class="card border-0 shadow-sm mb-3">
         <div class="card-body py-2">
-            <div class="row align-items-center">
-                <div class="col-md-3">
-                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Search by unit number..." onkeyup="filterTable()">
+            <form id="searchFilterForm" method="get" asp-action="Dashboard" asp-route-id="@Model.ProjectId">
+                <input type="hidden" name="sortBy" value="@Model.SortBy" />
+                <input type="hidden" name="sortDir" value="@Model.SortDir" />
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="searchInput" name="search" class="form-control"
+                                   placeholder="Search by unit number or purchaser name..." value="@Model.SearchQuery" autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="pageSize" class="form-select form-select-sm">
+                            @foreach (var size in new[] { 25, 50, 100, 250, 500 })
+                            {
+                                @if (Model.PageSize == size)
+                                {
+                                    <option value="@size" selected>@size per page</option>
+                                }
+                                else
+                                {
+                                    <option value="@size">@size per page</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-funnel me-1"></i>Apply
+                            </button>
+                            <a href="@Url.Action("Dashboard", new { id = Model.ProjectId })" class="btn btn-sm btn-outline-secondary">Clear</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-end">
+                        <span class="text-muted small">
+                            Showing <span id="visibleCount">@Model.Units.Count</span> of @Model.TotalFilteredUnits
+                            @(Model.TotalFilteredUnits != Model.CurrentUnitCount ? $"(filtered from {Model.CurrentUnitCount})" : "units")
+                        </span>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm" id="statusFilter" onchange="filterTable()">
-                        <option value="">All Recommendations</option>
-                        <option value="rec-proceed">Proceed to Close</option>
-                        <option value="rec-discount">Offer Discount</option>
-                        <option value="rec-vtb-second">VTB Second Mortgage</option>
-                        <option value="rec-vtb-first">VTB First Mortgage</option>
-                        <option value="rec-default">Potential Default</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select class="form-select form-select-sm" id="mortgageFilter" onchange="filterTable()">
-                        <option value="">All Mortgage Status</option>
-                        <option value="yes">Mortgage Approved</option>
-                        <option value="no">No Mortgage</option>
-                    </select>
-                </div>
-                <div class="col-md-3 text-end">
-                    <span class="text-muted small">Showing <span id="visibleCount">@Model.Units.Count</span> of @Model.Units.Count units</span>
-                </div>
-            </div>
+            </form>
         </div>
     </div>
 
@@ -267,6 +284,11 @@
         <div class="card-body py-2">
             <form method="post" asp-action="BulkSetBuilderDecision" asp-controller="Projects" class="d-flex align-items-center gap-3">
                 <input type="hidden" name="projectId" value="@Model.ProjectId" />
+                <input type="hidden" name="page" value="@Model.CurrentPage" />
+                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                <input type="hidden" name="sortBy" value="@Model.SortBy" />
+                <input type="hidden" name="sortDir" value="@Model.SortDir" />
+                <input type="hidden" name="search" value="@Model.SearchQuery" />
                 <div id="bulkUnitIds"></div>
                 <span class="fw-bold"><span id="selectedCount">0</span> unit(s) selected</span>
                 <select name="decision" id="bulkDecisionSelect" class="form-select form-select-sm" style="width:220px;">
@@ -301,7 +323,12 @@
                                 <input type="checkbox" id="selectAll" onclick="toggleSelectAll()" title="Select All" />
                             </th>
                             <th>#</th>
-                            <th>Unit</th>
+                            <th>
+                                <a href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = 1, pageSize = Model.PageSize, sortBy = "UnitNumber", sortDir = Model.ToggleSortDir("UnitNumber"), search = Model.SearchQuery })"
+                                   class="text-decoration-none text-dark">
+                                    Unit <i class="@Model.SortIcon("UnitNumber")"></i>
+                                </a>
+                            </th>
                             <th class="text-center">Mortgage Approved</th>
                             <th class="text-end">Appraisal Value</th>
                             <th>Mortgage Provider</th>
@@ -309,10 +336,30 @@
                             <th class="text-center">Approved at Closing</th>
                             <th class="text-end">SOA Amount</th>
                             <th class="text-end">Total Paid</th>
-                            <th class="text-end">Shortfall</th>
-                            <th class="text-center">Shortfall %</th>
-                            <th class="text-center">AI Recommendation</th>
-                            <th class="text-center">Builder Decision</th>
+                            <th class="text-end">
+                                <a href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = 1, pageSize = Model.PageSize, sortBy = "Shortfall", sortDir = Model.ToggleSortDir("Shortfall"), search = Model.SearchQuery })"
+                                   class="text-decoration-none text-dark">
+                                    Shortfall <i class="@Model.SortIcon("Shortfall")"></i>
+                                </a>
+                            </th>
+                            <th class="text-center">
+                                <a href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = 1, pageSize = Model.PageSize, sortBy = "ShortfallPercent", sortDir = Model.ToggleSortDir("ShortfallPercent"), search = Model.SearchQuery })"
+                                   class="text-decoration-none text-dark">
+                                    Shortfall % <i class="@Model.SortIcon("ShortfallPercent")"></i>
+                                </a>
+                            </th>
+                            <th class="text-center">
+                                <a href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = 1, pageSize = Model.PageSize, sortBy = "Recommendation", sortDir = Model.ToggleSortDir("Recommendation"), search = Model.SearchQuery })"
+                                   class="text-decoration-none text-dark">
+                                    AI Rec <i class="@Model.SortIcon("Recommendation")"></i>
+                                </a>
+                            </th>
+                            <th class="text-center">
+                                <a href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = 1, pageSize = Model.PageSize, sortBy = "BuilderDecision", sortDir = Model.ToggleSortDir("BuilderDecision"), search = Model.SearchQuery })"
+                                   class="text-decoration-none text-dark">
+                                    Builder Dec <i class="@Model.SortIcon("BuilderDecision")"></i>
+                                </a>
+                            </th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -327,7 +374,7 @@
                                 <td class="text-center">
                                     <input type="checkbox" class="unit-checkbox" value="@unit.UnitId" onclick="updateBulkBar()" />
                                 </td>
-                                <td>@(i + 1)</td>
+                                <td>@((Model.CurrentPage - 1) * Model.PageSize + i + 1)</td>
                                 <td><a href="@Url.Action("Details", "Units", new { id = unit.UnitId })" class="fw-bold text-decoration-none">@unit.UnitNumber</a></td>
                                 <td class="text-center">
                                     @if (unit.HasMortgageApproval)
@@ -436,6 +483,104 @@
                     </tbody>
                 </table>
             </div>
+            @* ===== Pagination ===== *@
+            @{
+                var startItem = Model.TotalFilteredUnits == 0 ? 0 : (Model.CurrentPage - 1) * Model.PageSize + 1;
+                var endItem = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalFilteredUnits);
+            }
+            @if (Model.TotalPages > 1)
+            {
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+                    <small class="text-muted">Showing @startItem–@endItem of @Model.TotalFilteredUnits units</small>
+                    <nav aria-label="Units pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            @if (Model.CurrentPage > 1)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = Model.CurrentPage - 1, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, search = Model.SearchQuery })">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
+                            }
+
+                            @{
+                                var startPage = Math.Max(1, Model.CurrentPage - 2);
+                                var endPage = Math.Min(Model.TotalPages, Model.CurrentPage + 2);
+                                if (startPage > 1)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = 1, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, search = Model.SearchQuery })">1</a>
+                                    </li>
+                                    if (startPage > 2)
+                                    {
+                                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    }
+                                }
+                                for (var pg = startPage; pg <= endPage; pg++)
+                                {
+                                    if (pg == Model.CurrentPage)
+                                    {
+                                        <li class="page-item active"><span class="page-link">@pg</span></li>
+                                    }
+                                    else
+                                    {
+                                        <li class="page-item">
+                                            <a class="page-link" href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = pg, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, search = Model.SearchQuery })">@pg</a>
+                                        </li>
+                                    }
+                                }
+                                if (endPage < Model.TotalPages)
+                                {
+                                    if (endPage < Model.TotalPages - 1)
+                                    {
+                                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    }
+                                    <li class="page-item">
+                                        <a class="page-link" href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = Model.TotalPages, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, search = Model.SearchQuery })">@Model.TotalPages</a>
+                                    </li>
+                                }
+                            }
+
+                            @if (Model.CurrentPage < Model.TotalPages)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="@Url.Action("Dashboard", new { id = Model.ProjectId, page = Model.CurrentPage + 1, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, search = Model.SearchQuery })">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+            else
+            {
+                <div class="card-footer bg-white py-3">
+                    <small class="text-muted">Showing @startItem–@endItem of @Model.TotalFilteredUnits units</small>
+                </div>
+            }
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(Model.SearchQuery))
+    {
+        <!-- No search results -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-search display-4 d-block mb-3 text-muted"></i>
+                <h5>No Units Match Your Search</h5>
+                <p class="text-muted">Try a different unit number or purchaser name.</p>
+                <a href="@Url.Action("Dashboard", new { id = Model.ProjectId })" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-x-circle me-1"></i>Clear Search
+                </a>
+            </div>
         </div>
     }
     else
@@ -505,39 +650,24 @@
 
 @section Scripts {
 <script>
-    function filterTable() {
-        const searchInput = document.getElementById('searchInput').value.toLowerCase();
-        const statusFilter = document.getElementById('statusFilter').value;
-        const mortgageFilter = document.getElementById('mortgageFilter').value;
-        const table = document.getElementById('unitTable');
-        const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
-        let visibleCount = 0;
+    // Live search with debounce
+    (function () {
+        var searchInput = document.getElementById('searchInput');
+        var searchForm = document.getElementById('searchFilterForm');
+        var debounceTimer = null;
 
-        for (let row of rows) {
-            const unitNumber = row.cells[2].textContent.toLowerCase(); // offset +1 for checkbox col
-            const recommendation = row.getAttribute('data-recommendation');
-            const mortgage = row.getAttribute('data-mortgage');
-
-            let showRow = true;
-
-            if (searchInput && !unitNumber.includes(searchInput)) {
-                showRow = false;
-            }
-
-            if (statusFilter && recommendation !== statusFilter) {
-                showRow = false;
-            }
-
-            if (mortgageFilter && mortgage !== mortgageFilter) {
-                showRow = false;
-            }
-
-            row.style.display = showRow ? '' : 'none';
-            if (showRow) visibleCount++;
+        if (searchInput && searchForm) {
+            searchInput.addEventListener('input', function () {
+                clearTimeout(debounceTimer);
+                var val = searchInput.value.trim();
+                if (val.length >= 2 || val.length === 0) {
+                    debounceTimer = setTimeout(function () {
+                        searchForm.submit();
+                    }, 400);
+                }
+            });
         }
-
-        document.getElementById('visibleCount').textContent = visibleCount;
-    }
+    })();
 
     function toggleSelectAll() {
         const selectAll = document.getElementById('selectAll');

@@ -18,6 +18,33 @@ namespace PreConHub.Models.ViewModels
         public int? MaxUnits { get; set; }
         public int CurrentUnitCount { get; set; }
         public bool CanAddUnit { get; set; }
+
+        // Pagination
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 25;
+        public int TotalPages { get; set; }
+        public int TotalFilteredUnits { get; set; }
+
+        // Sorting
+        public string SortBy { get; set; } = "UnitNumber";
+        public string SortDir { get; set; } = "asc";
+
+        // Search
+        public string? SearchQuery { get; set; }
+
+        public string ToggleSortDir(string column)
+        {
+            if (string.Equals(SortBy, column, StringComparison.OrdinalIgnoreCase))
+                return SortDir == "asc" ? "desc" : "asc";
+            return "asc";
+        }
+
+        public string SortIcon(string column)
+        {
+            if (!string.Equals(SortBy, column, StringComparison.OrdinalIgnoreCase))
+                return "bi bi-chevron-expand text-muted";
+            return SortDir == "asc" ? "bi bi-chevron-up" : "bi bi-chevron-down";
+        }
     }
 
     public class ProjectSummaryViewModel
@@ -46,7 +73,8 @@ namespace PreConHub.Models.ViewModels
     {
         public int UnitId { get; set; }
         public string UnitNumber { get; set; } = string.Empty;
-        
+        public string PurchaserName { get; set; } = string.Empty;
+
         // Mortgage Info
         public bool HasMortgageApproval { get; set; }
         public string? MortgageProvider { get; set; }

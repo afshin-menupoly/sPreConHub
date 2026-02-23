@@ -95,7 +95,9 @@ namespace PreConHub.Controllers
         }
 
         // GET: /Projects/Dashboard/5
-        public async Task<IActionResult> Dashboard(int id)
+        public async Task<IActionResult> Dashboard(int id,
+            int page = 1, int pageSize = 25, string sortBy = "UnitNumber", string sortDir = "asc",
+            string? search = null)
         {
             var userId = _userManager.GetUserId(User);
             var isAdmin = User.IsInRole("Admin");
@@ -104,6 +106,9 @@ namespace PreConHub.Controllers
                 .Include(p => p.Units)
                     .ThenInclude(u => u.Purchasers)
                         .ThenInclude(up => up.MortgageInfo)
+                .Include(p => p.Units)
+                    .ThenInclude(u => u.Purchasers)
+                        .ThenInclude(up => up.Purchaser)
                 .Include(p => p.Units)
                     .ThenInclude(u => u.Deposits)
                 .Include(p => p.Units)
@@ -126,8 +131,78 @@ namespace PreConHub.Controllers
             // Expose marketing access flag to view
             ViewBag.AllowMarketingAccess = project.AllowMarketingAccess;
 
-            // Calculate/refresh project summary
+            // Validate inputs
+            if (!new[] { 25, 50, 100, 250, 500 }.Contains(pageSize)) pageSize = 25;
+            var validSortColumns = new[] { "UnitNumber", "Recommendation", "BuilderDecision", "Shortfall", "ShortfallPercent" };
+            if (!validSortColumns.Contains(sortBy, StringComparer.OrdinalIgnoreCase)) sortBy = "UnitNumber";
+            if (sortDir != "desc") sortDir = "asc";
+            if (page < 1) page = 1;
+
+            // Calculate/refresh project summary (uses ALL units, not filtered)
             var summary = await _summaryService.CalculateProjectSummaryAsync(id);
+
+            // Project all units to view models first (for search/sort/paginate)
+            var allUnitRows = project.Units.Select(u => new UnitRowViewModel
+            {
+                UnitId = u.Id,
+                UnitNumber = u.UnitNumber,
+                PurchaserName = u.Purchasers
+                    .Where(p => p.IsPrimaryPurchaser)
+                    .Select(p => p.Purchaser != null ? (p.Purchaser.FirstName + " " + p.Purchaser.LastName).Trim() : "")
+                    .FirstOrDefault() ?? "",
+                HasMortgageApproval = u.Purchasers
+                    .Any(p => p.MortgageInfo != null && p.MortgageInfo.HasMortgageApproval),
+                MortgageProvider = u.Purchasers
+                    .FirstOrDefault(p => p.IsPrimaryPurchaser)?.MortgageInfo?.MortgageProvider,
+                MortgageAmount = u.Purchasers
+                    .FirstOrDefault(p => p.IsPrimaryPurchaser)?.MortgageInfo?.ApprovedAmount ?? 0,
+                IsApprovedAtClosing = u.Purchasers
+                    .Any(p => p.MortgageInfo != null && p.MortgageInfo.IsApprovalConfirmed),
+                AppraisalValue = u.CurrentAppraisalValue,
+                SOAAmount = u.SOA?.BalanceDueOnClosing ?? 0,
+                TotalPaid = u.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount),
+                ShortfallAmount = u.ShortfallAnalysis?.ShortfallAmount ?? 0,
+                ShortfallPercent = u.ShortfallAnalysis?.ShortfallPercentage ?? 0,
+                Recommendation = u.Recommendation ?? ClosingRecommendation.ProceedToClose,
+                BuilderDecision = u.BuilderDecision
+            }).ToList();
+
+            // Search filter
+            IEnumerable<UnitRowViewModel> filtered = allUnitRows;
+            if (!string.IsNullOrWhiteSpace(search) && search.Trim().Length >= 1)
+            {
+                var term = search.Trim();
+                filtered = filtered.Where(u =>
+                    u.UnitNumber.StartsWith(term, StringComparison.OrdinalIgnoreCase) ||
+                    u.PurchaserName.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Sort
+            filtered = (sortBy.ToLower(), sortDir) switch
+            {
+                ("unitnumber", "asc") => filtered.OrderBy(u => u.UnitNumber, StringComparer.OrdinalIgnoreCase),
+                ("unitnumber", "desc") => filtered.OrderByDescending(u => u.UnitNumber, StringComparer.OrdinalIgnoreCase),
+                ("recommendation", "asc") => filtered.OrderBy(u => (int)u.Recommendation).ThenBy(u => u.UnitNumber),
+                ("recommendation", "desc") => filtered.OrderByDescending(u => (int)u.Recommendation).ThenBy(u => u.UnitNumber),
+                ("builderdecision", "asc") => filtered.OrderBy(u => u.BuilderDecision.HasValue ? (int)u.BuilderDecision.Value : -1).ThenBy(u => u.UnitNumber),
+                ("builderdecision", "desc") => filtered.OrderByDescending(u => u.BuilderDecision.HasValue ? (int)u.BuilderDecision.Value : -1).ThenBy(u => u.UnitNumber),
+                ("shortfall", "asc") => filtered.OrderBy(u => u.ShortfallAmount).ThenBy(u => u.UnitNumber),
+                ("shortfall", "desc") => filtered.OrderByDescending(u => u.ShortfallAmount).ThenBy(u => u.UnitNumber),
+                ("shortfallpercent", "asc") => filtered.OrderBy(u => u.ShortfallPercent).ThenBy(u => u.UnitNumber),
+                ("shortfallpercent", "desc") => filtered.OrderByDescending(u => u.ShortfallPercent).ThenBy(u => u.UnitNumber),
+                _ => filtered.OrderBy(u => u.UnitNumber, StringComparer.OrdinalIgnoreCase)
+            };
+
+            var filteredList = filtered.ToList();
+            var totalFiltered = filteredList.Count;
+            var totalPages = (int)Math.Ceiling(totalFiltered / (double)pageSize);
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            // Paginate
+            var pagedUnits = filteredList
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
 
             var viewModel = new ProjectDashboardViewModel
             {
@@ -153,32 +228,20 @@ namespace PreConHub.Controllers
                     TotalShortfall = summary.TotalShortfall,
                     ClosingProbabilityPercent = summary.ClosingProbabilityPercent
                 },
-                Units = project.Units.OrderBy(u => u.UnitNumber).Select(u => new UnitRowViewModel
-                {
-                    UnitId = u.Id,
-                    UnitNumber = u.UnitNumber,
-                    HasMortgageApproval = u.Purchasers
-                        .Any(p => p.MortgageInfo != null && p.MortgageInfo.HasMortgageApproval),
-                    MortgageProvider = u.Purchasers
-                        .FirstOrDefault(p => p.IsPrimaryPurchaser)?.MortgageInfo?.MortgageProvider,
-                    MortgageAmount = u.Purchasers
-                        .FirstOrDefault(p => p.IsPrimaryPurchaser)?.MortgageInfo?.ApprovedAmount ?? 0,
-                    IsApprovedAtClosing = u.Purchasers
-                        .Any(p => p.MortgageInfo != null && p.MortgageInfo.IsApprovalConfirmed),
-                    AppraisalValue = u.CurrentAppraisalValue,
-                    SOAAmount = u.SOA?.BalanceDueOnClosing ?? 0,
-                    TotalPaid = u.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount),
-                    ShortfallAmount = u.ShortfallAnalysis?.ShortfallAmount ?? 0,
-                    ShortfallPercent = u.ShortfallAnalysis?.ShortfallPercentage ?? 0,
-                    Recommendation = u.Recommendation ?? ClosingRecommendation.ProceedToClose,
-                    BuilderDecision = u.BuilderDecision
-                }).ToList(),
+                Units = pagedUnits,
                 TotalIncomeDueClosing = project.Units
                     .Where(u => u.SOA != null)
                     .Sum(u => u.SOA!.CashRequiredToClose),
                 MaxUnits = project.MaxUnits,
                 CurrentUnitCount = project.Units.Count,
-                CanAddUnit = isAdmin || (project.MaxUnits.HasValue && project.Units.Count < project.MaxUnits.Value)
+                CanAddUnit = isAdmin || (project.MaxUnits.HasValue && project.Units.Count < project.MaxUnits.Value),
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                TotalFilteredUnits = totalFiltered,
+                SortBy = sortBy,
+                SortDir = sortDir,
+                SearchQuery = search
             };
 
             return View(viewModel);
@@ -187,7 +250,8 @@ namespace PreConHub.Controllers
         // POST: /Projects/BulkSetBuilderDecision
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> BulkSetBuilderDecision(int projectId, int[] unitIds, BuilderDecision decision)
+        public async Task<IActionResult> BulkSetBuilderDecision(int projectId, int[] unitIds, BuilderDecision decision,
+            int page = 1, int pageSize = 25, string sortBy = "UnitNumber", string sortDir = "asc", string? search = null)
         {
             var userId = _userManager.GetUserId(User);
             var isAdmin = User.IsInRole("Admin");
@@ -222,7 +286,7 @@ namespace PreConHub.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = $"Builder decision set to '{decision}' for {units.Count} unit(s).";
-            return RedirectToAction(nameof(Dashboard), new { id = projectId });
+            return RedirectToAction(nameof(Dashboard), new { id = projectId, page, pageSize, sortBy, sortDir, search });
         }
 
         // GET: /Projects/Create
