@@ -916,6 +916,23 @@ namespace PreConHub.Models.ViewModels
         public string PageTitle { get; set; } = "Extension Requests";
         public bool ShowingHistory { get; set; }
         public List<ExtensionRequestItem> Requests { get; set; } = new();
+
+        // Filter/Search/Sort (used on History page)
+        public string? ProjectFilter { get; set; }
+        public string? SearchQuery { get; set; }
+        public string SortBy { get; set; } = "submitted";
+        public string SortDir { get; set; } = "desc";
+        public int TotalRequests { get; set; }
+        public List<string> Projects { get; set; } = new();
+
+        public string ToggleSortDir(string column) =>
+            SortBy == column && SortDir == "asc" ? "desc" : "asc";
+
+        public string SortIcon(string column)
+        {
+            if (SortBy != column) return "bi-chevron-expand text-muted";
+            return SortDir == "asc" ? "bi-chevron-up" : "bi-chevron-down";
+        }
     }
 
     public class ExtensionRequestItem

@@ -44,19 +44,92 @@
         </div>
     }
 
+    @* Filter bar — History page only *@
+    @if (Model.ShowingHistory)
+    {
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body py-3">
+                <form method="get" asp-action="History" id="filterForm">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Project</label>
+                            <select name="projectFilter" class="form-select form-select-sm">
+                                <option value="">All Projects</option>
+                                @foreach (var prj in Model.Projects)
+                                {
+                                    if (prj == Model.ProjectFilter)
+                                    {
+                                        <option value="@prj" selected>@prj</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@prj">@prj</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted mb-1">Search</label>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                <input type="text" name="search" id="searchBox" class="form-control"
+                                       placeholder="Unit number or purchaser name..."
+                                       value="@Model.SearchQuery" />
+                            </div>
+                        </div>
+                        <div class="col-md-5 d-flex gap-2 align-items-end">
+                            <input type="hidden" name="sortBy" value="@Model.SortBy" />
+                            <input type="hidden" name="sortDir" value="@Model.SortDir" />
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-funnel me-1"></i>Apply
+                            </button>
+                            <a asp-action="History" class="btn btn-sm btn-outline-secondary">Clear</a>
+                            <span class="text-muted small ms-auto">
+                                @if (Model.Requests.Count < Model.TotalRequests)
+                                {
+                                    @:Showing @Model.Requests.Count of @Model.TotalRequests
+                                }
+                                else
+                                {
+                                    @:@Model.TotalRequests total
+                                }
+                            </span>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    }
+
     @if (!Model.Requests.Any())
     {
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>
-            @if (Model.ShowingHistory)
-            {
-                @:No extension requests have been reviewed yet.
-            }
-            else
-            {
-                @:No pending extension requests at this time.
-            }
-        </div>
+        @if (Model.ShowingHistory && (!string.IsNullOrWhiteSpace(Model.SearchQuery) || !string.IsNullOrWhiteSpace(Model.ProjectFilter)))
+        {
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
+                    <h5 class="text-muted">No Requests Match Your Filters</h5>
+                    <p class="text-muted">Try a different search term or clear the filters.</p>
+                    <a asp-action="History" class="btn btn-outline-primary">
+                        <i class="bi bi-x-circle me-1"></i>Clear Filters
+                    </a>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle me-2"></i>
+                @if (Model.ShowingHistory)
+                {
+                    @:No extension requests have been reviewed yet.
+                }
+                else
+                {
+                    @:No pending extension requests at this time.
+                }
+            </div>
+        }
     }
     else
     {
@@ -66,15 +139,45 @@
                     <table class="table table-hover mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
-                                <th>Unit</th>
+                                @if (Model.ShowingHistory)
+                                {
+                                    <th>
+                                        <a href="@Url.Action("History", new { projectFilter = Model.ProjectFilter, search = Model.SearchQuery, sortBy = "unit", sortDir = Model.ToggleSortDir("unit") })"
+                                           class="text-decoration-none text-dark">
+                                            Unit <i class="bi @Model.SortIcon("unit") small"></i>
+                                        </a>
+                                    </th>
+                                }
+                                else
+                                {
+                                    <th>Unit</th>
+                                }
                                 <th>Project</th>
                                 <th>Purchaser</th>
                                 <th>Original Close</th>
                                 <th>Requested Close</th>
                                 <th class="text-center">Days</th>
                                 <th>Reason</th>
-                                <th>Submitted</th>
-                                <th>Status</th>
+                                @if (Model.ShowingHistory)
+                                {
+                                    <th>
+                                        <a href="@Url.Action("History", new { projectFilter = Model.ProjectFilter, search = Model.SearchQuery, sortBy = "submitted", sortDir = Model.ToggleSortDir("submitted") })"
+                                           class="text-decoration-none text-dark">
+                                            Submitted <i class="bi @Model.SortIcon("submitted") small"></i>
+                                        </a>
+                                    </th>
+                                    <th>
+                                        <a href="@Url.Action("History", new { projectFilter = Model.ProjectFilter, search = Model.SearchQuery, sortBy = "status", sortDir = Model.ToggleSortDir("status") })"
+                                           class="text-decoration-none text-dark">
+                                            Status <i class="bi @Model.SortIcon("status") small"></i>
+                                        </a>
+                                    </th>
+                                }
+                                else
+                                {
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                }
                                 @if (Model.ShowingHistory)
                                 {
                                     <th>Reviewed</th>
@@ -150,3 +253,25 @@
         </div>
     }
 </div>
+
+@if (Model.ShowingHistory)
+{
+    @section Scripts {
+    <script>
+        (function () {
+            var timer = null;
+            var searchBox = document.getElementById('searchBox');
+            if (!searchBox) return;
+            searchBox.addEventListener('input', function () {
+                clearTimeout(timer);
+                var val = this.value.trim();
+                if (val.length >= 2 || val.length === 0) {
+                    timer = setTimeout(function () {
+                        document.getElementById('filterForm').submit();
+                    }, 400);
+                }
+            });
+        })();
+    </script>
+    }
+}

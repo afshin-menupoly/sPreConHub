@@ -66,7 +66,8 @@ namespace PreConHub.Controllers
         }
 
         // GET: /ExtensionRequest/History
-        public async Task<IActionResult> History()
+        public async Task<IActionResult> History(string? projectFilter = null,
+            string? search = null, string sortBy = "submitted", string sortDir = "desc")
         {
             var userId = _userManager.GetUserId(User);
 
@@ -79,15 +80,60 @@ namespace PreConHub.Controllers
             if (!User.IsInRole("Admin") && !User.IsInRole("SuperAdmin"))
                 query = query.Where(r => r.Unit.Project.BuilderId == userId);
 
-            var requests = await query
-                .OrderByDescending(r => r.ReviewedAt ?? r.RequestedDate)
-                .ToListAsync();
+            var allRequests = await query.ToListAsync();
+
+            // Build project list for dropdown (from all history, before filtering)
+            var projects = allRequests
+                .Select(r => r.Unit.Project.Name)
+                .Distinct()
+                .OrderBy(n => n)
+                .ToList();
+
+            var totalRequests = allRequests.Count;
+
+            // Project filter
+            if (!string.IsNullOrWhiteSpace(projectFilter))
+                allRequests = allRequests
+                    .Where(r => r.Unit.Project.Name.Equals(projectFilter, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+            // Search by unit number (prefix) or purchaser name (partial)
+            if (!string.IsNullOrWhiteSpace(search) && search.Trim().Length >= 1)
+            {
+                var term = search.Trim();
+                allRequests = allRequests.Where(r =>
+                    r.Unit.UnitNumber.StartsWith(term, StringComparison.OrdinalIgnoreCase) ||
+                    $"{r.RequestedByPurchaser.FirstName} {r.RequestedByPurchaser.LastName}"
+                        .Contains(term, StringComparison.OrdinalIgnoreCase)
+                ).ToList();
+            }
+
+            // Validate sort params
+            if (!new[] { "submitted", "unit", "status" }.Contains(sortBy)) sortBy = "submitted";
+            if (sortDir != "asc") sortDir = "desc";
+
+            // Sort
+            var sorted = (sortBy, sortDir) switch
+            {
+                ("unit", "asc") => allRequests.OrderBy(r => r.Unit.UnitNumber).ToList(),
+                ("unit", "desc") => allRequests.OrderByDescending(r => r.Unit.UnitNumber).ToList(),
+                ("status", "asc") => allRequests.OrderBy(r => r.Status).ThenByDescending(r => r.RequestedDate).ToList(),
+                ("status", "desc") => allRequests.OrderByDescending(r => r.Status).ThenByDescending(r => r.RequestedDate).ToList(),
+                ("submitted", "asc") => allRequests.OrderBy(r => r.RequestedDate).ToList(),
+                _ => allRequests.OrderByDescending(r => r.RequestedDate).ToList()
+            };
 
             var vm = new ExtensionRequestListViewModel
             {
                 PageTitle = "Extension Request History",
                 ShowingHistory = true,
-                Requests = requests.Select(r => new ExtensionRequestItem
+                ProjectFilter = projectFilter,
+                SearchQuery = search,
+                SortBy = sortBy,
+                SortDir = sortDir,
+                TotalRequests = totalRequests,
+                Projects = projects,
+                Requests = sorted.Select(r => new ExtensionRequestItem
                 {
                     RequestId = r.Id,
                     UnitId = r.UnitId,
