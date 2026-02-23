@@ -1,0 +1,99 @@
+@page
+@model PreConHub.Areas.Identity.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Sign In";
+    Layout = "/Views/Shared/_Layout.cshtml";
+}
+
+<style>
+    .login-wrapper {
+        min-height: calc(100vh - 120px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8fafc;
+    }
+    .login-card {
+        width: 100%;
+        max-width: 420px;
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+    }
+    .login-logo {
+        font-size: 1.75rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.5px;
+    }
+    .login-logo span {
+        color: #0066ff;
+    }
+    .form-control:focus {
+        border-color: #0066ff;
+        box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+    }
+    .btn-login {
+        background: #0066ff;
+        border: none;
+        padding: 0.65rem;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+    .btn-login:hover {
+        background: #0052cc;
+    }
+</style>
+
+<div class="login-wrapper">
+    <div class="card login-card">
+        <div class="card-body p-4 p-md-5">
+            <!-- Logo -->
+            <div class="text-center mb-4">
+                <div class="login-logo">Pre<span>Con</span>Hub</div>
+                <p class="text-muted small mt-1">Sign in to your account</p>
+            </div>
+
+            <!-- Validation Errors -->
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger py-2 small">
+                    <div asp-validation-summary="ModelOnly"></div>
+                </div>
+            }
+
+            <form id="account" method="post">
+                <div class="mb-3">
+                    <label asp-for="Input.Email" class="form-label small fw-semibold">Email</label>
+                    <input asp-for="Input.Email" class="form-control" autocomplete="email" placeholder="you@@example.com" />
+                    <span asp-validation-for="Input.Email" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.Password" class="form-label small fw-semibold">Password</label>
+                    <input asp-for="Input.Password" class="form-control" autocomplete="current-password" placeholder="Enter your password" />
+                    <span asp-validation-for="Input.Password" class="text-danger small"></span>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check">
+                        <input asp-for="Input.RememberMe" class="form-check-input" />
+                        <label asp-for="Input.RememberMe" class="form-check-label small">Remember me</label>
+                    </div>
+                    <a id="forgot-password" asp-page="./ForgotPassword" class="small text-decoration-none">Forgot password?</a>
+                </div>
+
+                <div class="d-grid">
+                    <button id="login-submit" type="submit" class="btn btn-primary btn-login">
+                        Sign In
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
