@@ -280,6 +280,20 @@ namespace PreConHub.Controllers
                 .Take(pageSize)
                 .ToList();
 
+            // Collect ALL extension requests from ALL units (not just paginated page)
+            var allExtensionRequests = allUnits
+                .SelectMany(u => u.ExtensionRequests)
+                .OrderByDescending(er => er.RequestedDate)
+                .ToList();
+
+            // Collect distinct project names for the filter dropdown
+            var projects = allUnits
+                .Select(u => u.ProjectName)
+                .Distinct()
+                .OrderBy(n => n)
+                .Select(n => new PurchaserProjectFilterItem { Name = n })
+                .ToList();
+
             var viewModel = new PurchaserDashboardViewModel
             {
                 PurchaserName = User.Identity?.Name ?? "Purchaser",
@@ -289,7 +303,9 @@ namespace PreConHub.Controllers
                 TotalPages = totalPages,
                 TotalFilteredUnits = totalFiltered,
                 TotalUnits = totalUnits,
-                SearchQuery = search
+                SearchQuery = search,
+                AllExtensionRequests = allExtensionRequests,
+                Projects = projects
             };
 
             return View(viewModel);

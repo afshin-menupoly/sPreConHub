@@ -210,6 +210,15 @@
                                     <i class="bi bi-download"></i> PDF
                                 </a>
                             }
+                            <hr class="my-2" />
+                            <a href="@Url.Action("SubmitExtensionRequest", "Purchaser", new { id = unit.UnitId })"
+                               class="btn btn-outline-warning btn-sm">
+                                <i class="bi bi-calendar-range me-1"></i>Request Closing Extension
+                                @if (unit.HasPendingExtension)
+                                {
+                                    <span class="badge bg-warning text-dark ms-1">Pending</span>
+                                }
+                            </a>
                         </div>
                     </div>
 
@@ -443,30 +452,61 @@
         </nav>
     }
 
-    <!-- Extension Requests Section -->
-    @{
-        var allExtensions = Model.Units.SelectMany(u => u.ExtensionRequests).ToList();
-    }
-    @if (allExtensions.Any())
-    {
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="bi bi-calendar-range text-primary me-2"></i>Extension Requests
-                </h5>
-                @{
-                    var firstUnit = Model.Units.First();
+    <!-- Extension Requests History -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0">
+                <i class="bi bi-calendar-range text-primary me-2"></i>Extension Requests History
+                @if (Model.AllExtensionRequests.Any())
+                {
+                    <span class="badge bg-secondary ms-2">@Model.AllExtensionRequests.Count</span>
                 }
-                <a href="@Url.Action("SubmitExtensionRequest", "Purchaser", new { id = firstUnit.UnitId })"
-                   class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-plus me-1"></i>New Request
-                </a>
-            </div>
-            <div class="card-body p-0">
+            </h5>
+        </div>
+        <div class="card-body">
+            @if (Model.AllExtensionRequests.Any())
+            {
+                <!-- Filter / Search / Sort controls -->
+                <div class="row g-2 mb-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Project</label>
+                        <select id="extProjectFilter" class="form-select form-select-sm">
+                            <option value="">All Projects</option>
+                            @foreach (var prj in Model.Projects)
+                            {
+                                <option value="@prj.Name">@prj.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Search Unit</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="extUnitSearch" class="form-control" placeholder="Unit number..." />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Sort By</label>
+                        <select id="extSortBy" class="form-select form-select-sm">
+                            <option value="date-desc">Newest First</option>
+                            <option value="date-asc">Oldest First</option>
+                            <option value="unit-asc">Unit (A-Z)</option>
+                            <option value="unit-desc">Unit (Z-A)</option>
+                            <option value="status-asc">Status (A-Z)</option>
+                            <option value="status-desc">Status (Z-A)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex gap-2">
+                        <button type="button" id="extClearFilters" class="btn btn-sm btn-outline-secondary">Clear</button>
+                        <span class="text-muted small align-self-center ms-auto" id="extResultCount"></span>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0 align-middle small">
+                    <table class="table table-hover mb-0 align-middle small" id="extTable">
                         <thead class="table-light">
                             <tr>
+                                <th>Project</th>
                                 <th>Unit</th>
                                 <th>Original Close</th>
                                 <th>Requested Close</th>
@@ -476,10 +516,11 @@
                                 <th>Notes</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @foreach (var ext in allExtensions)
+                        <tbody id="extTableBody">
+                            @foreach (var ext in Model.AllExtensionRequests)
                             {
-                                <tr>
+                                <tr data-project="@ext.ProjectName" data-unit="@ext.UnitNumber" data-status="@ext.StatusText" data-date="@ext.RequestedDate.ToString("yyyy-MM-dd")">
+                                    <td class="text-muted">@ext.ProjectName</td>
                                     <td class="fw-bold">@ext.UnitNumber</td>
                                     <td class="text-muted">
                                         @(ext.OriginalClosingDate?.ToString("MMM dd, yyyy") ?? "—")
@@ -496,21 +537,16 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
+            }
+            else
+            {
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-calendar-range fs-2 d-block mb-2"></i>
+                    <p class="mb-0">No extension requests yet. Use the <strong>Request Closing Extension</strong> button on any unit card above to submit one.</p>
+                </div>
+            }
         </div>
-    }
-    else
-    {
-        @foreach (var unit in Model.Units)
-        {
-            <div class="mb-3">
-                <a href="@Url.Action("SubmitExtensionRequest", "Purchaser", new { id = unit.UnitId })"
-                   class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-calendar-range me-1"></i>Request Closing Extension for @unit.UnitNumber
-                </a>
-            </div>
-        }
-    }
+    </div>
 
     <!-- Help Card -->
     <div class="card border-0 shadow-sm bg-light">
@@ -542,18 +578,94 @@
 @section Scripts {
 <script>
     (function () {
+        // Live search for unit cards (server-side)
         var timer = null;
         var searchBox = document.getElementById('searchBox');
-        if (!searchBox) return;
-        searchBox.addEventListener('input', function () {
-            clearTimeout(timer);
-            var val = this.value.trim();
-            if (val.length >= 2 || val.length === 0) {
-                timer = setTimeout(function () {
-                    document.getElementById('filterForm').submit();
-                }, 400);
-            }
+        if (searchBox) {
+            searchBox.addEventListener('input', function () {
+                clearTimeout(timer);
+                var val = this.value.trim();
+                if (val.length >= 2 || val.length === 0) {
+                    timer = setTimeout(function () {
+                        document.getElementById('filterForm').submit();
+                    }, 400);
+                }
+            });
+        }
+
+        // Extension requests table — client-side filter/search/sort
+        var tbody = document.getElementById('extTableBody');
+        if (!tbody) return;
+
+        var projectFilter = document.getElementById('extProjectFilter');
+        var unitSearch = document.getElementById('extUnitSearch');
+        var sortBy = document.getElementById('extSortBy');
+        var clearBtn = document.getElementById('extClearFilters');
+        var countEl = document.getElementById('extResultCount');
+        var allRows = Array.from(tbody.querySelectorAll('tr'));
+        var totalCount = allRows.length;
+
+        function applyFilters() {
+            var pVal = projectFilter.value;
+            var uVal = unitSearch.value.trim().toLowerCase();
+            var visible = [];
+
+            allRows.forEach(function (row) {
+                var project = row.getAttribute('data-project');
+                var unit = row.getAttribute('data-unit').toLowerCase();
+                var show = true;
+
+                if (pVal && project !== pVal) show = false;
+                if (uVal && !unit.startsWith(uVal)) show = false;
+
+                row.style.display = show ? '' : 'none';
+                if (show) visible.push(row);
+            });
+
+            // Sort visible rows
+            var sVal = sortBy.value;
+            visible.sort(function (a, b) {
+                switch (sVal) {
+                    case 'unit-asc':
+                        return a.getAttribute('data-unit').localeCompare(b.getAttribute('data-unit'), undefined, { numeric: true });
+                    case 'unit-desc':
+                        return b.getAttribute('data-unit').localeCompare(a.getAttribute('data-unit'), undefined, { numeric: true });
+                    case 'status-asc':
+                        return a.getAttribute('data-status').localeCompare(b.getAttribute('data-status'));
+                    case 'status-desc':
+                        return b.getAttribute('data-status').localeCompare(a.getAttribute('data-status'));
+                    case 'date-asc':
+                        return a.getAttribute('data-date').localeCompare(b.getAttribute('data-date'));
+                    case 'date-desc':
+                    default:
+                        return b.getAttribute('data-date').localeCompare(a.getAttribute('data-date'));
+                }
+            });
+
+            // Re-order DOM
+            visible.forEach(function (row) { tbody.appendChild(row); });
+            // Append hidden rows at end
+            allRows.forEach(function (row) {
+                if (row.style.display === 'none') tbody.appendChild(row);
+            });
+
+            countEl.textContent = visible.length < totalCount
+                ? visible.length + ' of ' + totalCount
+                : totalCount + ' total';
+        }
+
+        projectFilter.addEventListener('change', applyFilters);
+        unitSearch.addEventListener('input', applyFilters);
+        sortBy.addEventListener('change', applyFilters);
+        clearBtn.addEventListener('click', function () {
+            projectFilter.value = '';
+            unitSearch.value = '';
+            sortBy.value = 'date-desc';
+            applyFilters();
         });
+
+        // Initial count
+        applyFilters();
     })();
 </script>
 }

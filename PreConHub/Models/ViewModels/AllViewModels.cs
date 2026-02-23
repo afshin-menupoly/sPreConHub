@@ -665,6 +665,15 @@ namespace PreConHub.Models.ViewModels
         public int TotalFilteredUnits { get; set; }
         public int TotalUnits { get; set; }
         public string? SearchQuery { get; set; }
+
+        // Extension Requests (all units, independent of card pagination)
+        public List<ExtensionRequestItem> AllExtensionRequests { get; set; } = new();
+        public List<PurchaserProjectFilterItem> Projects { get; set; } = new();
+    }
+
+    public class PurchaserProjectFilterItem
+    {
+        public string Name { get; set; } = "";
     }
 
     public class PurchaserUnitViewModel
