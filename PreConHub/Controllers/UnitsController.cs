@@ -651,6 +651,7 @@ namespace PreConHub.Controllers
 
         // POST: /Units/CalculateSOA/5
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> CalculateSOA(int id)
         {
             var userId = _userManager.GetUserId(User);
