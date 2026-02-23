@@ -556,6 +556,32 @@ namespace PreConHub.Models.ViewModels
         public int NeedsAttention { get; set; }
 
         public List<LawyerUnitViewModel> Units { get; set; } = new();
+
+        // Pagination
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 25;
+        public int TotalPages { get; set; }
+        public int TotalFilteredUnits { get; set; }
+
+        // Filters
+        public int? ProjectFilter { get; set; }
+        public string? SearchQuery { get; set; }
+
+        // Project dropdown data
+        public List<LawyerProjectFilterItem> Projects { get; set; } = new();
+
+        public string ToggleSortDir(string column, string currentSortBy, string currentSortDir)
+        {
+            if (string.Equals(currentSortBy, column, StringComparison.OrdinalIgnoreCase))
+                return currentSortDir == "asc" ? "desc" : "asc";
+            return "asc";
+        }
+    }
+
+    public class LawyerProjectFilterItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
     }
 
     public class LawyerProjectViewModel
@@ -1089,6 +1115,7 @@ namespace PreConHub.Models.ViewModels
     {
         public int AssignmentId { get; set; }
         public int UnitId { get; set; }
+        public int ProjectId { get; set; }
         public string UnitNumber { get; set; } = "";
         public string ProjectName { get; set; } = "";
         public string ProjectAddress { get; set; } = "";

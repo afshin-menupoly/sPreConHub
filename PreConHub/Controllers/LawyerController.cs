@@ -50,10 +50,15 @@ namespace PreConHub.Controllers
         }
 
         // GET: /Lawyer/Dashboard
-        public async Task<IActionResult> Dashboard()
+        public async Task<IActionResult> Dashboard(
+            int page = 1, int pageSize = 25, int? projectFilter = null, string? search = null)
         {
             var userId = _userManager.GetUserId(User);
             var user = await _userManager.GetUserAsync(User);
+
+            // Validate inputs
+            if (!new[] { 25, 50, 100, 250, 500 }.Contains(pageSize)) pageSize = 25;
+            if (page < 1) page = 1;
 
             // Get all units assigned to this lawyer
             var assignments = await _context.LawyerAssignments
@@ -74,69 +79,125 @@ namespace PreConHub.Controllers
                 .Where(la => la.LawyerId == userId && la.IsActive)
                 .ToListAsync();
 
+            // Project all to view models
+            var allUnits = assignments.Select(la => new LawyerUnitViewModel
+            {
+                AssignmentId = la.Id,
+                UnitId = la.Unit.Id,
+                UnitNumber = la.Unit.UnitNumber,
+                ProjectName = la.Unit.Project.Name,
+                ProjectAddress = $"{la.Unit.Project.Address}, {la.Unit.Project.City}",
+                PurchasePrice = la.Unit.PurchasePrice,
+                ClosingDate = la.Unit.ClosingDate ?? la.Unit.Project.ClosingDate,
+
+                // Purchaser Info
+                PurchaserName = la.Unit.Purchasers
+                    .Where(p => p.IsPrimaryPurchaser)
+                    .Select(p => $"{p.Purchaser.FirstName} {p.Purchaser.LastName}")
+                    .FirstOrDefault() ?? "Not Assigned",
+                PurchaserEmail = la.Unit.Purchasers
+                    .Where(p => p.IsPrimaryPurchaser)
+                    .Select(p => p.Purchaser.Email)
+                    .FirstOrDefault(),
+
+                // Status
+                UnitStatus = la.Unit.Status,
+                ReviewStatus = la.ReviewStatus,
+                AssignedAt = la.AssignedAt,
+                ReviewedAt = la.ReviewedAt,
+
+                // SOA Info
+                HasSOA = la.Unit.SOA != null,
+                BalanceDueOnClosing = la.Unit.SOA?.BalanceDueOnClosing ?? 0,
+                CashRequiredToClose = la.Unit.SOA?.CashRequiredToClose ?? 0,
+                LawyerUploadedBalanceDue = la.Unit.SOA?.LawyerUploadedBalanceDue,
+
+                // Shortfall
+                ShortfallAmount = la.Unit.ShortfallAnalysis?.ShortfallAmount ?? 0,
+                Recommendation = la.Unit.Recommendation,
+
+                // Mortgage
+                HasMortgageApproval = la.Unit.Purchasers
+                    .Any(p => p.MortgageInfo != null && p.MortgageInfo.HasMortgageApproval),
+                MortgageAmount = la.Unit.Purchasers
+                    .Where(p => p.MortgageInfo != null)
+                    .Sum(p => p.MortgageInfo!.ApprovedAmount ?? 0m),
+                // Deposits
+                TotalDeposits = la.Unit.Deposits.Sum(d => d.Amount),
+                DepositsPaid = la.Unit.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount),
+
+                // Days until closing
+                DaysUntilClosing = la.Unit.ClosingDate.HasValue
+                    ? (int)(la.Unit.ClosingDate.Value - DateTime.Now).TotalDays
+                    : 0,
+
+                // Store ProjectId for filtering
+                ProjectId = la.Unit.Project.Id
+            }).ToList();
+
+            // Build project dropdown from lawyer's assigned projects
+            var projects = allUnits
+                .Select(u => new LawyerProjectFilterItem { Id = u.ProjectId, Name = u.ProjectName })
+                .DistinctBy(p => p.Id)
+                .OrderBy(p => p.Name)
+                .ToList();
+
+            // Summary stats (computed from ALL units, before filtering)
+            var totalAssigned = allUnits.Count;
+            var pendingReview = allUnits.Count(u => u.ReviewStatus == LawyerReviewStatus.Pending);
+            var underReview = allUnits.Count(u => u.ReviewStatus == LawyerReviewStatus.UnderReview);
+            var approved = allUnits.Count(u => u.ReviewStatus == LawyerReviewStatus.Approved);
+            var needsAttention = allUnits.Count(u => u.ReviewStatus == LawyerReviewStatus.NeedsRevision);
+
+            // Apply filters
+            IEnumerable<LawyerUnitViewModel> filtered = allUnits;
+
+            // Project filter
+            if (projectFilter.HasValue)
+            {
+                filtered = filtered.Where(u => u.ProjectId == projectFilter.Value);
+            }
+
+            // Search filter (unit number starts-with OR purchaser name contains)
+            if (!string.IsNullOrWhiteSpace(search) && search.Trim().Length >= 1)
+            {
+                var term = search.Trim();
+                filtered = filtered.Where(u =>
+                    u.UnitNumber.StartsWith(term, StringComparison.OrdinalIgnoreCase) ||
+                    u.PurchaserName.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Sort by closing date (existing default)
+            var filteredList = filtered.OrderBy(u => u.ClosingDate).ToList();
+
+            // Pagination
+            var totalFiltered = filteredList.Count;
+            var totalPages = (int)Math.Ceiling(totalFiltered / (double)pageSize);
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            var pagedUnits = filteredList
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
             var viewModel = new LawyerDashboardViewModel
             {
                 LawyerName = $"{user?.FirstName} {user?.LastName}",
                 LawyerFirm = user?.CompanyName,
-                Units = assignments.Select(la => new LawyerUnitViewModel
-                {
-                    AssignmentId = la.Id,
-                    UnitId = la.Unit.Id,
-                    UnitNumber = la.Unit.UnitNumber,
-                    ProjectName = la.Unit.Project.Name,
-                    ProjectAddress = $"{la.Unit.Project.Address}, {la.Unit.Project.City}",
-                    PurchasePrice = la.Unit.PurchasePrice,
-                    ClosingDate = la.Unit.ClosingDate ?? la.Unit.Project.ClosingDate,
-                    
-                    // Purchaser Info
-                    PurchaserName = la.Unit.Purchasers
-                        .Where(p => p.IsPrimaryPurchaser)
-                        .Select(p => $"{p.Purchaser.FirstName} {p.Purchaser.LastName}")
-                        .FirstOrDefault() ?? "Not Assigned",
-                    PurchaserEmail = la.Unit.Purchasers
-                        .Where(p => p.IsPrimaryPurchaser)
-                        .Select(p => p.Purchaser.Email)
-                        .FirstOrDefault(),
-                    
-                    // Status
-                    UnitStatus = la.Unit.Status,
-                    ReviewStatus = la.ReviewStatus,
-                    AssignedAt = la.AssignedAt,
-                    ReviewedAt = la.ReviewedAt,
-                    
-                    // SOA Info
-                    HasSOA = la.Unit.SOA != null,
-                    BalanceDueOnClosing = la.Unit.SOA?.BalanceDueOnClosing ?? 0,
-                    CashRequiredToClose = la.Unit.SOA?.CashRequiredToClose ?? 0,
-                    LawyerUploadedBalanceDue = la.Unit.SOA?.LawyerUploadedBalanceDue,
-                    
-                    // Shortfall
-                    ShortfallAmount = la.Unit.ShortfallAnalysis?.ShortfallAmount ?? 0,
-                    Recommendation = la.Unit.Recommendation,
-                    
-                    // Mortgage
-                    HasMortgageApproval = la.Unit.Purchasers
-                        .Any(p => p.MortgageInfo != null && p.MortgageInfo.HasMortgageApproval),
-                    MortgageAmount = la.Unit.Purchasers
-                        .Where(p => p.MortgageInfo != null)
-                        .Sum(p => p.MortgageInfo!.ApprovedAmount ?? 0m),
-                    // Deposits
-                    TotalDeposits = la.Unit.Deposits.Sum(d => d.Amount),
-                    DepositsPaid = la.Unit.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount),
-                    
-                    // Days until closing
-                    DaysUntilClosing = la.Unit.ClosingDate.HasValue 
-                        ? (int)(la.Unit.ClosingDate.Value - DateTime.Now).TotalDays 
-                        : 0
-                }).ToList()
+                Units = pagedUnits,
+                TotalAssigned = totalAssigned,
+                PendingReview = pendingReview,
+                UnderReview = underReview,
+                Approved = approved,
+                NeedsAttention = needsAttention,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                TotalFilteredUnits = totalFiltered,
+                ProjectFilter = projectFilter,
+                SearchQuery = search,
+                Projects = projects
             };
-
-            // Calculate summary stats
-            viewModel.TotalAssigned = viewModel.Units.Count;
-            viewModel.PendingReview = viewModel.Units.Count(u => u.ReviewStatus == LawyerReviewStatus.Pending);
-            viewModel.UnderReview = viewModel.Units.Count(u => u.ReviewStatus == LawyerReviewStatus.UnderReview);
-            viewModel.Approved = viewModel.Units.Count(u => u.ReviewStatus == LawyerReviewStatus.Approved);
-            viewModel.NeedsAttention = viewModel.Units.Count(u => u.ReviewStatus == LawyerReviewStatus.NeedsRevision);
 
             return View(viewModel);
         }
