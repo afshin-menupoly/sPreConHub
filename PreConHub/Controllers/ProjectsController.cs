@@ -1632,13 +1632,80 @@ namespace PreConHub.Controllers
 
         // GET: /Projects/MyUsers
         [Authorize(Roles = "Builder")]
-        public async Task<IActionResult> MyUsers()
+        public async Task<IActionResult> MyUsers(
+            int page = 1, int pageSize = 20, string sortBy = "Name", string sortDir = "asc",
+            string? roleFilter = null, int? projectFilter = null, string? search = null)
         {
             var userId = _userManager.GetUserId(User);
 
-            var invitedUsers = await _context.Users
-                .Where(u => u.CreatedByUserId == userId)
-                .OrderByDescending(u => u.CreatedAt)
+            // Validate inputs
+            if (!new[] { 20, 50, 100, 500 }.Contains(pageSize)) pageSize = 20;
+            if (!new[] { "Name", "Type" }.Contains(sortBy, StringComparer.OrdinalIgnoreCase)) sortBy = "Name";
+            if (sortDir != "desc") sortDir = "asc";
+            if (page < 1) page = 1;
+
+            // Base query
+            var query = _context.Users.Where(u => u.CreatedByUserId == userId);
+
+            // Search filter (2+ chars)
+            if (!string.IsNullOrWhiteSpace(search) && search.Trim().Length >= 2)
+            {
+                var term = search.Trim();
+                query = query.Where(u => (u.FirstName + " " + u.LastName).Contains(term));
+            }
+
+            // Role filter
+            if (!string.IsNullOrWhiteSpace(roleFilter) && Enum.TryParse<UserType>(roleFilter, out var parsedRole))
+            {
+                query = query.Where(u => u.UserType == parsedRole);
+            }
+
+            // Project filter
+            if (projectFilter.HasValue)
+            {
+                var projectId = projectFilter.Value;
+                var purchaserIds = await _context.UnitPurchasers
+                    .Where(up => up.Unit.ProjectId == projectId)
+                    .Select(up => up.PurchaserId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var lawyerIds = await _context.LawyerAssignments
+                    .Where(la => la.ProjectId == projectId)
+                    .Select(la => la.LawyerId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var maId = await _context.Projects
+                    .Where(p => p.Id == projectId && p.MarketingAgencyUserId != null)
+                    .Select(p => p.MarketingAgencyUserId)
+                    .FirstOrDefaultAsync();
+
+                var allProjectUserIds = purchaserIds.Union(lawyerIds).ToHashSet();
+                if (maId != null) allProjectUserIds.Add(maId);
+
+                query = query.Where(u => allProjectUserIds.Contains(u.Id));
+            }
+
+            // Count total after filters
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            // Sort
+            var ordered = (sortBy.ToLower(), sortDir) switch
+            {
+                ("name", "asc") => query.OrderBy(u => u.FirstName).ThenBy(u => u.LastName),
+                ("name", "desc") => query.OrderByDescending(u => u.FirstName).ThenByDescending(u => u.LastName),
+                ("type", "asc") => query.OrderBy(u => u.UserType).ThenBy(u => u.FirstName),
+                ("type", "desc") => query.OrderByDescending(u => u.UserType).ThenBy(u => u.FirstName),
+                _ => query.OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            };
+
+            // Paginate and project
+            var invitedUsers = await ordered
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
                 .Select(u => new BuilderInvitedUserItem
                 {
                     UserId = u.Id,
@@ -1657,20 +1724,44 @@ namespace PreConHub.Controllers
                 })
                 .ToListAsync();
 
+            // Load builder's projects for dropdown
+            var projects = await _context.Projects
+                .Where(p => p.BuilderId == userId)
+                .OrderBy(p => p.Name)
+                .Select(p => new ProjectFilterItem { Id = p.Id, Name = p.Name })
+                .ToListAsync();
+
             var viewModel = new BuilderMyUsersViewModel
             {
                 Users = invitedUsers,
-                TotalCount = invitedUsers.Count
+                TotalCount = totalCount,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                SortBy = sortBy,
+                SortDir = sortDir,
+                RoleFilter = roleFilter,
+                ProjectFilter = projectFilter,
+                SearchQuery = search,
+                Projects = projects
             };
 
             return View(viewModel);
+        }
+
+        private object MyUsersRouteValues(int page, int pageSize, string sortBy, string sortDir,
+            string? roleFilter, int? projectFilter, string? search)
+        {
+            return new { page, pageSize, sortBy, sortDir, roleFilter, projectFilter, search };
         }
 
         // POST: /Projects/ToggleInvitedUserStatus
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Builder")]
-        public async Task<IActionResult> ToggleInvitedUserStatus(string targetUserId)
+        public async Task<IActionResult> ToggleInvitedUserStatus(string targetUserId,
+            int page = 1, int pageSize = 20, string sortBy = "Name", string sortDir = "asc",
+            string? roleFilter = null, int? projectFilter = null, string? search = null)
         {
             var userId = _userManager.GetUserId(User);
             var targetUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == targetUserId && u.CreatedByUserId == userId);
@@ -1678,7 +1769,7 @@ namespace PreConHub.Controllers
             if (targetUser == null)
             {
                 TempData["Error"] = "User not found or you don't have permission.";
-                return RedirectToAction(nameof(MyUsers));
+                return RedirectToAction(nameof(MyUsers), MyUsersRouteValues(page, pageSize, sortBy, sortDir, roleFilter, projectFilter, search));
             }
 
             targetUser.IsActive = !targetUser.IsActive;
@@ -1686,14 +1777,16 @@ namespace PreConHub.Controllers
 
             var status = targetUser.IsActive ? "activated" : "deactivated";
             TempData["Success"] = $"User {targetUser.Email} has been {status}.";
-            return RedirectToAction(nameof(MyUsers));
+            return RedirectToAction(nameof(MyUsers), MyUsersRouteValues(page, pageSize, sortBy, sortDir, roleFilter, projectFilter, search));
         }
 
         // POST: /Projects/ResendUserInvitation
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Builder")]
-        public async Task<IActionResult> ResendUserInvitation(string targetUserId)
+        public async Task<IActionResult> ResendUserInvitation(string targetUserId,
+            int page = 1, int pageSize = 20, string sortBy = "Name", string sortDir = "asc",
+            string? roleFilter = null, int? projectFilter = null, string? search = null)
         {
             var userId = _userManager.GetUserId(User);
             var targetUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == targetUserId && u.CreatedByUserId == userId);
@@ -1701,14 +1794,14 @@ namespace PreConHub.Controllers
             if (targetUser == null)
             {
                 TempData["Error"] = "User not found or you don't have permission.";
-                return RedirectToAction(nameof(MyUsers));
+                return RedirectToAction(nameof(MyUsers), MyUsersRouteValues(page, pageSize, sortBy, sortDir, roleFilter, projectFilter, search));
             }
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(targetUser);
             var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token }, Request.Scheme);
 
             TempData["Success"] = $"Invitation link for {targetUser.Email}: {resetLink}";
-            return RedirectToAction(nameof(MyUsers));
+            return RedirectToAction(nameof(MyUsers), MyUsersRouteValues(page, pageSize, sortBy, sortDir, roleFilter, projectFilter, search));
         }
 
         #endregion

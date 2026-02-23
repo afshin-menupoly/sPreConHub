@@ -1938,6 +1938,43 @@ namespace PreConHub.Models.ViewModels
     {
         public List<BuilderInvitedUserItem> Users { get; set; } = new();
         public int TotalCount { get; set; }
+
+        // Pagination
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public int TotalPages { get; set; }
+
+        // Sorting
+        public string SortBy { get; set; } = "Name";
+        public string SortDir { get; set; } = "asc";
+
+        // Filters
+        public string? RoleFilter { get; set; }
+        public int? ProjectFilter { get; set; }
+        public string? SearchQuery { get; set; }
+
+        // Project dropdown data
+        public List<ProjectFilterItem> Projects { get; set; } = new();
+
+        public string ToggleSortDir(string column)
+        {
+            if (string.Equals(SortBy, column, StringComparison.OrdinalIgnoreCase))
+                return SortDir == "asc" ? "desc" : "asc";
+            return "asc";
+        }
+
+        public string SortIcon(string column)
+        {
+            if (!string.Equals(SortBy, column, StringComparison.OrdinalIgnoreCase))
+                return "bi bi-chevron-expand text-muted";
+            return SortDir == "asc" ? "bi bi-chevron-up" : "bi bi-chevron-down";
+        }
+    }
+
+    public class ProjectFilterItem
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = "";
     }
 
     /// <summary>

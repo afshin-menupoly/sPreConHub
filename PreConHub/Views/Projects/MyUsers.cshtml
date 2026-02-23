@@ -1,6 +1,8 @@
 @model PreConHub.Models.ViewModels.BuilderMyUsersViewModel
 @{
     ViewData["Title"] = "My Users";
+    var startItem = Model.TotalCount == 0 ? 0 : (Model.CurrentPage - 1) * Model.PageSize + 1;
+    var endItem = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalCount);
 }
 
 <div class="container-fluid py-4">
@@ -29,6 +31,96 @@
         </div>
     }
 
+    @* ===== Filter Bar ===== *@
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-3">
+            <form id="filterForm" method="get" asp-action="MyUsers">
+                <input type="hidden" name="sortBy" value="@Model.SortBy" />
+                <input type="hidden" name="sortDir" value="@Model.SortDir" />
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Search</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="searchInput" name="search" class="form-control"
+                                   placeholder="Search by name..." value="@Model.SearchQuery" autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Role</label>
+                        <select name="roleFilter" class="form-select form-select-sm">
+                            <option value="">All Roles</option>
+                            @if (Model.RoleFilter == "Lawyer")
+                            {
+                                <option value="Lawyer" selected>Lawyer</option>
+                            }
+                            else
+                            {
+                                <option value="Lawyer">Lawyer</option>
+                            }
+                            @if (Model.RoleFilter == "Purchaser")
+                            {
+                                <option value="Purchaser" selected>Purchaser</option>
+                            }
+                            else
+                            {
+                                <option value="Purchaser">Purchaser</option>
+                            }
+                            @if (Model.RoleFilter == "MarketingAgency")
+                            {
+                                <option value="MarketingAgency" selected>Marketing Agency</option>
+                            }
+                            else
+                            {
+                                <option value="MarketingAgency">Marketing Agency</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Project</label>
+                        <select name="projectFilter" class="form-select form-select-sm">
+                            <option value="">All Projects</option>
+                            @foreach (var proj in Model.Projects)
+                            {
+                                @if (Model.ProjectFilter == proj.Id)
+                                {
+                                    <option value="@proj.Id" selected>@proj.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@proj.Id">@proj.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small text-muted mb-1">Per Page</label>
+                        <select name="pageSize" class="form-select form-select-sm">
+                            @foreach (var size in new[] { 20, 50, 100, 500 })
+                            {
+                                @if (Model.PageSize == size)
+                                {
+                                    <option value="@size" selected>@size</option>
+                                }
+                                else
+                                {
+                                    <option value="@size">@size</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="bi bi-funnel me-1"></i>Apply
+                        </button>
+                        <a asp-action="MyUsers" class="btn btn-sm btn-outline-secondary">Clear</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @* ===== Users Table ===== *@
     <div class="card border-0 shadow-sm">
         <div class="card-body p-0">
             @if (Model.Users.Any())
@@ -37,8 +129,18 @@
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th>User</th>
-                                <th>Type</th>
+                                <th>
+                                    <a href="@Url.Action("MyUsers", new { page = 1, pageSize = Model.PageSize, sortBy = "Name", sortDir = Model.ToggleSortDir("Name"), roleFilter = Model.RoleFilter, projectFilter = Model.ProjectFilter, search = Model.SearchQuery })"
+                                       class="text-decoration-none text-dark">
+                                        User <i class="@Model.SortIcon("Name")"></i>
+                                    </a>
+                                </th>
+                                <th>
+                                    <a href="@Url.Action("MyUsers", new { page = 1, pageSize = Model.PageSize, sortBy = "Type", sortDir = Model.ToggleSortDir("Type"), roleFilter = Model.RoleFilter, projectFilter = Model.ProjectFilter, search = Model.SearchQuery })"
+                                       class="text-decoration-none text-dark">
+                                        Type <i class="@Model.SortIcon("Type")"></i>
+                                    </a>
+                                </th>
                                 <th>Assignments</th>
                                 <th>Status</th>
                                 <th>Last Login</th>
@@ -102,6 +204,13 @@
                                                 <form asp-action="ResendUserInvitation" method="post" class="d-inline">
                                                     @Html.AntiForgeryToken()
                                                     <input type="hidden" name="targetUserId" value="@user.UserId" />
+                                                    <input type="hidden" name="page" value="@Model.CurrentPage" />
+                                                    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                    <input type="hidden" name="sortBy" value="@Model.SortBy" />
+                                                    <input type="hidden" name="sortDir" value="@Model.SortDir" />
+                                                    <input type="hidden" name="roleFilter" value="@Model.RoleFilter" />
+                                                    <input type="hidden" name="projectFilter" value="@Model.ProjectFilter" />
+                                                    <input type="hidden" name="search" value="@Model.SearchQuery" />
                                                     <button type="submit" class="btn btn-outline-primary btn-sm" title="Generate invitation link">
                                                         <i class="bi bi-envelope-arrow-up"></i>
                                                     </button>
@@ -110,6 +219,13 @@
                                             <form asp-action="ToggleInvitedUserStatus" method="post" class="d-inline">
                                                 @Html.AntiForgeryToken()
                                                 <input type="hidden" name="targetUserId" value="@user.UserId" />
+                                                <input type="hidden" name="page" value="@Model.CurrentPage" />
+                                                <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                                                <input type="hidden" name="sortBy" value="@Model.SortBy" />
+                                                <input type="hidden" name="sortDir" value="@Model.SortDir" />
+                                                <input type="hidden" name="roleFilter" value="@Model.RoleFilter" />
+                                                <input type="hidden" name="projectFilter" value="@Model.ProjectFilter" />
+                                                <input type="hidden" name="search" value="@Model.SearchQuery" />
                                                 @if (user.IsActive)
                                                 {
                                                     <button type="submit" class="btn btn-outline-danger btn-sm"
@@ -132,6 +248,99 @@
                         </tbody>
                     </table>
                 </div>
+
+                @* ===== Pagination ===== *@
+                @if (Model.TotalPages > 1)
+                {
+                    <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+                        <small class="text-muted">Showing @startItem–@endItem of @Model.TotalCount users</small>
+                        <nav aria-label="Users pagination">
+                            <ul class="pagination pagination-sm mb-0">
+                                @if (Model.CurrentPage > 1)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" href="@Url.Action("MyUsers", new { page = Model.CurrentPage - 1, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, roleFilter = Model.RoleFilter, projectFilter = Model.ProjectFilter, search = Model.SearchQuery })">
+                                            <i class="bi bi-chevron-left"></i>
+                                        </a>
+                                    </li>
+                                }
+                                else
+                                {
+                                    <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
+                                }
+
+                                @{
+                                    var startPage = Math.Max(1, Model.CurrentPage - 2);
+                                    var endPage = Math.Min(Model.TotalPages, Model.CurrentPage + 2);
+                                    if (startPage > 1)
+                                    {
+                                        <li class="page-item">
+                                            <a class="page-link" href="@Url.Action("MyUsers", new { page = 1, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, roleFilter = Model.RoleFilter, projectFilter = Model.ProjectFilter, search = Model.SearchQuery })">1</a>
+                                        </li>
+                                        if (startPage > 2)
+                                        {
+                                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                                        }
+                                    }
+                                    for (var i = startPage; i <= endPage; i++)
+                                    {
+                                        if (i == Model.CurrentPage)
+                                        {
+                                            <li class="page-item active"><span class="page-link">@i</span></li>
+                                        }
+                                        else
+                                        {
+                                            <li class="page-item">
+                                                <a class="page-link" href="@Url.Action("MyUsers", new { page = i, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, roleFilter = Model.RoleFilter, projectFilter = Model.ProjectFilter, search = Model.SearchQuery })">@i</a>
+                                            </li>
+                                        }
+                                    }
+                                    if (endPage < Model.TotalPages)
+                                    {
+                                        if (endPage < Model.TotalPages - 1)
+                                        {
+                                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                                        }
+                                        <li class="page-item">
+                                            <a class="page-link" href="@Url.Action("MyUsers", new { page = Model.TotalPages, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, roleFilter = Model.RoleFilter, projectFilter = Model.ProjectFilter, search = Model.SearchQuery })">@Model.TotalPages</a>
+                                        </li>
+                                    }
+                                }
+
+                                @if (Model.CurrentPage < Model.TotalPages)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" href="@Url.Action("MyUsers", new { page = Model.CurrentPage + 1, pageSize = Model.PageSize, sortBy = Model.SortBy, sortDir = Model.SortDir, roleFilter = Model.RoleFilter, projectFilter = Model.ProjectFilter, search = Model.SearchQuery })">
+                                            <i class="bi bi-chevron-right"></i>
+                                        </a>
+                                    </li>
+                                }
+                                else
+                                {
+                                    <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+                                }
+                            </ul>
+                        </nav>
+                    </div>
+                }
+                else
+                {
+                    <div class="card-footer bg-white py-3">
+                        <small class="text-muted">Showing @startItem–@endItem of @Model.TotalCount users</small>
+                    </div>
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.SearchQuery) || !string.IsNullOrWhiteSpace(Model.RoleFilter) || Model.ProjectFilter.HasValue)
+            {
+                @* Empty state when filters produce no results *@
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-funnel display-4 d-block mb-3"></i>
+                    <h5>No Users Match Your Filters</h5>
+                    <p>Try adjusting your search or filter criteria.</p>
+                    <a asp-action="MyUsers" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-x-circle me-1"></i>Clear All Filters
+                    </a>
+                </div>
             }
             else
             {
@@ -144,3 +353,25 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var searchInput = document.getElementById('searchInput');
+            var filterForm = document.getElementById('filterForm');
+            var debounceTimer = null;
+
+            if (searchInput && filterForm) {
+                searchInput.addEventListener('input', function () {
+                    clearTimeout(debounceTimer);
+                    var val = searchInput.value.trim();
+                    if (val.length >= 2 || val.length === 0) {
+                        debounceTimer = setTimeout(function () {
+                            filterForm.submit();
+                        }, 400);
+                    }
+                });
+            }
+        })();
+    </script>
+}
