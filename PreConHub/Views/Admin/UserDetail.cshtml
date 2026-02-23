@@ -94,6 +94,13 @@
                                 <td>@Model.CompanyName</td>
                             </tr>
                         }
+                        @if (!string.IsNullOrEmpty(Model.LawFirm))
+                        {
+                            <tr>
+                                <td class="text-muted">Law Firm</td>
+                                <td>@Model.LawFirm</td>
+                            </tr>
+                        }
                         <tr>
                             <td class="text-muted">Roles</td>
                             <td>

@@ -186,6 +186,7 @@ namespace PreConHub.Controllers
                 LastName = user.LastName,
                 Phone = user.PhoneNumber,
                 CompanyName = user.CompanyName,
+                LawFirm = user.LawFirm,
                 UserType = user.UserType,
                 Roles = roles.ToList(),
                 IsActive = user.IsActive,
@@ -648,6 +649,7 @@ namespace PreConHub.Controllers
                 LastName = user.LastName,
                 Phone = user.PhoneNumber,
                 CompanyName = user.CompanyName,
+                LawFirm = user.LawFirm,
                 UserType = user.UserType,
                 IsActive = user.IsActive
             };
@@ -689,6 +691,7 @@ namespace PreConHub.Controllers
             user.LastName = model.LastName;
             user.PhoneNumber = model.Phone;
             user.CompanyName = model.CompanyName;
+            user.LawFirm = model.LawFirm;
             user.UserType = model.UserType;
             user.IsActive = model.IsActive;
 

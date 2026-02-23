@@ -25,6 +25,9 @@ namespace PreConHub.Models.Entities
         [StringLength(100)]
         public string? CompanyName { get; set; }
 
+        [StringLength(200)]
+        public string? LawFirm { get; set; }
+
         public UserType UserType { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

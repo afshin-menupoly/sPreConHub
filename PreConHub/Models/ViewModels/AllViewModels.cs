@@ -1533,6 +1533,7 @@ namespace PreConHub.Models.ViewModels
         public string FullName => $"{FirstName} {LastName}".Trim();
         public string? Phone { get; set; }
         public string? CompanyName { get; set; }
+        public string? LawFirm { get; set; }
         public UserType UserType { get; set; }
         public List<string> Roles { get; set; } = new();
         public bool IsActive { get; set; }
@@ -1672,6 +1673,10 @@ namespace PreConHub.Models.ViewModels
         [StringLength(100)]
         public string? CompanyName { get; set; }
 
+        [StringLength(200)]
+        [Display(Name = "Law Firm")]
+        public string? LawFirm { get; set; }
+
         public UserType UserType { get; set; }
         public bool IsActive { get; set; }
     }
@@ -1772,6 +1777,60 @@ namespace PreConHub.Models.ViewModels
         [DataType(DataType.Password)]
         [Compare("NewPassword", ErrorMessage = "Passwords do not match.")]
         public string ConfirmPassword { get; set; } = "";
+    }
+
+    #endregion
+
+    #region User Profile
+
+    // ===== USER PROFILE (self-service) =====
+    public class UserProfileViewModel
+    {
+        public string UserId { get; set; } = "";
+
+        [Required]
+        [StringLength(100)]
+        [Display(Name = "First Name")]
+        public string FirstName { get; set; } = "";
+
+        [Required]
+        [StringLength(100)]
+        [Display(Name = "Last Name")]
+        public string LastName { get; set; } = "";
+
+        [EmailAddress]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = "";
+
+        [Phone]
+        [Display(Name = "Phone Number")]
+        public string? Phone { get; set; }
+
+        [StringLength(100)]
+        [Display(Name = "Company Name")]
+        public string? CompanyName { get; set; }
+
+        [StringLength(200)]
+        [Display(Name = "Law Firm")]
+        public string? LawFirm { get; set; }
+
+        public UserType UserType { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+
+        // Read-only flags (Builders can't edit Email or CompanyName)
+        public bool IsEmailReadOnly { get; set; }
+        public bool IsCompanyNameReadOnly { get; set; }
+
+        public string RoleDisplay => UserType switch
+        {
+            UserType.PlatformAdmin => "Administrator",
+            UserType.Builder => "Builder",
+            UserType.Purchaser => "Purchaser",
+            UserType.Lawyer => "Lawyer",
+            UserType.MarketingAgency => "Marketing Agency",
+            _ => "Unknown"
+        };
     }
 
     #endregion

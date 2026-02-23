@@ -53,6 +53,14 @@
                                 <input asp-for="CompanyName" class="form-control" />
                             </div>
                             <div class="col-md-6">
+                                <label asp-for="LawFirm" class="form-label">Law Firm</label>
+                                <input asp-for="LawFirm" class="form-control" />
+                                <small class="text-muted">Applicable for Lawyer accounts</small>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
                                 <label asp-for="UserType" class="form-label">User Type *</label>
                                 <select asp-for="UserType" class="form-select">
                                     <option value="@((int)UserType.Builder)">Builder</option>
