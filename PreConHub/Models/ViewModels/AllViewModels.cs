@@ -1805,12 +1805,23 @@ namespace PreConHub.Models.ViewModels
         public string ProjectName { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
         public List<MarketingAgencyUnitItemViewModel> Units { get; set; } = new();
+
+        // Pagination
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 25;
+        public int TotalPages { get; set; }
+        public int TotalFilteredUnits { get; set; }
+        public int TotalUnits { get; set; }
+
+        // Search
+        public string? SearchQuery { get; set; }
     }
 
     public class MarketingAgencyUnitItemViewModel
     {
         public int UnitId { get; set; }
         public string UnitNumber { get; set; } = string.Empty;
+        public string PurchaserName { get; set; } = string.Empty;
         public UnitType UnitType { get; set; }
         public int Bedrooms { get; set; }
         public int Bathrooms { get; set; }

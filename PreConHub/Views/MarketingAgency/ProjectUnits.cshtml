@@ -1,6 +1,8 @@
 @model PreConHub.Models.ViewModels.MarketingAgencyProjectUnitsViewModel
 @{
     ViewData["Title"] = $"Units — {Model.ProjectName}";
+    var startItem = Model.TotalFilteredUnits == 0 ? 0 : (Model.CurrentPage - 1) * Model.PageSize + 1;
+    var endItem = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalFilteredUnits);
 }
 
 <div class="container py-4">
@@ -42,13 +44,52 @@
         </div>
     }
 
-    @if (!Model.Units.Any())
-    {
-        <div class="alert alert-info">
-            <i class="bi bi-info-circle me-2"></i>No units found for this project.
+    <!-- Search & Filter Bar -->
+    <div class="card border-0 shadow-sm mb-3">
+        <div class="card-body py-2">
+            <form id="filterForm" method="get" asp-action="ProjectUnits" asp-route-id="@Model.ProjectId">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" id="searchInput" name="search" class="form-control"
+                                   placeholder="Search by unit # or purchaser name..." value="@Model.SearchQuery" autocomplete="off" />
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <select name="pageSize" class="form-select form-select-sm">
+                            @foreach (var size in new[] { 25, 50, 100, 250, 500 })
+                            {
+                                @if (Model.PageSize == size)
+                                {
+                                    <option value="@size" selected>@size per page</option>
+                                }
+                                else
+                                {
+                                    <option value="@size">@size per page</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="bi bi-funnel me-1"></i>Apply
+                            </button>
+                            <a href="@Url.Action("ProjectUnits", new { id = Model.ProjectId })" class="btn btn-sm btn-outline-secondary">Clear</a>
+                        </div>
+                    </div>
+                    <div class="col-md-3 text-end">
+                        <span class="text-muted small">
+                            @Model.TotalFilteredUnits of @Model.TotalUnits units
+                        </span>
+                    </div>
+                </div>
+            </form>
         </div>
-    }
-    else
+    </div>
+
+    @if (Model.Units.Any())
     {
         <div class="card border-0 shadow-sm">
             <div class="card-body p-0">
@@ -137,6 +178,106 @@
                     </table>
                 </div>
             </div>
+
+            @* ===== Pagination ===== *@
+            @if (Model.TotalPages > 1)
+            {
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center py-3">
+                    <small class="text-muted">Showing @startItem–@endItem of @Model.TotalFilteredUnits units</small>
+                    <nav aria-label="Units pagination">
+                        <ul class="pagination pagination-sm mb-0">
+                            @if (Model.CurrentPage > 1)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="@Url.Action("ProjectUnits", new { id = Model.ProjectId, page = Model.CurrentPage - 1, pageSize = Model.PageSize, search = Model.SearchQuery })">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
+                            }
+
+                            @{
+                                var startPage = Math.Max(1, Model.CurrentPage - 2);
+                                var endPage = Math.Min(Model.TotalPages, Model.CurrentPage + 2);
+                                if (startPage > 1)
+                                {
+                                    <li class="page-item">
+                                        <a class="page-link" href="@Url.Action("ProjectUnits", new { id = Model.ProjectId, page = 1, pageSize = Model.PageSize, search = Model.SearchQuery })">1</a>
+                                    </li>
+                                    if (startPage > 2)
+                                    {
+                                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    }
+                                }
+                                for (var pg = startPage; pg <= endPage; pg++)
+                                {
+                                    if (pg == Model.CurrentPage)
+                                    {
+                                        <li class="page-item active"><span class="page-link">@pg</span></li>
+                                    }
+                                    else
+                                    {
+                                        <li class="page-item">
+                                            <a class="page-link" href="@Url.Action("ProjectUnits", new { id = Model.ProjectId, page = pg, pageSize = Model.PageSize, search = Model.SearchQuery })">@pg</a>
+                                        </li>
+                                    }
+                                }
+                                if (endPage < Model.TotalPages)
+                                {
+                                    if (endPage < Model.TotalPages - 1)
+                                    {
+                                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                                    }
+                                    <li class="page-item">
+                                        <a class="page-link" href="@Url.Action("ProjectUnits", new { id = Model.ProjectId, page = Model.TotalPages, pageSize = Model.PageSize, search = Model.SearchQuery })">@Model.TotalPages</a>
+                                    </li>
+                                }
+                            }
+
+                            @if (Model.CurrentPage < Model.TotalPages)
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="@Url.Action("ProjectUnits", new { id = Model.ProjectId, page = Model.CurrentPage + 1, pageSize = Model.PageSize, search = Model.SearchQuery })">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+                            }
+                        </ul>
+                    </nav>
+                </div>
+            }
+            else
+            {
+                <div class="card-footer bg-white py-3">
+                    <small class="text-muted">Showing @startItem–@endItem of @Model.TotalFilteredUnits units</small>
+                </div>
+            }
+        </div>
+    }
+    else if (!string.IsNullOrWhiteSpace(Model.SearchQuery))
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-search display-4 d-block mb-3 text-muted"></i>
+                <h5>No Units Match Your Search</h5>
+                <p class="text-muted">Try a different unit number or purchaser name.</p>
+                <a href="@Url.Action("ProjectUnits", new { id = Model.ProjectId })" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-x-circle me-1"></i>Clear Search
+                </a>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>No units found for this project.
         </div>
     }
 
@@ -150,7 +291,7 @@
     </div>
 </div>
 
-<!-- Suggest Discount Modals (one per eligible unit) -->
+<!-- Suggest Discount Modals (one per eligible unit on current page) -->
 @foreach (var unit in Model.Units.Where(u =>
     u.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.CloseWithDiscount ||
     u.Recommendation == PreConHub.Models.Entities.ClosingRecommendation.CombinationSuggestion ||
@@ -171,6 +312,9 @@
                     <input type="hidden" name="ProjectId" value="@Model.ProjectId" />
                     <input type="hidden" name="UnitNumber" value="@unit.UnitNumber" />
                     <input type="hidden" name="ProjectName" value="@Model.ProjectName" />
+                    <input type="hidden" name="page" value="@Model.CurrentPage" />
+                    <input type="hidden" name="pageSize" value="@Model.PageSize" />
+                    <input type="hidden" name="search" value="@Model.SearchQuery" />
                     <div class="modal-body">
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Suggestion Type</label>
@@ -225,4 +369,26 @@
             </div>
         </div>
     </div>
+}
+
+@section Scripts {
+<script>
+    (function () {
+        var searchInput = document.getElementById('searchInput');
+        var filterForm = document.getElementById('filterForm');
+        var debounceTimer = null;
+
+        if (searchInput && filterForm) {
+            searchInput.addEventListener('input', function () {
+                clearTimeout(debounceTimer);
+                var val = searchInput.value.trim();
+                if (val.length >= 2 || val.length === 0) {
+                    debounceTimer = setTimeout(function () {
+                        filterForm.submit();
+                    }, 400);
+                }
+            });
+        }
+    })();
+</script>
 }

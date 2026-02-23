@@ -62,11 +62,15 @@ namespace PreConHub.Controllers
 
         // GET: /MarketingAgency/ProjectUnits/5
         // Design/pricing view only — no SOA, mortgage, or financial data (spec Section H)
-        public async Task<IActionResult> ProjectUnits(int id)
+        public async Task<IActionResult> ProjectUnits(int id,
+            int page = 1, int pageSize = 25, string? search = null)
         {
             var project = await _context.Projects
                 .Include(p => p.Units)
                     .ThenInclude(u => u.ShortfallAnalysis)
+                .Include(p => p.Units)
+                    .ThenInclude(u => u.Purchasers)
+                        .ThenInclude(up => up.Purchaser)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
@@ -74,6 +78,10 @@ namespace PreConHub.Controllers
 
             if (!project.AllowMarketingAccess)
                 return Forbid();
+
+            // Validate inputs
+            if (!new[] { 25, 50, 100, 250, 500 }.Contains(pageSize)) pageSize = 25;
+            if (page < 1) page = 1;
 
             // Load any discount suggestions this MA user has previously submitted
             var maUserId = _userManager.GetUserId(User);
@@ -83,33 +91,68 @@ namespace PreConHub.Controllers
                          && a.UserId == maUserId)
                 .ToListAsync();
 
+            // Project all units to view models
+            var allUnits = project.Units
+                .OrderBy(u => u.UnitNumber)
+                .Select(u =>
+                {
+                    var suggestion = maSuggestions.FirstOrDefault(s => s.EntityId == u.Id);
+                    return new MarketingAgencyUnitItemViewModel
+                    {
+                        UnitId = u.Id,
+                        UnitNumber = u.UnitNumber,
+                        PurchaserName = u.Purchasers
+                            .Where(p => p.IsPrimaryPurchaser)
+                            .Select(p => p.Purchaser != null ? $"{p.Purchaser.FirstName} {p.Purchaser.LastName}".Trim() : "")
+                            .FirstOrDefault() ?? "",
+                        UnitType = u.UnitType,
+                        Bedrooms = u.Bedrooms,
+                        Bathrooms = u.Bathrooms,
+                        SquareFootage = u.SquareFootage,
+                        PurchasePrice = u.PurchasePrice,
+                        ClosingDate = u.ClosingDate,
+                        Recommendation = u.Recommendation,
+                        AISuggestedDiscount = u.ShortfallAnalysis?.SuggestedDiscount,
+                        HasMASuggestion = suggestion != null,
+                        MASuggestionJson = suggestion?.NewValues
+                    };
+                })
+                .ToList();
+
+            var totalUnits = allUnits.Count;
+
+            // Search filter (unit number starts-with OR purchaser name contains)
+            IEnumerable<MarketingAgencyUnitItemViewModel> filtered = allUnits;
+            if (!string.IsNullOrWhiteSpace(search) && search.Trim().Length >= 1)
+            {
+                var term = search.Trim();
+                filtered = filtered.Where(u =>
+                    u.UnitNumber.StartsWith(term, StringComparison.OrdinalIgnoreCase) ||
+                    u.PurchaserName.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var filteredList = filtered.ToList();
+            var totalFiltered = filteredList.Count;
+            var totalPages = (int)Math.Ceiling(totalFiltered / (double)pageSize);
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            var pagedUnits = filteredList
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
             var vm = new MarketingAgencyProjectUnitsViewModel
             {
                 ProjectId = project.Id,
                 ProjectName = project.Name,
                 Address = $"{project.Address}, {project.City}",
-                Units = project.Units
-                    .OrderBy(u => u.UnitNumber)
-                    .Select(u =>
-                    {
-                        var suggestion = maSuggestions.FirstOrDefault(s => s.EntityId == u.Id);
-                        return new MarketingAgencyUnitItemViewModel
-                        {
-                            UnitId = u.Id,
-                            UnitNumber = u.UnitNumber,
-                            UnitType = u.UnitType,
-                            Bedrooms = u.Bedrooms,
-                            Bathrooms = u.Bathrooms,
-                            SquareFootage = u.SquareFootage,
-                            PurchasePrice = u.PurchasePrice,
-                            ClosingDate = u.ClosingDate,
-                            Recommendation = u.Recommendation,
-                            AISuggestedDiscount = u.ShortfallAnalysis?.SuggestedDiscount,
-                            HasMASuggestion = suggestion != null,
-                            MASuggestionJson = suggestion?.NewValues
-                        };
-                    })
-                    .ToList()
+                Units = pagedUnits,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                TotalFilteredUnits = totalFiltered,
+                TotalUnits = totalUnits,
+                SearchQuery = search
             };
 
             return View(vm);
@@ -119,12 +162,13 @@ namespace PreConHub.Controllers
         // Logs MA discount suggestion in AuditLog (spec Section A.3, I step 4)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SuggestDiscount(SuggestDiscountViewModel model)
+        public async Task<IActionResult> SuggestDiscount(SuggestDiscountViewModel model,
+            int page = 1, int pageSize = 25, string? search = null)
         {
             if (!ModelState.IsValid)
             {
                 TempData["Error"] = "Please correct the form errors and try again.";
-                return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });
+                return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId, page, pageSize, search });
             }
 
             var unit = await _context.Units
@@ -167,19 +211,20 @@ namespace PreConHub.Controllers
             await _notificationService.NotifyMarketingAgencySuggestionAsync(unit.ProjectId, maName, unit.Project.BuilderId);
 
             TempData["Success"] = $"Discount suggestion of {model.SuggestedAmount:C0} submitted for Unit {model.UnitNumber}.";
-            return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });
+            return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId, page, pageSize, search });
         }
 
         // POST: /MarketingAgency/SuggestCreditAdjustment
         // Logs MA credit adjustment suggestion in AuditLog (spec Section A.3)
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> SuggestCreditAdjustment(SuggestDiscountViewModel model)
+        public async Task<IActionResult> SuggestCreditAdjustment(SuggestDiscountViewModel model,
+            int page = 1, int pageSize = 25, string? search = null)
         {
             if (!ModelState.IsValid)
             {
                 TempData["Error"] = "Please correct the form errors and try again.";
-                return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });
+                return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId, page, pageSize, search });
             }
 
             var unit = await _context.Units
@@ -219,7 +264,7 @@ namespace PreConHub.Controllers
             await _notificationService.NotifyMarketingAgencySuggestionAsync(unit.ProjectId, maName2, unit.Project.BuilderId);
 
             TempData["Success"] = $"Credit adjustment suggestion of {model.SuggestedAmount:C0} submitted for Unit {model.UnitNumber}.";
-            return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId });
+            return RedirectToAction(nameof(ProjectUnits), new { id = model.ProjectId, page, pageSize, search });
         }
 
         // GET: /MarketingAgency/SuggestionHistory/5
