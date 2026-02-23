@@ -48,7 +48,8 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options => {
     options.SignIn.RequireConfirmedEmail = false;
 })
 .AddRoles<IdentityRole>()
-.AddEntityFrameworkStores<ApplicationDbContext>();
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddDefaultTokenProviders();
 
 // ============================================
 // TRACK LAST LOGIN - Cookie Events

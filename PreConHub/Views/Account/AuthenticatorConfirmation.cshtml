@@ -1,0 +1,48 @@
+@model PreConHub.Models.ViewModels.SetupAuthenticatorViewModel
+@{
+    ViewData["Title"] = "Authenticator Enabled";
+}
+
+<div class="container py-4" style="max-width: 600px;">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-3">
+            <li class="breadcrumb-item"><a asp-action="Profile">My Profile</a></li>
+            <li class="breadcrumb-item active">Authenticator Enabled</li>
+        </ol>
+    </nav>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-bottom">
+            <h5 class="mb-0"><i class="bi bi-check-circle text-success me-2"></i>Authenticator App Configured</h5>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-success">
+                <i class="bi bi-shield-check me-2"></i>
+                Two-step verification via authenticator app is now <strong>enabled</strong>.
+            </div>
+
+            @if (Model.RecoveryCodes != null && Model.RecoveryCodes.Length > 0)
+            {
+                <div class="alert alert-warning">
+                    <h6><i class="bi bi-exclamation-triangle me-2"></i>Save Your Recovery Codes</h6>
+                    <p class="mb-2">Store these codes in a safe place. Each code can only be used once. If you lose your authenticator, you can use these to sign in.</p>
+                </div>
+
+                <div class="bg-light rounded p-3 mb-4">
+                    <div class="row">
+                        @foreach (var code in Model.RecoveryCodes)
+                        {
+                            <div class="col-6 col-md-4 mb-1">
+                                <code class="user-select-all">@code</code>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <a asp-action="Profile" class="btn btn-primary">
+                <i class="bi bi-arrow-left me-1"></i>Back to Profile
+            </a>
+        </div>
+    </div>
+</div>

@@ -1815,6 +1815,10 @@ namespace PreConHub.Models.ViewModels
         [Display(Name = "Phone Number")]
         public string? Phone { get; set; }
 
+        [StringLength(20)]
+        [Display(Name = "Cellphone")]
+        public string? CellPhone { get; set; }
+
         [StringLength(100)]
         [Display(Name = "Company Name")]
         public string? CompanyName { get; set; }
@@ -1831,6 +1835,10 @@ namespace PreConHub.Models.ViewModels
         public bool IsEmailReadOnly { get; set; }
         public bool IsCompanyNameReadOnly { get; set; }
 
+        // Two-Factor Authentication status
+        public bool TwoFactorEnabled { get; set; }
+        public bool HasAuthenticator { get; set; }
+
         public string RoleDisplay => UserType switch
         {
             UserType.PlatformAdmin => "Administrator",
@@ -1840,6 +1848,48 @@ namespace PreConHub.Models.ViewModels
             UserType.MarketingAgency => "Marketing Agency",
             _ => "Unknown"
         };
+    }
+
+    public class ChangePasswordViewModel
+    {
+        [Required]
+        [DataType(DataType.Password)]
+        [Display(Name = "Current Password")]
+        public string CurrentPassword { get; set; } = "";
+
+        [Required]
+        [StringLength(100, MinimumLength = 8)]
+        [DataType(DataType.Password)]
+        [Display(Name = "New Password")]
+        public string NewPassword { get; set; } = "";
+
+        [Required]
+        [DataType(DataType.Password)]
+        [Compare("NewPassword", ErrorMessage = "Passwords do not match.")]
+        [Display(Name = "Confirm New Password")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+
+    public class SetupAuthenticatorViewModel
+    {
+        public string SharedKey { get; set; } = "";
+        public string AuthenticatorUri { get; set; } = "";
+
+        [Required]
+        [StringLength(7, MinimumLength = 6)]
+        [Display(Name = "Verification Code")]
+        public string Code { get; set; } = "";
+
+        public string[]? RecoveryCodes { get; set; }
+    }
+
+    public class VerifyTwoFactorCodeViewModel
+    {
+        [Required]
+        [Display(Name = "Verification Code")]
+        public string Code { get; set; } = "";
+
+        public string Provider { get; set; } = "";
     }
 
     #endregion
