@@ -19,6 +19,72 @@
         </div>
     }
 
+    <!-- Search & Pagination Controls -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body py-3">
+            <form method="get" asp-action="Dashboard" id="filterForm">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-5">
+                        <label class="form-label small text-muted mb-1">Search</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" name="search" id="searchBox" class="form-control"
+                                   placeholder="Unit number or project name..."
+                                   value="@Model.SearchQuery" />
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-muted mb-1">Per Page</label>
+                        <select name="pageSize" class="form-select form-select-sm">
+                            @foreach (var sz in new[] { 25, 50, 100, 250, 500 })
+                            {
+                                if (sz == Model.PageSize)
+                                {
+                                    <option value="@sz" selected>@sz per page</option>
+                                }
+                                else
+                                {
+                                    <option value="@sz">@sz per page</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="bi bi-funnel me-1"></i>Apply
+                        </button>
+                        <a asp-action="Dashboard" class="btn btn-sm btn-outline-secondary">Clear</a>
+                        <span class="text-muted small align-self-center ms-auto">
+                            @if (Model.TotalFilteredUnits < Model.TotalUnits)
+                            {
+                                @:Showing @Model.TotalFilteredUnits of @Model.TotalUnits units
+                            }
+                            else
+                            {
+                                @:@Model.TotalUnits unit(s)
+                            }
+                        </span>
+                    </div>
+                </div>
+                <input type="hidden" name="page" value="1" />
+            </form>
+        </div>
+    </div>
+
+    @if (Model.Units.Count == 0 && (!string.IsNullOrWhiteSpace(Model.SearchQuery)))
+    {
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
+                <h5 class="text-muted">No Units Match Your Search</h5>
+                <p class="text-muted">Try a different search term or clear the filter.</p>
+                <a asp-action="Dashboard" class="btn btn-outline-primary">
+                    <i class="bi bi-x-circle me-1"></i>Clear Search
+                </a>
+            </div>
+        </div>
+    }
+
     @foreach (var unit in Model.Units)
     {
         <div class="card border-0 shadow-sm mb-4">
@@ -317,6 +383,66 @@
         </div>
     }
 
+    <!-- Pagination -->
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    Showing @(((Model.CurrentPage - 1) * Model.PageSize) + 1)–@Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalFilteredUnits) of @Model.TotalFilteredUnits units
+                </small>
+                <ul class="pagination pagination-sm mb-0">
+                    @if (Model.CurrentPage > 1)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" href="@Url.Action("Dashboard", new { page = Model.CurrentPage - 1, pageSize = Model.PageSize, search = Model.SearchQuery })">&laquo;</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                    }
+
+                    @for (int p = 1; p <= Model.TotalPages; p++)
+                    {
+                        if (p == 1 || p == Model.TotalPages || (p >= Model.CurrentPage - 2 && p <= Model.CurrentPage + 2))
+                        {
+                            if (p == Model.CurrentPage)
+                            {
+                                <li class="page-item active"><span class="page-link">@p</span></li>
+                            }
+                            else
+                            {
+                                <li class="page-item">
+                                    <a class="page-link" href="@Url.Action("Dashboard", new { page = p, pageSize = Model.PageSize, search = Model.SearchQuery })">@p</a>
+                                </li>
+                            }
+                        }
+                        else if (p == 2 && Model.CurrentPage > 4)
+                        {
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        }
+                        else if (p == Model.TotalPages - 1 && Model.CurrentPage < Model.TotalPages - 3)
+                        {
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        }
+                    }
+
+                    @if (Model.CurrentPage < Model.TotalPages)
+                    {
+                        <li class="page-item">
+                            <a class="page-link" href="@Url.Action("Dashboard", new { page = Model.CurrentPage + 1, pageSize = Model.PageSize, search = Model.SearchQuery })">&raquo;</a>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                    }
+                </ul>
+            </div>
+        </nav>
+    }
+
     <!-- Extension Requests Section -->
     @{
         var allExtensions = Model.Units.SelectMany(u => u.ExtensionRequests).ToList();
@@ -411,4 +537,23 @@
 <style>
     .bg-orange { background-color: #fd7e14 !important; }
 </style>
+}
+
+@section Scripts {
+<script>
+    (function () {
+        var timer = null;
+        var searchBox = document.getElementById('searchBox');
+        if (!searchBox) return;
+        searchBox.addEventListener('input', function () {
+            clearTimeout(timer);
+            var val = this.value.trim();
+            if (val.length >= 2 || val.length === 0) {
+                timer = setTimeout(function () {
+                    document.getElementById('filterForm').submit();
+                }, 400);
+            }
+        });
+    })();
+</script>
 }

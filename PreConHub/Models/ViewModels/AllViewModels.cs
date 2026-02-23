@@ -655,8 +655,16 @@ namespace PreConHub.Models.ViewModels
         public List<PurchaserUnitViewModel> Units { get; set; } = new();
         public bool HasDocumentsUploaded { get; set; }
         public int DocumentsUploadedCount { get; set; }
-        public int RequiredDocumentsCount { get; set; } = 3; 
+        public int RequiredDocumentsCount { get; set; } = 3;
         public List<DocumentViewModel> UploadedDocuments { get; set; } = new List<DocumentViewModel>();
+
+        // Pagination & Search
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 25;
+        public int TotalPages { get; set; }
+        public int TotalFilteredUnits { get; set; }
+        public int TotalUnits { get; set; }
+        public string? SearchQuery { get; set; }
     }
 
     public class PurchaserUnitViewModel

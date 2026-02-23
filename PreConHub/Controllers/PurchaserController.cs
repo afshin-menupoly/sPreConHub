@@ -147,10 +147,10 @@ namespace PreConHub.Controllers
 
         // GET: /Purchaser/Dashboard
         [Authorize(Roles = "Purchaser")]
-        public async Task<IActionResult> Dashboard()
+        public async Task<IActionResult> Dashboard(int page = 1, int pageSize = 25, string? search = null)
         {
             var userId = _userManager.GetUserId(User);
-            
+
             var unitPurchasers = await _context.UnitPurchasers
                 .Include(up => up.Unit)
                     .ThenInclude(u => u.Project)
@@ -174,17 +174,14 @@ namespace PreConHub.Controllers
                 return View("NoUnits");
             }
 
-            var viewModel = new PurchaserDashboardViewModel
-            {
-                PurchaserName = User.Identity?.Name ?? "Purchaser",
-                Units = unitPurchasers.Select(up => {
-                    // Get documents uploaded by this purchaser for this unit
-                    var purchaserDocuments = up.Unit.Documents
-                        .Where(d => d.UploadedById == userId && d.Source == DocumentSource.Purchaser)
-                        .ToList();
+            // Project all units to view models first
+            var allUnits = unitPurchasers.Select(up => {
+                var purchaserDocuments = up.Unit.Documents
+                    .Where(d => d.UploadedById == userId && d.Source == DocumentSource.Purchaser)
+                    .ToList();
 
-                    return new PurchaserUnitViewModel
-                    {
+                return new PurchaserUnitViewModel
+                {
                     UnitPurchaserId = up.Id,
                     UnitId = up.UnitId,
                     UnitNumber = up.Unit.UnitNumber,
@@ -194,7 +191,6 @@ namespace PreConHub.Controllers
                     ClosingDate = up.Unit.ClosingDate,
                     Status = up.Unit.Status,
 
-                    // Mortgage Info
                     HasMortgageInfo = up.MortgageInfo != null,
                     MortgageApproved = up.MortgageInfo?.HasMortgageApproval ?? false,
                     MortgageAmount = up.MortgageInfo?.ApprovedAmount ?? 0,
@@ -202,7 +198,6 @@ namespace PreConHub.Controllers
                     CreditScore = up.MortgageInfo?.CreditScore,
                     MortgageComments = up.MortgageInfo?.Comments,
 
-                    // Financials
                     HasFinancialsSubmitted = up.Financials != null,
                     AdditionalCashAvailable = up.Financials?.AdditionalCashAvailable ?? 0,
                     RRSPAvailable = up.Financials?.RRSPAvailable ?? 0,
@@ -211,26 +206,21 @@ namespace PreConHub.Controllers
                     OtherFundsAmount = up.Financials?.OtherFundsAmount ?? 0,
                     OtherFundsDescription = up.Financials?.OtherFundsDescription,
 
-                    // Deposits
                     TotalDeposits = up.Unit.Deposits.Sum(d => d.Amount),
                     DepositsPaid = up.Unit.Deposits.Where(d => d.IsPaid).Sum(d => d.Amount),
 
-                    // SOA
                     HasSOA = up.Unit.SOA != null,
                     BalanceDueOnClosing = up.Unit.SOA?.BalanceDueOnClosing ?? 0,
                     CashRequiredToClose = up.Unit.SOA?.CashRequiredToClose ?? 0,
 
-                    // Shortfall
                     ShortfallAmount = up.Unit.ShortfallAnalysis?.ShortfallAmount ?? 0,
                     ShortfallPercentage = up.Unit.ShortfallAnalysis?.ShortfallPercentage ?? 0,
                     Recommendation = up.Unit.Recommendation,
 
-                    // Documents
                     HasDocumentsUploaded = purchaserDocuments.Any(),
                     DocumentsUploadedCount = purchaserDocuments.Count,
-                    RequiredDocumentsCount = 3, // Mortgage approval, ID, Bank statement
+                    RequiredDocumentsCount = 3,
 
-                    // Extension Requests
                     ExtensionRequests = up.Unit.ExtensionRequests
                         .OrderByDescending(er => er.RequestedDate)
                         .Select(er => new ExtensionRequestItem
@@ -248,11 +238,10 @@ namespace PreConHub.Controllers
                             ReviewedAt = er.ReviewedAt
                         }).ToList()
                 };
-                }).ToList()
-            };
+            }).OrderBy(u => u.UnitNumber).ToList();
 
-            // Calculate completion status
-            foreach (var unit in viewModel.Units)
+            // Calculate completion status for all units
+            foreach (var unit in allUnits)
             {
                 unit.CompletionSteps = new List<CompletionStep>
                 {
@@ -264,6 +253,44 @@ namespace PreConHub.Controllers
                 };
                 unit.CompletionPercentage = (int)((unit.CompletionSteps.Count(s => s.IsComplete) / (decimal)unit.CompletionSteps.Count) * 100);
             }
+
+            var totalUnits = allUnits.Count;
+
+            // Validate inputs
+            if (!new[] { 25, 50, 100, 250, 500 }.Contains(pageSize)) pageSize = 25;
+            if (page < 1) page = 1;
+
+            // Search filter (unit number prefix OR project name partial match)
+            IEnumerable<PurchaserUnitViewModel> filtered = allUnits;
+            if (!string.IsNullOrWhiteSpace(search) && search.Trim().Length >= 2)
+            {
+                var term = search.Trim();
+                filtered = filtered.Where(u =>
+                    u.UnitNumber.StartsWith(term, StringComparison.OrdinalIgnoreCase) ||
+                    u.ProjectName.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            var filteredList = filtered.ToList();
+            var totalFiltered = filteredList.Count;
+            var totalPages = (int)Math.Ceiling(totalFiltered / (double)pageSize);
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            var pagedUnits = filteredList
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            var viewModel = new PurchaserDashboardViewModel
+            {
+                PurchaserName = User.Identity?.Name ?? "Purchaser",
+                Units = pagedUnits,
+                CurrentPage = page,
+                PageSize = pageSize,
+                TotalPages = totalPages,
+                TotalFilteredUnits = totalFiltered,
+                TotalUnits = totalUnits,
+                SearchQuery = search
+            };
 
             return View(viewModel);
         }
