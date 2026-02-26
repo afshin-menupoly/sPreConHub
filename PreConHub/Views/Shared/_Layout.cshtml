@@ -146,12 +146,17 @@
                             </li>
                         }
 
-                        @* Lawyer Review Queue *@
+                        @* Lawyer Review Queues *@
                         @if (User.IsInRole("Lawyer"))
                         {
                             <li class="nav-item">
                                 <a class="nav-link text-dark" asp-controller="Lawyer" asp-action="Dashboard">
                                     <i class="bi bi-briefcase me-1"></i>Review Queue
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-controller="BuyerLawyer" asp-action="Dashboard">
+                                    <i class="bi bi-briefcase-fill me-1"></i>Buyer Review
                                 </a>
                             </li>
                         }

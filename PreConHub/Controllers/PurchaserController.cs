@@ -22,6 +22,7 @@ namespace PreConHub.Controllers
         private readonly IPdfService _pdfService;
         private readonly IWebHostEnvironment _webHostEnvironment;
         private readonly INotificationService _notificationService;
+        private readonly IEmailService _emailService;
 
         public PurchaserController(
             ApplicationDbContext context,
@@ -32,6 +33,7 @@ namespace PreConHub.Controllers
             IPdfService pdfService,
             IWebHostEnvironment webHostEnvironment,
             INotificationService notificationService,
+            IEmailService emailService,
             ILogger<PurchaserController> logger)
         {
             _context = context;
@@ -42,6 +44,7 @@ namespace PreConHub.Controllers
             _pdfService = pdfService;
             _webHostEnvironment = webHostEnvironment;
             _notificationService = notificationService;
+            _emailService = emailService;
             _logger = logger;
         }
 
@@ -252,6 +255,26 @@ namespace PreConHub.Controllers
                     new CompletionStep { Name = "Ready for Review", IsComplete = unit.HasMortgageInfo && unit.HasFinancialsSubmitted }
                 };
                 unit.CompletionPercentage = (int)((unit.CompletionSteps.Count(s => s.IsComplete) / (decimal)unit.CompletionSteps.Count) * 100);
+            }
+
+            // After building the allUnits list, add buyer's lawyer info
+            var unitIds = allUnits.Select(u => u.UnitId).ToList();
+            var buyerLawyerAssignments = await _context.LawyerAssignments
+                .Include(la => la.Lawyer)
+                .Where(la => unitIds.Contains(la.UnitId ?? 0) && la.Role == LawyerRole.PurchaserLawyer)
+                .ToListAsync();
+
+            foreach (var vm in allUnits)
+            {
+                var bla = buyerLawyerAssignments.FirstOrDefault(a => a.UnitId == vm.UnitId);
+                if (bla != null)
+                {
+                    vm.HasBuyerLawyer = true;
+                    vm.BuyerLawyerName = $"{bla.Lawyer.FirstName} {bla.Lawyer.LastName}";
+                    vm.BuyerLawyerFirm = bla.Lawyer.LawFirm ?? bla.Lawyer.CompanyName;
+                    vm.BuyerLawyerReviewStatus = bla.ReviewStatus;
+                    vm.BuyerLawyerAssignmentId = bla.Id;
+                }
             }
 
             var totalUnits = allUnits.Count;
@@ -1137,6 +1160,261 @@ namespace PreConHub.Controllers
 
             TempData["Success"] = "Your closing extension request has been submitted to the builder for review.";
             return RedirectToAction(nameof(Dashboard));
+        }
+
+        // GET: /Purchaser/InviteLawyer/5
+        [Authorize(Roles = "Purchaser")]
+        public async Task<IActionResult> InviteLawyer(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            // Verify this purchaser owns this unit
+            var unitPurchaser = await _context.UnitPurchasers
+                .Include(up => up.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(up => up.UnitId == id && up.PurchaserId == userId);
+
+            if (unitPurchaser == null) return NotFound();
+
+            // Check if buyer's lawyer already assigned
+            var existingAssignment = await _context.LawyerAssignments
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.Role == LawyerRole.PurchaserLawyer);
+
+            if (existingAssignment != null)
+            {
+                TempData["Error"] = "A buyer's lawyer is already assigned to this unit.";
+                return RedirectToAction(nameof(Dashboard));
+            }
+
+            // Get existing lawyers in system for dropdown
+            var existingLawyers = await _userManager.GetUsersInRoleAsync("Lawyer");
+
+            var model = new InviteBuyerLawyerViewModel
+            {
+                UnitId = id,
+                UnitNumber = unitPurchaser.Unit.UnitNumber,
+                ProjectName = unitPurchaser.Unit.Project.Name,
+                ExistingLawyers = existingLawyers.Where(l => l.IsActive).Select(l => new ExistingLawyerOption
+                {
+                    Id = l.Id,
+                    Name = $"{l.FirstName} {l.LastName}",
+                    Email = l.Email ?? "",
+                    LawFirm = l.LawFirm ?? l.CompanyName
+                }).ToList()
+            };
+
+            return View(model);
+        }
+
+        // POST: /Purchaser/InviteLawyer
+        [HttpPost]
+        [Authorize(Roles = "Purchaser")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> InviteLawyer(InviteBuyerLawyerViewModel model)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var unitPurchaser = await _context.UnitPurchasers
+                .Include(up => up.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(up => up.UnitId == model.UnitId && up.PurchaserId == userId);
+
+            if (unitPurchaser == null) return NotFound();
+
+            // Check if buyer's lawyer already assigned
+            var existingAssignment = await _context.LawyerAssignments
+                .FirstOrDefaultAsync(la => la.UnitId == model.UnitId && la.Role == LawyerRole.PurchaserLawyer);
+
+            if (existingAssignment != null)
+            {
+                TempData["Error"] = "A buyer's lawyer is already assigned to this unit.";
+                return RedirectToAction(nameof(Dashboard));
+            }
+
+            ApplicationUser? lawyerUser = null;
+            bool isNewUser = false;
+
+            if (!string.IsNullOrEmpty(model.ExistingLawyerId))
+            {
+                // Use existing lawyer
+                lawyerUser = await _userManager.FindByIdAsync(model.ExistingLawyerId);
+                if (lawyerUser == null || !await _userManager.IsInRoleAsync(lawyerUser, "Lawyer"))
+                {
+                    ModelState.AddModelError("", "Selected lawyer not found.");
+                    return View(model);
+                }
+            }
+            else
+            {
+                if (!ModelState.IsValid)
+                {
+                    // Reload existing lawyers for the dropdown
+                    var lawyers = await _userManager.GetUsersInRoleAsync("Lawyer");
+                    model.ExistingLawyers = lawyers.Where(l => l.IsActive).Select(l => new ExistingLawyerOption
+                    {
+                        Id = l.Id,
+                        Name = $"{l.FirstName} {l.LastName}",
+                        Email = l.Email ?? "",
+                        LawFirm = l.LawFirm ?? l.CompanyName
+                    }).ToList();
+                    return View(model);
+                }
+
+                // Check if user with this email already exists
+                lawyerUser = await _userManager.FindByEmailAsync(model.LawyerEmail);
+
+                if (lawyerUser != null)
+                {
+                    // Existing user — make sure they're a lawyer
+                    if (!await _userManager.IsInRoleAsync(lawyerUser, "Lawyer"))
+                    {
+                        ModelState.AddModelError("LawyerEmail", "This email is already registered but not as a lawyer.");
+                        return View(model);
+                    }
+                }
+                else
+                {
+                    // Create new lawyer user
+                    isNewUser = true;
+                    lawyerUser = new ApplicationUser
+                    {
+                        UserName = model.LawyerEmail,
+                        Email = model.LawyerEmail,
+                        FirstName = model.LawyerFirstName,
+                        LastName = model.LawyerLastName,
+                        PhoneNumber = model.LawyerPhone,
+                        LawFirm = model.LawyerLawFirm,
+                        UserType = UserType.Lawyer,
+                        CreatedByUserId = userId,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        EmailConfirmed = false
+                    };
+
+                    var tempPassword = GenerateTemporaryPassword();
+                    var createResult = await _userManager.CreateAsync(lawyerUser, tempPassword);
+
+                    if (!createResult.Succeeded)
+                    {
+                        foreach (var error in createResult.Errors)
+                            ModelState.AddModelError("", error.Description);
+                        return View(model);
+                    }
+
+                    await _userManager.AddToRoleAsync(lawyerUser, "Lawyer");
+                }
+            }
+
+            // Create the LawyerAssignment
+            var assignment = new LawyerAssignment
+            {
+                ProjectId = unitPurchaser.Unit.ProjectId,
+                UnitId = model.UnitId,
+                LawyerId = lawyerUser.Id,
+                Role = LawyerRole.PurchaserLawyer,
+                ReviewStatus = LawyerReviewStatus.Pending,
+                AssignedAt = DateTime.UtcNow
+            };
+
+            _context.LawyerAssignments.Add(assignment);
+            await _context.SaveChangesAsync();
+
+            // Generate invitation link for new users
+            if (isNewUser)
+            {
+                var token = await _userManager.GeneratePasswordResetTokenAsync(lawyerUser);
+                var invitationLink = Url.Action("AcceptInvitation", "BuyerLawyer",
+                    new { email = lawyerUser.Email, code = token }, Request.Scheme);
+
+                await _emailService.SendBuyerLawyerInvitationAsync(
+                    lawyerUser.Email!,
+                    $"{lawyerUser.FirstName} {lawyerUser.LastName}",
+                    unitPurchaser.Unit.UnitNumber,
+                    unitPurchaser.Unit.Project.Name,
+                    invitationLink!);
+
+                TempData["Success"] = $"Invitation sent to {lawyerUser.FirstName} {lawyerUser.LastName} ({lawyerUser.Email}).";
+                TempData["InvitationLink"] = invitationLink;
+            }
+            else
+            {
+                TempData["Success"] = $"{lawyerUser.FirstName} {lawyerUser.LastName} has been assigned as your buyer's lawyer.";
+
+                // Notify existing lawyer of new assignment
+                await _notificationService.CreateAsync(
+                    lawyerUser.Id,
+                    "New Buyer's Lawyer Assignment",
+                    $"You have been assigned as the buyer's lawyer for Unit {unitPurchaser.Unit.UnitNumber} in {unitPurchaser.Unit.Project.Name}.",
+                    NotificationType.Lawyer,
+                    NotificationPriority.High,
+                    "/BuyerLawyer/Dashboard",
+                    "View Dashboard",
+                    unitPurchaser.Unit.ProjectId,
+                    model.UnitId);
+            }
+
+            _logger.LogInformation("Purchaser {UserId} invited buyer's lawyer {LawyerId} for unit {UnitId}",
+                userId, lawyerUser.Id, model.UnitId);
+
+            return RedirectToAction(nameof(Dashboard));
+        }
+
+        private string GenerateTemporaryPassword()
+        {
+            const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+            var random = new Random();
+            var password = new string(Enumerable.Repeat(chars, 12)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
+            return password + "Aa1!";
+        }
+
+        // GET: /Purchaser/ViewMyLawyer/5
+        [Authorize(Roles = "Purchaser")]
+        public async Task<IActionResult> ViewMyLawyer(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var unitPurchaser = await _context.UnitPurchasers
+                .Include(up => up.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(up => up.UnitId == id && up.PurchaserId == userId);
+
+            if (unitPurchaser == null) return NotFound();
+
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Lawyer)
+                .Include(la => la.LawyerNotes)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.Role == LawyerRole.PurchaserLawyer);
+
+            if (assignment == null)
+            {
+                TempData["Error"] = "No buyer's lawyer assigned to this unit.";
+                return RedirectToAction(nameof(Dashboard));
+            }
+
+            var model = new PurchaserLawyerInfoViewModel
+            {
+                UnitId = id,
+                UnitNumber = unitPurchaser.Unit.UnitNumber,
+                ProjectName = unitPurchaser.Unit.Project.Name,
+                LawyerName = $"{assignment.Lawyer.FirstName} {assignment.Lawyer.LastName}",
+                LawyerEmail = assignment.Lawyer.Email,
+                LawyerPhone = assignment.Lawyer.PhoneNumber ?? assignment.Lawyer.CellPhone,
+                LawyerFirm = assignment.Lawyer.LawFirm ?? assignment.Lawyer.CompanyName,
+                ReviewStatus = assignment.ReviewStatus,
+                AssignedAt = assignment.AssignedAt,
+                ReviewedAt = assignment.ReviewedAt,
+                Notes = assignment.LawyerNotes
+                    .Where(n => n.Visibility == NoteVisibility.ForPurchaser)
+                    .OrderByDescending(n => n.CreatedAt)
+                    .Select(n => new LawyerNoteViewModel
+                    {
+                        Note = n.Note,
+                        NoteType = n.NoteType,
+                        Visibility = (int)n.Visibility,
+                        CreatedAt = n.CreatedAt,
+                        IsReadByBuilder = false
+                    }).ToList()
+            };
+
+            return View(model);
         }
 
 

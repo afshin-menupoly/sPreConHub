@@ -305,6 +305,8 @@ namespace PreConHub.Models.Entities
         public virtual ShortfallAnalysis? ShortfallAnalysis { get; set; }
         public bool LawyerConfirmed { get; set; }
         public DateTime? LawyerConfirmedAt { get; set; }
+        public bool BuyerLawyerConfirmed { get; set; }
+        public DateTime? BuyerLawyerConfirmedAt { get; set; }
         public virtual ICollection<LawyerAssignment> LawyerAssignments { get; set; } = new List<LawyerAssignment>();
         public DateTime? APSDate { get; set; }
         public DateTime? InterimOccupancyStartDate { get; set; }
@@ -793,6 +795,13 @@ namespace PreConHub.Models.Entities
         [StringLength(1000)]
         public string? LawyerNotes { get; set; }
 
+        // Buyer's lawyer confirmation
+        public bool IsConfirmedByBuyerLawyer { get; set; } = false;
+        public DateTime? BuyerLawyerConfirmedAt { get; set; }
+        public string? ConfirmedByBuyerLawyerId { get; set; }
+        [StringLength(1000)]
+        public string? BuyerLawyerNotes { get; set; }
+
         /// <summary>Balance due on closing entered by the lawyer from their uploaded SOA document. Null = not yet uploaded.</summary>
         [Column(TypeName = "decimal(18,2)")] public decimal? LawyerUploadedBalanceDue { get; set; }
 
@@ -1182,6 +1191,16 @@ namespace PreConHub.Models.Entities
         EmploymentLetter = 8,
         NOA = 9,  // Notice of Assessment
         SOA = 10,
+        TitleSearchReport = 11,
+        TitleInsuranceBinder = 12,
+        MortgageInstructions = 13,
+        DirectionReTitle = 14,
+        DirectionReFunds = 15,
+        StatutoryDeclaration = 16,
+        RequisitionLetter = 17,
+        TrustLedger = 18,
+        FireInsuranceBinder = 19,
+        ClosingReport = 20,
         Other = 99
     }
 
@@ -1357,7 +1376,12 @@ namespace PreConHub.Models.Entities
         /// <summary>
         /// All lawyers on this unit can see (collaboration)
         /// </summary>
-        Collaborative = 2
+        Collaborative = 2,
+
+        /// <summary>
+        /// Purchaser can see (buyer's lawyer notes for their client)
+        /// </summary>
+        ForPurchaser = 3
     }
 
     public enum LawyerReviewStatus

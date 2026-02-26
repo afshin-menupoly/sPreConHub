@@ -1,0 +1,143 @@
+@model PreConHub.Models.ViewModels.InviteBuyerLawyerViewModel
+@{
+    ViewData["Title"] = "Invite Your Lawyer";
+}
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-action="Dashboard">My Dashboard</a></li>
+            <li class="breadcrumb-item active">Invite Lawyer</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Unit Info -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                            <i class="bi bi-building text-primary fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0">Unit @Model.UnitNumber</h5>
+                            <p class="text-muted mb-0">@Model.ProjectName</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invitation Form -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-person-plus me-2 text-primary"></i>Invite Your Lawyer</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="InviteLawyer" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="UnitId" />
+                        <input type="hidden" asp-for="UnitNumber" />
+                        <input type="hidden" asp-for="ProjectName" />
+
+                        <div asp-validation-summary="All" class="alert alert-danger" role="alert" style="display:none;"></div>
+
+                        @if (Model.ExistingLawyers.Any())
+                        {
+                            <!-- Selection Mode -->
+                            <div class="mb-4">
+                                <label class="form-label fw-bold">How would you like to add a lawyer?</label>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="inviteMode" id="modeNew" value="new" checked onchange="toggleInviteMode()">
+                                    <label class="form-check-label" for="modeNew">Invite a new lawyer</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="inviteMode" id="modeExisting" value="existing" onchange="toggleInviteMode()">
+                                    <label class="form-check-label" for="modeExisting">Select from existing lawyers in the system</label>
+                                </div>
+                            </div>
+
+                            <!-- Existing Lawyer Selection -->
+                            <div id="existingLawyerSection" style="display:none;" class="mb-4">
+                                <label class="form-label fw-bold">Select Lawyer</label>
+                                <select asp-for="ExistingLawyerId" class="form-select">
+                                    <option value="">-- Select a lawyer --</option>
+                                    @foreach (var lawyer in Model.ExistingLawyers)
+                                    {
+                                        <option value="@lawyer.Id">@lawyer.Name — @(lawyer.LawFirm ?? "No firm") (@lawyer.Email)</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+
+                        <!-- New Lawyer Form -->
+                        <div id="newLawyerSection">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label asp-for="LawyerFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
+                                    <input asp-for="LawyerFirstName" class="form-control" />
+                                    <span asp-validation-for="LawyerFirstName" class="text-danger small"></span>
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="LawyerLastName" class="form-label">Last Name <span class="text-danger">*</span></label>
+                                    <input asp-for="LawyerLastName" class="form-control" />
+                                    <span asp-validation-for="LawyerLastName" class="text-danger small"></span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label asp-for="LawyerEmail" class="form-label">Email Address <span class="text-danger">*</span></label>
+                                <input asp-for="LawyerEmail" class="form-control" type="email" />
+                                <span asp-validation-for="LawyerEmail" class="text-danger small"></span>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label asp-for="LawyerPhone" class="form-label">Phone</label>
+                                    <input asp-for="LawyerPhone" class="form-control" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label asp-for="LawyerLawFirm" class="form-label">Law Firm</label>
+                                    <input asp-for="LawyerLawFirm" class="form-control" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4" />
+
+                        <div class="d-flex justify-content-between">
+                            <a asp-action="Dashboard" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send me-2"></i>Send Invitation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function toggleInviteMode() {
+        var modeExisting = document.getElementById('modeExisting');
+        var existingSection = document.getElementById('existingLawyerSection');
+        var newSection = document.getElementById('newLawyerSection');
+
+        if (modeExisting && modeExisting.checked) {
+            if (existingSection) existingSection.style.display = 'block';
+            if (newSection) newSection.style.display = 'none';
+        } else {
+            if (existingSection) existingSection.style.display = 'none';
+            if (newSection) newSection.style.display = 'block';
+        }
+    }
+
+    // Show validation errors
+    var summary = document.querySelector('[data-valmsg-summary]') || document.querySelector('.validation-summary-errors');
+    if (summary && summary.querySelectorAll('li').length > 0) {
+        summary.style.display = 'block';
+    }
+</script>
+}

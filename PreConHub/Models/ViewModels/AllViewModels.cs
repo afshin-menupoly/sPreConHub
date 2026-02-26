@@ -727,6 +727,13 @@ namespace PreConHub.Models.ViewModels
         public List<ExtensionRequestItem> ExtensionRequests { get; set; } = new();
         public bool HasPendingExtension => ExtensionRequests.Any(e => e.Status == ClosingExtensionStatus.Pending);
 
+        // Buyer's lawyer
+        public bool HasBuyerLawyer { get; set; }
+        public string? BuyerLawyerName { get; set; }
+        public string? BuyerLawyerFirm { get; set; }
+        public LawyerReviewStatus? BuyerLawyerReviewStatus { get; set; }
+        public int? BuyerLawyerAssignmentId { get; set; }
+
         // Completion tracking
         public List<CompletionStep> CompletionSteps { get; set; } = new();
         public int CompletionPercentage { get; set; }
@@ -2226,6 +2233,207 @@ namespace PreConHub.Models.ViewModels
             if (span.TotalDays < 30) return $"{(int)(span.TotalDays / 7)} weeks ago";
             return dateTime.ToString("MMM dd, yyyy");
         }
+    }
+
+    #endregion
+
+    #region Buyer's Lawyer
+
+    public class BuyerLawyerDashboardViewModel
+    {
+        public string LawyerName { get; set; } = "";
+        public string? LawyerFirm { get; set; }
+
+        // Summary Stats
+        public int TotalAssigned { get; set; }
+        public int PendingReview { get; set; }
+        public int UnderReview { get; set; }
+        public int Approved { get; set; }
+        public int NeedsAttention { get; set; }
+
+        public List<BuyerLawyerUnitViewModel> Units { get; set; } = new();
+
+        // Pagination
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 25;
+        public int TotalPages { get; set; }
+        public int TotalFilteredUnits { get; set; }
+
+        // Filters
+        public int? ProjectFilter { get; set; }
+        public string? SearchQuery { get; set; }
+
+        public List<LawyerProjectFilterItem> Projects { get; set; } = new();
+    }
+
+    public class BuyerLawyerUnitViewModel
+    {
+        public int UnitId { get; set; }
+        public int AssignmentId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+
+        public string PurchaserName { get; set; } = "";
+        public string? PurchaserEmail { get; set; }
+        public string? PurchaserPhone { get; set; }
+
+        public DateTime? ClosingDate { get; set; }
+        public decimal PurchasePrice { get; set; }
+
+        public decimal MortgageAmount { get; set; }
+        public decimal CashRequiredToClose { get; set; }
+
+        public LawyerReviewStatus ReviewStatus { get; set; }
+        public DateTime AssignedAt { get; set; }
+
+        public bool HasSOA { get; set; }
+        public bool HasMortgageInfo { get; set; }
+        public bool HasFinancials { get; set; }
+        public int DocumentCount { get; set; }
+
+        public int DaysUntilClosing => ClosingDate.HasValue
+            ? (int)(ClosingDate.Value - DateTime.Now).TotalDays
+            : 0;
+
+        public string ReviewStatusClass => ReviewStatus switch
+        {
+            LawyerReviewStatus.Pending => "warning",
+            LawyerReviewStatus.UnderReview => "info",
+            LawyerReviewStatus.Approved => "success",
+            LawyerReviewStatus.NeedsRevision => "danger",
+            _ => "secondary"
+        };
+    }
+
+    public class BuyerLawyerReviewViewModel
+    {
+        public int AssignmentId { get; set; }
+        public int UnitId { get; set; }
+
+        // Project Info
+        public string ProjectName { get; set; } = "";
+        public string ProjectAddress { get; set; } = "";
+
+        // Unit Info
+        public string UnitNumber { get; set; } = "";
+        public UnitType UnitType { get; set; }
+        public int Bedrooms { get; set; }
+        public int Bathrooms { get; set; }
+        public int SquareFootage { get; set; }
+        public decimal PurchasePrice { get; set; }
+        public DateTime? OccupancyDate { get; set; }
+        public DateTime? ClosingDate { get; set; }
+
+        // Purchaser Info
+        public string PurchaserName { get; set; } = "";
+        public string? PurchaserEmail { get; set; }
+        public string? PurchaserPhone { get; set; }
+        public List<string> CoPurchasers { get; set; } = new();
+
+        // Mortgage Info (detailed)
+        public bool HasMortgageApproval { get; set; }
+        public string? MortgageProvider { get; set; }
+        public decimal MortgageAmount { get; set; }
+        public MortgageApprovalType MortgageApprovalType { get; set; }
+        public DateTime? MortgageExpiryDate { get; set; }
+        public string? MortgageConditions { get; set; }
+        public int? CreditScore { get; set; }
+        public decimal? InterestRate { get; set; }
+        public int? AmortizationYears { get; set; }
+
+        // Financial Info (detailed)
+        public decimal AdditionalCashAvailable { get; set; }
+        public decimal TotalFundsAvailable { get; set; }
+        public decimal RRSPAvailable { get; set; }
+        public decimal GiftFromFamily { get; set; }
+        public decimal ProceedsFromSale { get; set; }
+        public decimal OtherFundsAmount { get; set; }
+        public string? OtherFundsDescription { get; set; }
+        public bool HasExistingPropertyToSell { get; set; }
+        public decimal ExistingPropertyValue { get; set; }
+        public decimal ExistingMortgageBalance { get; set; }
+
+        // Deposits
+        public List<DepositViewModel> Deposits { get; set; } = new();
+        public decimal TotalDepositsPaid { get; set; }
+
+        // SOA
+        public bool HasSOA { get; set; }
+        public StatementOfAdjustments? SOA { get; set; }
+
+        // Shortfall
+        public decimal ShortfallAmount { get; set; }
+        public decimal ShortfallPercentage { get; set; }
+        public ClosingRecommendation? Recommendation { get; set; }
+
+        // Review Status
+        public LawyerReviewStatus ReviewStatus { get; set; }
+        public DateTime AssignedAt { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+
+        // Notes
+        public List<LawyerNoteViewModel> Notes { get; set; } = new();
+
+        // Documents
+        public List<DocumentViewModel> PurchaserDocuments { get; set; } = new();
+        public List<DocumentViewModel> BuyerLawyerDocuments { get; set; } = new();
+
+        // Builder's lawyer info (for coordination)
+        public string? BuilderLawyerName { get; set; }
+        public string? BuilderLawyerFirm { get; set; }
+        public LawyerReviewStatus? BuilderLawyerReviewStatus { get; set; }
+    }
+
+    public class InviteBuyerLawyerViewModel
+    {
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
+        public string LawyerEmail { get; set; } = "";
+
+        [Required(ErrorMessage = "First name is required")]
+        [StringLength(100)]
+        public string LawyerFirstName { get; set; } = "";
+
+        [Required(ErrorMessage = "Last name is required")]
+        [StringLength(100)]
+        public string LawyerLastName { get; set; } = "";
+
+        [Phone]
+        public string? LawyerPhone { get; set; }
+
+        [StringLength(200)]
+        public string? LawyerLawFirm { get; set; }
+
+        public string? ExistingLawyerId { get; set; }
+
+        public List<ExistingLawyerOption> ExistingLawyers { get; set; } = new();
+    }
+
+    public class ExistingLawyerOption
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string? LawFirm { get; set; }
+    }
+
+    public class PurchaserLawyerInfoViewModel
+    {
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+        public string LawyerName { get; set; } = "";
+        public string? LawyerEmail { get; set; }
+        public string? LawyerPhone { get; set; }
+        public string? LawyerFirm { get; set; }
+        public LawyerReviewStatus ReviewStatus { get; set; }
+        public DateTime AssignedAt { get; set; }
+        public DateTime? ReviewedAt { get; set; }
+        public List<LawyerNoteViewModel> Notes { get; set; } = new();
     }
 
     #endregion

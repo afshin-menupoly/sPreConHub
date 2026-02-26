@@ -34,6 +34,7 @@ namespace PreConHub.Services
         Task<bool> SendPurchaserStatusUpdateAsync(string toEmail, string purchaserName, string unitNumber, string projectName, string statusMessage);
         Task<bool> SendPasswordResetEmailAsync(string toEmail, string userName, string resetLink);
         Task<bool> SendAdminCreatedUserEmailAsync(string toEmail, string userName, string roleName, string loginLink);
+        Task<bool> SendBuyerLawyerInvitationAsync(string toEmail, string lawyerName, string unitNumber, string projectName, string invitationLink);
     }
 
     // ===== EMAIL SERVICE IMPLEMENTATION =====
@@ -230,6 +231,26 @@ namespace PreConHub.Services
             return await SendEmailAsync(toEmail, subject, htmlBody);
         }
 
+        // ===== BUYER'S LAWYER INVITATION EMAIL =====
+        public async Task<bool> SendBuyerLawyerInvitationAsync(
+            string toEmail,
+            string lawyerName,
+            string unitNumber,
+            string projectName,
+            string invitationLink)
+        {
+            var subject = $"PreConHub — You've been invited as Buyer's Lawyer for Unit {unitNumber}";
+
+            var htmlBody = GetEmailTemplate("BuyerLawyerInvitation")
+                .Replace("{{LawyerName}}", lawyerName)
+                .Replace("{{UnitNumber}}", unitNumber)
+                .Replace("{{ProjectName}}", projectName)
+                .Replace("{{InvitationLink}}", invitationLink)
+                .Replace("{{Year}}", DateTime.Now.Year.ToString());
+
+            return await SendEmailAsync(toEmail, subject, htmlBody);
+        }
+
         // ===== GET EMAIL TEMPLATE =====
         private string GetEmailTemplate(string templateName)
         {
@@ -251,6 +272,7 @@ namespace PreConHub.Services
                 "PurchaserStatusUpdate" => GetPurchaserStatusUpdateTemplate(),
                 "PasswordReset" => GetPasswordResetTemplate(),
                 "AdminCreatedUser" => GetAdminCreatedUserTemplate(),
+                "BuyerLawyerInvitation" => GetBuyerLawyerInvitationTemplate(),
                 _ => GetDefaultTemplate()
             };
         }
@@ -573,6 +595,44 @@ namespace PreConHub.Services
             <p style='color: #888; font-size: 14px;'>If the button doesn't work, copy and paste this link:<br><a href='{{LoginLink}}' style='color: #0d6efd; word-break: break-all;'>{{LoginLink}}</a></p>
             <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
             <p style='color: #888; font-size: 12px; text-align: center;'>If you didn't expect this email, please contact your administrator.</p>
+        </div>
+        <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>&copy; {{Year}} PreConHub. All rights reserved.</div>
+    </div>
+</body>
+</html>";
+        }
+
+        private string GetBuyerLawyerInvitationTemplate()
+        {
+            return @"
+<!DOCTYPE html>
+<html>
+<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head>
+<body style='margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+        <div style='background: linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
+            <h1 style='color: white; margin: 0; font-size: 28px;'>PreConHub</h1>
+            <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Buyer's Legal Review Portal</p>
+        </div>
+        <div style='background: white; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
+            <h2 style='color: #333; margin-top: 0;'>Hello, {{LawyerName}}!</h2>
+            <p style='color: #555; line-height: 1.6;'>You have been invited as the <strong>buyer's lawyer</strong> for:</p>
+            <div style='background: #f8f9fa; padding: 15px 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6f42c1;'>
+                <strong style='color: #333;'>Unit {{UnitNumber}} — {{ProjectName}}</strong>
+            </div>
+            <p style='color: #555; line-height: 1.6;'>Through the PreConHub portal, you will be able to:</p>
+            <ul style='color: #555; line-height: 1.8;'>
+                <li>Review your client's financial information and mortgage details</li>
+                <li>Verify the Statement of Adjustments</li>
+                <li>Upload closing documents (title search, mortgage instructions, etc.)</li>
+                <li>Approve buyer details and coordinate with the builder's lawyer</li>
+            </ul>
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='{{InvitationLink}}' style='background: #6f42c1; color: white; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;'>Accept Invitation</a>
+            </div>
+            <p style='color: #888; font-size: 14px;'>If the button doesn't work, copy and paste this link:<br><a href='{{InvitationLink}}' style='color: #6f42c1; word-break: break-all;'>{{InvitationLink}}</a></p>
+            <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
+            <p style='color: #888; font-size: 12px; text-align: center;'>This invitation link will expire in 7 days.</p>
         </div>
         <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>&copy; {{Year}} PreConHub. All rights reserved.</div>
     </div>

@@ -251,7 +251,7 @@ namespace PreConHub.Data
                     .HasForeignKey(e => e.LawyerId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasIndex(e => new { e.UnitId, e.LawyerId }).IsUnique();
+                entity.HasIndex(e => new { e.UnitId, e.LawyerId, e.Role }).IsUnique();
             });
 
             // ============================================

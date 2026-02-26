@@ -30,6 +30,9 @@ namespace PreConHub.Services
         Task NotifyExtensionRejectedAsync(int unitId, string purchaserName, string purchaserId);
         Task NotifySOAVersionCreatedAsync(int unitId, string createdByName, string source);
         Task NotifyMarketingAgencySuggestionAsync(int projectId, string agencyUserName, string builderId);
+        Task NotifyBuyerLawyerAssignedAsync(int unitId, string lawyerName, string purchaserId);
+        Task NotifyBuyerLawyerApprovedAsync(int unitId, string lawyerName, string purchaserId);
+        Task NotifyBuyerLawyerRevisionAsync(int unitId, string lawyerName, string purchaserId, string notes);
 
         // Get notifications
         Task<List<Notification>> GetUserNotificationsAsync(string userId, int count = 20, bool unreadOnly = false);
@@ -434,6 +437,65 @@ namespace PreConHub.Services
                 actionText: "View Project",
                 projectId: projectId,
                 groupKey: $"ma-suggestion-{projectId}"
+            );
+        }
+
+        public async Task NotifyBuyerLawyerAssignedAsync(int unitId, string lawyerName, string purchaserId)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            await CreateAsync(
+                userId: purchaserId,
+                title: "Buyer's Lawyer Assigned",
+                message: $"{lawyerName} has been assigned as your buyer's lawyer for Unit {unit.UnitNumber} in {unit.Project.Name}.",
+                type: NotificationType.Lawyer,
+                priority: NotificationPriority.Normal,
+                actionUrl: $"/Purchaser/ViewMyLawyer/{unitId}",
+                actionText: "View",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"buyer-lawyer-assigned-{unitId}"
+            );
+        }
+
+        public async Task NotifyBuyerLawyerApprovedAsync(int unitId, string lawyerName, string purchaserId)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            await CreateAsync(
+                userId: purchaserId,
+                title: "Buyer's Lawyer Approved",
+                message: $"{lawyerName} has approved your details and SOA for Unit {unit.UnitNumber} in {unit.Project.Name}.",
+                type: NotificationType.Success,
+                priority: NotificationPriority.Normal,
+                actionUrl: "/Purchaser/Dashboard",
+                actionText: "View",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"buyer-lawyer-approval-{unitId}"
+            );
+        }
+
+        public async Task NotifyBuyerLawyerRevisionAsync(int unitId, string lawyerName, string purchaserId, string notes)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            var truncatedNotes = notes.Length > 100 ? notes.Substring(0, 100) + "..." : notes;
+
+            await CreateAsync(
+                userId: purchaserId,
+                title: "Buyer's Lawyer Requested Revision",
+                message: $"{lawyerName} has requested revisions for Unit {unit.UnitNumber}: {truncatedNotes}",
+                type: NotificationType.Warning,
+                priority: NotificationPriority.High,
+                actionUrl: "/Purchaser/Dashboard",
+                actionText: "Review",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"buyer-lawyer-revision-{unitId}"
             );
         }
 

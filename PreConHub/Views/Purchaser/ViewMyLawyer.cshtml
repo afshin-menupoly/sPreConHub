@@ -1,0 +1,127 @@
+@model PreConHub.Models.ViewModels.PurchaserLawyerInfoViewModel
+@using PreConHub.Models.Entities
+@{
+    ViewData["Title"] = "My Lawyer";
+}
+
+<div class="container py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a asp-action="Dashboard">My Dashboard</a></li>
+            <li class="breadcrumb-item active">My Lawyer</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <!-- Unit Info Header -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
+                            <i class="bi bi-building text-primary fs-4"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0">Unit @Model.UnitNumber</h5>
+                            <p class="text-muted mb-0">@Model.ProjectName</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lawyer Info Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="bi bi-person-badge me-2 text-primary"></i>Your Lawyer</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <h4 class="mb-1">@Model.LawyerName</h4>
+                            @if (!string.IsNullOrEmpty(Model.LawyerFirm))
+                            {
+                                <p class="text-muted mb-2">@Model.LawyerFirm</p>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.LawyerEmail))
+                            {
+                                <p class="mb-1"><i class="bi bi-envelope me-2 text-muted"></i><a href="mailto:@Model.LawyerEmail">@Model.LawyerEmail</a></p>
+                            }
+                            @if (!string.IsNullOrEmpty(Model.LawyerPhone))
+                            {
+                                <p class="mb-1"><i class="bi bi-phone me-2 text-muted"></i>@Model.LawyerPhone</p>
+                            }
+                            <p class="small text-muted mt-2 mb-0">Assigned: @Model.AssignedAt.ToString("MMM dd, yyyy")</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            @{
+                                var statusClass = Model.ReviewStatus switch
+                                {
+                                    LawyerReviewStatus.Pending => "warning",
+                                    LawyerReviewStatus.UnderReview => "info",
+                                    LawyerReviewStatus.Approved => "success",
+                                    LawyerReviewStatus.NeedsRevision => "danger",
+                                    _ => "secondary"
+                                };
+                                var statusText = Model.ReviewStatus switch
+                                {
+                                    LawyerReviewStatus.Pending => "Pending Review",
+                                    LawyerReviewStatus.UnderReview => "Under Review",
+                                    LawyerReviewStatus.Approved => "Approved",
+                                    LawyerReviewStatus.NeedsRevision => "Revision Requested",
+                                    _ => "Unknown"
+                                };
+                            }
+                            <span class="badge bg-@statusClass fs-6 p-2">@statusText</span>
+                            @if (Model.ReviewedAt.HasValue)
+                            {
+                                <div class="small text-muted mt-2">Reviewed: @Model.ReviewedAt.Value.ToString("MMM dd, yyyy")</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes from Lawyer -->
+            @if (Model.Notes.Any())
+            {
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0"><i class="bi bi-chat-left-text me-2 text-primary"></i>Notes from Your Lawyer</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="list-group list-group-flush">
+                            @foreach (var note in Model.Notes)
+                            {
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-start mb-1">
+                                        <span class="text-muted small">
+                                            @{
+                                                var noteIcon = note.NoteType switch
+                                                {
+                                                    LawyerNoteType.Question => "bi-question-circle text-info",
+                                                    LawyerNoteType.Concern => "bi-exclamation-triangle text-warning",
+                                                    LawyerNoteType.RevisionRequest => "bi-arrow-repeat text-danger",
+                                                    LawyerNoteType.Approval => "bi-check-circle text-success",
+                                                    _ => "bi-chat-left-text text-secondary"
+                                                };
+                                            }
+                                            <i class="bi @noteIcon me-1"></i>
+                                        </span>
+                                        <small class="text-muted">@note.CreatedAt.ToString("MMM dd, yyyy h:mm tt")</small>
+                                    </div>
+                                    <p class="mb-0">@note.Note</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="text-center">
+                <a asp-action="Dashboard" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
