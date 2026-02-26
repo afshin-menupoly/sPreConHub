@@ -798,10 +798,10 @@ namespace PreConHub.Controllers
                         .Where(p => p.IsPrimaryPurchaser)
                         .Select(p => $"{p.Purchaser.FirstName} {p.Purchaser.LastName}")
                         .FirstOrDefault(),
-                    HasLawyer = u.LawyerAssignments.Any(la => la.IsActive),
+                    HasLawyer = u.LawyerAssignments.Any(la => la.IsActive && la.Role == LawyerRole.BuilderLawyer),
                     LawyerConfirmed = u.LawyerConfirmed,
                     AssignedLawyers = u.LawyerAssignments
-                        .Where(la => la.IsActive)
+                        .Where(la => la.IsActive && la.Role == LawyerRole.BuilderLawyer)
                         .Select(la => $"{la.Lawyer.FirstName} {la.Lawyer.LastName}")
                         .ToList()
                 }).ToList()
@@ -917,11 +917,11 @@ namespace PreConHub.Controllers
 
                 foreach (var unit in units)
                 {
-                    // Check if this lawyer is already assigned
+                    // Check if this lawyer is already assigned as builder's lawyer
                     if (skipIfSameLawyer)
                     {
                         var alreadyAssigned = unit.LawyerAssignments
-                            .Any(la => la.LawyerId == lawyerUser!.Id && la.IsActive);
+                            .Any(la => la.LawyerId == lawyerUser!.Id && la.IsActive && la.Role == LawyerRole.BuilderLawyer);
 
                         if (alreadyAssigned)
                         {
@@ -930,7 +930,7 @@ namespace PreConHub.Controllers
                         }
                     }
 
-                    // Create new assignment
+                    // Create new builder's lawyer assignment
                     var assignment = new LawyerAssignment
                     {
                         UnitId = unit.Id,

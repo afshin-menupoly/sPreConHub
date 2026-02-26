@@ -1236,8 +1236,9 @@ namespace PreConHub.Controllers
             if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
                 return Forbid();
 
-            // Check if already has an active lawyer assignment
-            var existingAssignment = unit.LawyerAssignments.FirstOrDefault(la => la.IsActive);
+            // Check if already has an active builder's lawyer assignment
+            var existingAssignment = unit.LawyerAssignments
+                .FirstOrDefault(la => la.IsActive && la.Role == LawyerRole.BuilderLawyer);
 
             ViewBag.UnitId = id;
             ViewBag.UnitNumber = unit.UnitNumber;
@@ -1283,8 +1284,8 @@ namespace PreConHub.Controllers
 
             try
             {
-                // Deactivate any existing assignments
-                foreach (var existing in unit.LawyerAssignments.Where(la => la.IsActive))
+                // Deactivate existing builder's lawyer assignments only (not buyer's lawyers)
+                foreach (var existing in unit.LawyerAssignments.Where(la => la.IsActive && la.Role == LawyerRole.BuilderLawyer))
                 {
                     existing.IsActive = false;
                     existing.UpdatedAt = DateTime.UtcNow;
@@ -1394,7 +1395,8 @@ namespace PreConHub.Controllers
             if (unit == null)
                 return NotFound();
 
-            var assignment = unit.LawyerAssignments.FirstOrDefault(la => la.IsActive);
+            var assignment = unit.LawyerAssignments
+                .FirstOrDefault(la => la.IsActive && la.Role == LawyerRole.BuilderLawyer);
 
             ViewBag.UnitId = id;
             ViewBag.UnitNumber = unit.UnitNumber;
