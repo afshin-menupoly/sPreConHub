@@ -1073,6 +1073,13 @@ namespace PreConHub.Models.ViewModels
         public string? PurchaserLastName { get; set; }
         public string? PurchaserPhone { get; set; }
 
+        // ===== BUYER'S LAWYER (Optional) =====
+        public string? BuyerLawyerEmail { get; set; }
+        public string? BuyerLawyerFirstName { get; set; }
+        public string? BuyerLawyerLastName { get; set; }
+        public string? BuyerLawyerPhone { get; set; }
+        public string? BuyerLawyerFirm { get; set; }
+
         // ===== DEPOSITS (Optional - up to 5 deposits) =====
         // Deposit 1
         public decimal Deposit1Amount { get; set; }
@@ -1235,6 +1242,7 @@ namespace PreConHub.Models.ViewModels
         public string ProjectName { get; set; } = "";
         public int TotalUnits { get; set; }
         public List<LawyerListItemViewModel> Lawyers { get; set; } = new();
+        public List<LawyerListItemViewModel> BuyerLawyers { get; set; } = new();
     }
 
     public class LawyerListItemViewModel
@@ -1296,6 +1304,9 @@ namespace PreConHub.Models.ViewModels
         public bool HasLawyer { get; set; }
         public bool LawyerConfirmed { get; set; }
         public List<string> AssignedLawyers { get; set; } = new();
+        public bool HasBuyerLawyer { get; set; }
+        public bool BuyerLawyerConfirmed { get; set; }
+        public List<string> AssignedBuyerLawyers { get; set; } = new();
     }
     #endregion
 

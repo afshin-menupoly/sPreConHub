@@ -624,8 +624,44 @@ namespace PreConHub.Controllers
                 .Where(la => la.Unit.ProjectId == id && la.IsActive)
                 .ToListAsync();
 
-            // Group by lawyer
-            var lawyerGroups = assignments
+            // Split by role: builder's lawyers vs buyer's lawyers
+            var builderAssignments = assignments.Where(a => a.Role == LawyerRole.BuilderLawyer).ToList();
+            var buyerAssignments = assignments.Where(a => a.Role == LawyerRole.PurchaserLawyer).ToList();
+
+            // Group builder's lawyers
+            var builderLawyerGroups = builderAssignments
+                .GroupBy(a => a.LawyerId)
+                .Select(g => new LawyerListItemViewModel
+                {
+                    LawyerId = g.Key,
+                    FirstName = g.First().Lawyer.FirstName,
+                    LastName = g.First().Lawyer.LastName,
+                    Email = g.First().Lawyer.Email,
+                    Phone = g.First().Lawyer.PhoneNumber,
+                    LawFirm = g.First().Lawyer.CompanyName,
+                    HasActivated = g.First().Lawyer.EmailConfirmed,
+                    LastLoginAt = g.First().Lawyer.LastLoginAt,
+                    AssignedUnitsCount = g.Count(),
+                    AssignedUnitNumbers = g.Select(a => a.Unit.UnitNumber).OrderBy(n => n).ToList(),
+                    PendingCount = g.Count(a => a.ReviewStatus == LawyerReviewStatus.Pending),
+                    UnderReviewCount = g.Count(a => a.ReviewStatus == LawyerReviewStatus.UnderReview),
+                    ApprovedCount = g.Count(a => a.ReviewStatus == LawyerReviewStatus.Approved),
+                    NeedsRevisionCount = g.Count(a => a.ReviewStatus == LawyerReviewStatus.NeedsRevision),
+                    Assignments = g.Select(a => new LawyerAssignmentDetailViewModel
+                    {
+                        AssignmentId = a.Id,
+                        UnitId = a.UnitId ?? 0,
+                        UnitNumber = a.Unit.UnitNumber,
+                        ReviewStatus = a.ReviewStatus,
+                        AssignedAt = a.AssignedAt,
+                        ReviewedAt = a.ReviewedAt
+                    }).OrderBy(a => a.UnitNumber).ToList()
+                })
+                .OrderBy(l => l.LastName)
+                .ToList();
+
+            // Group buyer's lawyers
+            var buyerLawyerGroups = buyerAssignments
                 .GroupBy(a => a.LawyerId)
                 .Select(g => new LawyerListItemViewModel
                 {
@@ -661,7 +697,8 @@ namespace PreConHub.Controllers
                 ProjectId = project.Id,
                 ProjectName = project.Name,
                 TotalUnits = project.Units.Count,
-                Lawyers = lawyerGroups
+                Lawyers = builderLawyerGroups,
+                BuyerLawyers = buyerLawyerGroups
             };
 
             return View(viewModel);
@@ -958,6 +995,251 @@ namespace PreConHub.Controllers
                 _logger.LogError(ex, "Error bulk assigning lawyer to project {ProjectId}", projectId);
                 TempData["Error"] = $"An error occurred: {ex.Message}";
                 return RedirectToAction(nameof(BulkAssignLawyer), new { id = projectId });
+            }
+        }
+
+        // GET: /Projects/BulkAssignBuyerLawyer/5
+        public async Task<IActionResult> BulkAssignBuyerLawyer(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var project = await _context.Projects
+                .Include(p => p.Units)
+                    .ThenInclude(u => u.Purchasers)
+                        .ThenInclude(up => up.Purchaser)
+                .Include(p => p.Units)
+                    .ThenInclude(u => u.LawyerAssignments)
+                        .ThenInclude(la => la.Lawyer)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (project == null)
+                return NotFound();
+
+            if (!User.IsInRole("Admin") && project.BuilderId != userId)
+                return Forbid();
+
+            // Get all lawyers in the system
+            var allLawyers = await _userManager.GetUsersInRoleAsync("Lawyer");
+
+            var viewModel = new BulkAssignLawyerViewModel
+            {
+                ProjectId = project.Id,
+                ProjectName = project.Name,
+                ExistingLawyers = allLawyers.OrderBy(l => l.LastName).ToList(),
+                Units = project.Units.OrderBy(u => u.UnitNumber).Select(u => new BulkAssignUnitViewModel
+                {
+                    UnitId = u.Id,
+                    UnitNumber = u.UnitNumber,
+                    UnitType = u.UnitType.ToString(),
+                    PurchasePrice = u.PurchasePrice,
+                    PurchaserName = u.Purchasers
+                        .Where(p => p.IsPrimaryPurchaser)
+                        .Select(p => $"{p.Purchaser.FirstName} {p.Purchaser.LastName}")
+                        .FirstOrDefault(),
+                    HasLawyer = u.LawyerAssignments.Any(la => la.IsActive && la.Role == LawyerRole.BuilderLawyer),
+                    LawyerConfirmed = u.LawyerConfirmed,
+                    AssignedLawyers = u.LawyerAssignments
+                        .Where(la => la.IsActive && la.Role == LawyerRole.BuilderLawyer)
+                        .Select(la => $"{la.Lawyer.FirstName} {la.Lawyer.LastName}")
+                        .ToList(),
+                    HasBuyerLawyer = u.LawyerAssignments.Any(la => la.IsActive && la.Role == LawyerRole.PurchaserLawyer),
+                    BuyerLawyerConfirmed = u.BuyerLawyerConfirmed,
+                    AssignedBuyerLawyers = u.LawyerAssignments
+                        .Where(la => la.IsActive && la.Role == LawyerRole.PurchaserLawyer)
+                        .Select(la => $"{la.Lawyer.FirstName} {la.Lawyer.LastName}")
+                        .ToList()
+                }).ToList()
+            };
+
+            return View(viewModel);
+        }
+
+        // POST: /Projects/BulkAssignBuyerLawyer
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> BulkAssignBuyerLawyer(
+            int projectId,
+            string lawyerType,
+            string? existingLawyerId,
+            string? lawyerFirstName,
+            string? lawyerLastName,
+            string? lawyerEmail,
+            string? lawyerPhone,
+            string? lawFirm,
+            List<int> selectedUnitIds,
+            bool skipIfSameLawyer = true,
+            bool sendInvitation = true)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null)
+                return NotFound();
+
+            if (!User.IsInRole("Admin") && project.BuilderId != userId)
+                return Forbid();
+
+            if (selectedUnitIds == null || !selectedUnitIds.Any())
+            {
+                TempData["Error"] = "Please select at least one unit.";
+                return RedirectToAction(nameof(BulkAssignBuyerLawyer), new { id = projectId });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                ApplicationUser? lawyerUser = null;
+                bool isNewLawyer = false;
+
+                // Get or create lawyer
+                if (lawyerType == "existing" && !string.IsNullOrEmpty(existingLawyerId))
+                {
+                    lawyerUser = await _userManager.FindByIdAsync(existingLawyerId);
+                    if (lawyerUser == null)
+                    {
+                        TempData["Error"] = "Selected lawyer not found.";
+                        return RedirectToAction(nameof(BulkAssignBuyerLawyer), new { id = projectId });
+                    }
+                }
+                else if (lawyerType == "new")
+                {
+                    if (string.IsNullOrWhiteSpace(lawyerEmail) || string.IsNullOrWhiteSpace(lawyerFirstName) || string.IsNullOrWhiteSpace(lawyerLastName))
+                    {
+                        TempData["Error"] = "Please provide lawyer's name and email.";
+                        return RedirectToAction(nameof(BulkAssignBuyerLawyer), new { id = projectId });
+                    }
+
+                    // Check if email already exists
+                    lawyerUser = await _userManager.FindByEmailAsync(lawyerEmail);
+
+                    if (lawyerUser == null)
+                    {
+                        lawyerUser = new ApplicationUser
+                        {
+                            UserName = lawyerEmail,
+                            Email = lawyerEmail,
+                            FirstName = lawyerFirstName,
+                            LastName = lawyerLastName,
+                            PhoneNumber = lawyerPhone,
+                            CompanyName = lawFirm,
+                            UserType = UserType.Lawyer,
+                            CreatedByUserId = userId,
+                            IsActive = true,
+                            CreatedAt = DateTime.UtcNow,
+                            EmailConfirmed = false
+                        };
+
+                        var tempPassword = GenerateTemporaryPassword();
+                        var createResult = await _userManager.CreateAsync(lawyerUser, tempPassword);
+
+                        if (!createResult.Succeeded)
+                        {
+                            var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+                            TempData["Error"] = $"Failed to create lawyer account: {errors}";
+                            return RedirectToAction(nameof(BulkAssignBuyerLawyer), new { id = projectId });
+                        }
+
+                        await _userManager.AddToRoleAsync(lawyerUser, "Lawyer");
+                        isNewLawyer = true;
+                    }
+                }
+                else
+                {
+                    TempData["Error"] = "Please select or create a lawyer.";
+                    return RedirectToAction(nameof(BulkAssignBuyerLawyer), new { id = projectId });
+                }
+
+                // Get selected units
+                var units = await _context.Units
+                    .Include(u => u.LawyerAssignments)
+                    .Where(u => selectedUnitIds.Contains(u.Id) && u.ProjectId == projectId)
+                    .ToListAsync();
+
+                int assignedCount = 0;
+                int skippedCount = 0;
+
+                foreach (var unit in units)
+                {
+                    // Check if this lawyer is already assigned as buyer's lawyer
+                    if (skipIfSameLawyer)
+                    {
+                        var alreadyAssigned = unit.LawyerAssignments
+                            .Any(la => la.LawyerId == lawyerUser!.Id && la.IsActive && la.Role == LawyerRole.PurchaserLawyer);
+
+                        if (alreadyAssigned)
+                        {
+                            skippedCount++;
+                            continue;
+                        }
+                    }
+
+                    // Create new buyer's lawyer assignment
+                    var assignment = new LawyerAssignment
+                    {
+                        UnitId = unit.Id,
+                        ProjectId = projectId,
+                        LawyerId = lawyerUser!.Id,
+                        Role = LawyerRole.PurchaserLawyer,
+                        AssignedAt = DateTime.UtcNow,
+                        IsActive = true,
+                        ReviewStatus = LawyerReviewStatus.Pending
+                    };
+
+                    _context.LawyerAssignments.Add(assignment);
+                    assignedCount++;
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Generate invitation link for new lawyer
+                string? invitationLink = null;
+                if (isNewLawyer && sendInvitation && !lawyerUser!.EmailConfirmed)
+                {
+                    var token = await _userManager.GeneratePasswordResetTokenAsync(lawyerUser);
+                    var encodedToken = System.Net.WebUtility.UrlEncode(token);
+
+                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                    invitationLink = $"{baseUrl}/BuyerLawyer/AcceptInvitation?email={System.Net.WebUtility.UrlEncode(lawyerUser.Email!)}&code={encodedToken}";
+
+                    TempData["InvitationLink"] = invitationLink;
+
+                    // Send buyer's lawyer invitation email
+                    var emailSent = await _emailService.SendBuyerLawyerInvitationAsync(
+                        lawyerUser.Email!,
+                        $"{lawyerUser.FirstName} {lawyerUser.LastName}",
+                        $"{assignedCount} unit(s)",
+                        project.Name,
+                        invitationLink
+                    );
+
+                    if (emailSent)
+                    {
+                        _logger.LogInformation("Buyer's lawyer invitation email sent to {Email} for {Count} units", lawyerUser.Email, assignedCount);
+                    }
+
+                    TempData["EmailSent"] = emailSent;
+                }
+
+                _logger.LogInformation("Buyer's lawyer {LawyerId} assigned to {Count} units in project {ProjectId}",
+                    lawyerUser!.Id, assignedCount, projectId);
+
+                var message = $"Assigned {assignedCount} unit(s) to buyer's lawyer {lawyerUser.FirstName} {lawyerUser.LastName}";
+                if (skippedCount > 0)
+                {
+                    message += $" ({skippedCount} skipped - already assigned)";
+                }
+                TempData["Success"] = message;
+
+                return RedirectToAction(nameof(Lawyers), new { id = projectId });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error bulk assigning buyer's lawyer to project {ProjectId}", projectId);
+                TempData["Error"] = $"An error occurred: {ex.Message}";
+                return RedirectToAction(nameof(BulkAssignBuyerLawyer), new { id = projectId });
             }
         }
 

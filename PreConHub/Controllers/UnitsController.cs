@@ -983,13 +983,16 @@ namespace PreConHub.Controllers
                         }
                     }
 
-                    // Create lawyer assignment
+                    // Create lawyer assignment (buyer's lawyer)
                     var lawyerAssignment = new LawyerAssignment
                     {
                         ProjectId = unit.ProjectId,
+                        UnitId = unitId,
                         LawyerId = lawyerUser.Id,
+                        Role = LawyerRole.PurchaserLawyer,
                         AssignedAt = DateTime.UtcNow,
-                        IsActive = true
+                        IsActive = true,
+                        ReviewStatus = LawyerReviewStatus.Pending
                     };
                     _context.LawyerAssignments.Add(lawyerAssignment);
                 }
@@ -1402,6 +1405,196 @@ namespace PreConHub.Controllers
             ViewBag.LawyerName = assignment != null
                 ? $"{assignment.Lawyer.FirstName} {assignment.Lawyer.LastName}"
                 : "Lawyer";
+
+            return View();
+        }
+
+        // GET: /Units/AssignBuyerLawyer/5
+        public async Task<IActionResult> AssignBuyerLawyer(int id)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .Include(u => u.LawyerAssignments)
+                    .ThenInclude(la => la.Lawyer)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            // Check if already has an active buyer's lawyer assignment
+            var existingAssignment = unit.LawyerAssignments
+                .FirstOrDefault(la => la.IsActive && la.Role == LawyerRole.PurchaserLawyer);
+
+            ViewBag.UnitId = id;
+            ViewBag.UnitNumber = unit.UnitNumber;
+            ViewBag.ProjectId = unit.ProjectId;
+            ViewBag.ProjectName = unit.Project.Name;
+            ViewBag.ExistingLawyer = existingAssignment?.Lawyer;
+            ViewBag.ExistingAssignmentId = existingAssignment?.Id;
+
+            return View();
+        }
+
+        // POST: /Units/AssignBuyerLawyer
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AssignBuyerLawyer(
+            int unitId,
+            string lawyerFirstName,
+            string lawyerLastName,
+            string lawyerEmail,
+            string? lawyerPhone,
+            string? lawFirm,
+            bool sendInvitation = true)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .Include(u => u.LawyerAssignments)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+
+            if (unit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(lawyerEmail))
+            {
+                TempData["Error"] = "Lawyer email is required.";
+                return RedirectToAction(nameof(AssignBuyerLawyer), new { id = unitId });
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try
+            {
+                // Deactivate existing buyer's lawyer assignments only
+                foreach (var existing in unit.LawyerAssignments.Where(la => la.IsActive && la.Role == LawyerRole.PurchaserLawyer))
+                {
+                    existing.IsActive = false;
+                    existing.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // Find or create lawyer user
+                var lawyerUser = await _userManager.FindByEmailAsync(lawyerEmail);
+
+                if (lawyerUser == null)
+                {
+                    lawyerUser = new ApplicationUser
+                    {
+                        UserName = lawyerEmail,
+                        Email = lawyerEmail,
+                        FirstName = lawyerFirstName,
+                        LastName = lawyerLastName,
+                        PhoneNumber = lawyerPhone,
+                        CompanyName = lawFirm,
+                        UserType = UserType.Lawyer,
+                        CreatedByUserId = userId,
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow,
+                        EmailConfirmed = false
+                    };
+
+                    var tempPassword = GenerateTemporaryPassword();
+                    var createResult = await _userManager.CreateAsync(lawyerUser, tempPassword);
+
+                    if (!createResult.Succeeded)
+                    {
+                        var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+                        TempData["Error"] = $"Failed to create lawyer account: {errors}";
+                        return RedirectToAction(nameof(AssignBuyerLawyer), new { id = unitId });
+                    }
+
+                    await _userManager.AddToRoleAsync(lawyerUser, "Lawyer");
+                }
+
+                // Create new buyer's lawyer assignment
+                var assignment = new LawyerAssignment
+                {
+                    UnitId = unitId,
+                    ProjectId = unit.ProjectId,
+                    LawyerId = lawyerUser.Id,
+                    Role = LawyerRole.PurchaserLawyer,
+                    AssignedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    ReviewStatus = LawyerReviewStatus.Pending
+                };
+
+                _context.LawyerAssignments.Add(assignment);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                // Generate invitation link if needed
+                if (sendInvitation && !lawyerUser.EmailConfirmed)
+                {
+                    var token = await _userManager.GeneratePasswordResetTokenAsync(lawyerUser);
+                    var encodedToken = System.Net.WebUtility.UrlEncode(token);
+
+                    var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                    var invitationLink = $"{baseUrl}/BuyerLawyer/AcceptInvitation?email={System.Net.WebUtility.UrlEncode(lawyerEmail)}&code={encodedToken}";
+
+                    // Send buyer's lawyer invitation email
+                    var emailSent = await _emailService.SendBuyerLawyerInvitationAsync(
+                        lawyerEmail,
+                        $"{lawyerFirstName} {lawyerLastName}",
+                        unit.UnitNumber,
+                        unit.Project.Name,
+                        invitationLink
+                    );
+
+                    if (emailSent)
+                    {
+                        _logger.LogInformation("Buyer's lawyer invitation email sent to {Email}", lawyerEmail);
+                    }
+
+                    TempData["EmailSent"] = emailSent;
+                    TempData["InvitationLink"] = invitationLink;
+                    TempData["LawyerEmail"] = lawyerEmail;
+                }
+
+                _logger.LogInformation("Buyer's lawyer {Email} assigned to Unit {UnitId}", lawyerEmail, unitId);
+                TempData["Success"] = $"Buyer's lawyer {lawyerFirstName} {lawyerLastName} assigned successfully!";
+
+                return RedirectToAction(nameof(BuyerLawyerAssigned), new { id = unitId });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                _logger.LogError(ex, "Error assigning buyer's lawyer to unit {UnitId}", unitId);
+                TempData["Error"] = "An error occurred while assigning the buyer's lawyer.";
+                return RedirectToAction(nameof(AssignBuyerLawyer), new { id = unitId });
+            }
+        }
+
+        // GET: /Units/BuyerLawyerAssigned/5 - Confirmation page
+        public async Task<IActionResult> BuyerLawyerAssigned(int id)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .Include(u => u.LawyerAssignments)
+                    .ThenInclude(la => la.Lawyer)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null)
+                return NotFound();
+
+            var assignment = unit.LawyerAssignments
+                .FirstOrDefault(la => la.IsActive && la.Role == LawyerRole.PurchaserLawyer);
+
+            ViewBag.UnitId = id;
+            ViewBag.UnitNumber = unit.UnitNumber;
+            ViewBag.ProjectId = unit.ProjectId;
+            ViewBag.ProjectName = unit.Project.Name;
+            ViewBag.InvitationLink = TempData["InvitationLink"];
+            ViewBag.LawyerEmail = TempData["LawyerEmail"];
+            ViewBag.LawyerName = assignment != null
+                ? $"{assignment.Lawyer.FirstName} {assignment.Lawyer.LastName}"
+                : "Buyer's Lawyer";
 
             return View();
         }
@@ -1994,6 +2187,66 @@ namespace PreConHub.Controllers
                             }
                         }
 
+                        // Add buyer's lawyer if email provided
+                        if (!string.IsNullOrWhiteSpace(row.BuyerLawyerEmail))
+                        {
+                            var blEmail = row.BuyerLawyerEmail.Trim().ToLower();
+                            var buyerLawyerUser = await _userManager.FindByEmailAsync(blEmail);
+
+                            if (buyerLawyerUser == null)
+                            {
+                                buyerLawyerUser = new ApplicationUser
+                                {
+                                    UserName = blEmail,
+                                    Email = blEmail,
+                                    FirstName = row.BuyerLawyerFirstName?.Trim() ?? "Lawyer",
+                                    LastName = row.BuyerLawyerLastName?.Trim() ?? "",
+                                    PhoneNumber = row.BuyerLawyerPhone?.Trim(),
+                                    CompanyName = row.BuyerLawyerFirm?.Trim(),
+                                    UserType = UserType.Lawyer,
+                                    CreatedByUserId = userId,
+                                    EmailConfirmed = false,
+                                    IsActive = true,
+                                    CreatedAt = DateTime.UtcNow
+                                };
+
+                                var tempPw = GenerateTemporaryPassword();
+                                var blCreateResult = await _userManager.CreateAsync(buyerLawyerUser, tempPw);
+                                if (blCreateResult.Succeeded)
+                                {
+                                    await _userManager.AddToRoleAsync(buyerLawyerUser, "Lawyer");
+                                }
+                                else
+                                {
+                                    errors.Add($"Row {rowNumber}: Could not create buyer's lawyer account - {string.Join(", ", blCreateResult.Errors.Select(e => e.Description))}");
+                                    buyerLawyerUser = null;
+                                }
+                            }
+
+                            if (buyerLawyerUser != null)
+                            {
+                                // Check if already assigned as buyer's lawyer
+                                var existingBl = await _context.LawyerAssignments
+                                    .AnyAsync(la => la.UnitId == unit.Id && la.LawyerId == buyerLawyerUser.Id
+                                        && la.Role == LawyerRole.PurchaserLawyer && la.IsActive);
+
+                                if (!existingBl)
+                                {
+                                    var blAssignment = new LawyerAssignment
+                                    {
+                                        ProjectId = unit.ProjectId,
+                                        UnitId = unit.Id,
+                                        LawyerId = buyerLawyerUser.Id,
+                                        Role = LawyerRole.PurchaserLawyer,
+                                        AssignedAt = DateTime.UtcNow,
+                                        IsActive = true,
+                                        ReviewStatus = LawyerReviewStatus.Pending
+                                    };
+                                    _context.LawyerAssignments.Add(blAssignment);
+                                }
+                            }
+                        }
+
                         // Add deposits if provided
                         await AddDepositsFromImport(unit.Id, row);
 
@@ -2058,6 +2311,8 @@ namespace PreConHub.Controllers
         "ActualAnnualLandTax", "ActualMonthlyMaintenanceFee",
         // Purchaser Info
         "PurchaserEmail", "PurchaserFirstName", "PurchaserLastName", "PurchaserPhone",
+        // Buyer's Lawyer
+        "BuyerLawyerEmail", "BuyerLawyerFirstName", "BuyerLawyerLastName", "BuyerLawyerPhone", "BuyerLawyerFirm",
         // Deposit 1
         "Deposit1Amount", "Deposit1DueDate", "Deposit1PaidDate", "Deposit1Holder", "Deposit1InterestEligible", "Deposit1InterestRate",
         // Deposit 2
@@ -2071,13 +2326,13 @@ namespace PreConHub.Controllers
     }));
 
             // Sample data row 1 - First-time buyer, primary residence, with actual tax/maintenance
-            csv.AppendLine("101,1,OneBedroom,1,1,650,599000,true,50000,true,5000,2026-06-01,2026-09-01,2024-01-10,true,true,5200,450,john.smith@email.com,John,Smith,416-555-1234,29950,2024-01-15,2024-01-15,Trust,true,0.02,29950,2024-04-15,2024-04-15,Trust,true,0.02,29950,2024-07-15,,Trust,true,0.02,0,,,,,,0,,,,,");
+            csv.AppendLine("101,1,OneBedroom,1,1,650,599000,true,50000,true,5000,2026-06-01,2026-09-01,2024-01-10,true,true,5200,450,john.smith@email.com,John,Smith,416-555-1234,buyer.lawyer@lawfirm.ca,Lisa,Chen,416-555-7777,Chen Law LLP,29950,2024-01-15,2024-01-15,Trust,true,0.02,29950,2024-04-15,2024-04-15,Trust,true,0.02,29950,2024-07-15,,Trust,true,0.02,0,,,,,,0,,,,,");
 
             // Sample data row 2 - Not first-time buyer, with actual tax only
-            csv.AppendLine("102,1,TwoBedroom,2,2,850,699000,true,50000,false,0,2026-06-01,2026-09-01,2024-02-01,false,true,6100,,jane.doe@email.com,Jane,Doe,416-555-5678,34950,2024-02-15,2024-02-15,Builder,false,,34950,2024-05-15,,,Builder,false,,0,,,,,,0,,,,,,0,,,,,");
+            csv.AppendLine("102,1,TwoBedroom,2,2,850,699000,true,50000,false,0,2026-06-01,2026-09-01,2024-02-01,false,true,6100,,jane.doe@email.com,Jane,Doe,416-555-5678,,,,,, 34950,2024-02-15,2024-02-15,Builder,false,,34950,2024-05-15,,,Builder,false,,0,,,,,,0,,,,,,0,,,,,");
 
             // Sample data row 3 - No purchaser yet, no tax/maintenance data
-            csv.AppendLine("201,2,Studio,0,1,450,399000,false,0,false,0,2026-06-01,2026-09-01,,true,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,");
+            csv.AppendLine("201,2,Studio,0,1,450,399000,false,0,false,0,2026-06-01,2026-09-01,,true,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,");
 
             var bytes = Encoding.UTF8.GetBytes(csv.ToString());
             return File(bytes, "text/csv", "PreConHub_BulkImport_Template_v2.csv");

@@ -35,6 +35,9 @@
             <a href="@Url.Action("AssignLawyer", "Units", new { id = Model.UnitId })" class="btn btn-outline-info">
                 <i class="bi bi-briefcase me-2"></i>Assign Lawyer
             </a>
+            <a href="@Url.Action("AssignBuyerLawyer", "Units", new { id = Model.UnitId })" class="btn btn-outline-info">
+                <i class="bi bi-person-badge me-2"></i>Assign Buyer's Lawyer
+            </a>
             @if (Model.SOA != null && !Model.SOA.IsConfirmedByBuilder)
             {
                 <form asp-action="ConfirmSOA" asp-route-id="@Model.UnitId" method="post" class="d-inline">

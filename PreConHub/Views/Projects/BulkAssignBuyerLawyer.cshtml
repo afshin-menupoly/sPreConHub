@@ -1,0 +1,379 @@
+@model PreConHub.Models.ViewModels.BulkAssignLawyerViewModel
+@{
+    ViewData["Title"] = "Bulk Assign Buyer's Lawyer";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <!-- Header -->
+            <div class="mb-4">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
+                        <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })">@Model.ProjectName</a></li>
+                        <li class="breadcrumb-item"><a href="@Url.Action("Lawyers", "Projects", new { id = Model.ProjectId })">Lawyers</a></li>
+                        <li class="breadcrumb-item active">Bulk Assign Buyer's Lawyer</li>
+                    </ol>
+                </nav>
+                <h1 class="h3 mb-1">
+                    <i class="bi bi-person-badge text-primary me-2"></i>Bulk Assign Buyer's Lawyer
+                </h1>
+                <p class="text-muted">@Model.ProjectName — Select units and assign a buyer's lawyer</p>
+            </div>
+
+            @if (TempData["Error"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-circle me-2"></i>@TempData["Error"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <form asp-action="BulkAssignBuyerLawyer" method="post" id="bulkAssignForm">
+                <input type="hidden" name="projectId" value="@Model.ProjectId" />
+
+                <!-- Step 1: Select or Create Lawyer -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <span class="badge bg-primary rounded-circle me-2">1</span>
+                            Select or Create Buyer's Lawyer
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Lawyer Type Selection -->
+                        <div class="mb-4">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="lawyerType" id="existingLawyer" value="existing"
+                                       @(Model.ExistingLawyers.Any() ? "checked" : "") onchange="toggleLawyerForm()">
+                                <label class="form-check-label" for="existingLawyer">
+                                    <i class="bi bi-person-check me-1"></i>Existing Lawyer
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="lawyerType" id="newLawyer" value="new"
+                                       @(!Model.ExistingLawyers.Any() ? "checked" : "") onchange="toggleLawyerForm()">
+                                <label class="form-check-label" for="newLawyer">
+                                    <i class="bi bi-person-plus me-1"></i>New Lawyer
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Existing Lawyer Dropdown -->
+                        <div id="existingLawyerSection" class="@(!Model.ExistingLawyers.Any() ? "d-none" : "")">
+                            @if (Model.ExistingLawyers.Any())
+                            {
+                                <div class="mb-3">
+                                    <label class="form-label">Select Lawyer <span class="text-danger">*</span></label>
+                                    <select name="existingLawyerId" class="form-select form-select-lg" id="existingLawyerSelect">
+                                        <option value="">-- Select a lawyer --</option>
+                                        @foreach (var lawyer in Model.ExistingLawyers)
+                                        {
+                                            <option value="@lawyer.Id">
+                                                @lawyer.FirstName @lawyer.LastName
+                                                @if (!string.IsNullOrEmpty(lawyer.CompanyName))
+                                                {
+                                                    @:(@lawyer.CompanyName)
+                                                }
+                                            </option>
+                                        }
+                                    </select>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    No existing lawyers found. Please create a new lawyer.
+                                </div>
+                            }
+                        </div>
+
+                        <!-- New Lawyer Form -->
+                        <div id="newLawyerSection" class="@(Model.ExistingLawyers.Any() ? "d-none" : "")">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">First Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="lawyerFirstName" class="form-control" placeholder="Sarah" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Last Name <span class="text-danger">*</span></label>
+                                    <input type="text" name="lawyerLastName" class="form-control" placeholder="Johnson" />
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email Address <span class="text-danger">*</span></label>
+                                <input type="email" name="lawyerEmail" class="form-control" placeholder="sarah.johnson@@lawfirm.ca" />
+                                <div class="form-text">Invitation will be sent to this email address</div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone Number</label>
+                                    <input type="tel" name="lawyerPhone" class="form-control" placeholder="(416) 555-9999" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Law Firm</label>
+                                    <input type="text" name="lawFirm" class="form-control" placeholder="Johnson & Associates LLP" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Select Units -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <span class="badge bg-primary rounded-circle me-2">2</span>
+                            Select Units to Assign
+                        </h5>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllUnits()">
+                                <i class="bi bi-check-all me-1"></i>Select All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" onclick="selectUnassigned()">
+                                <i class="bi bi-exclamation-triangle me-1"></i>Without Buyer's Lawyer
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary ms-1" onclick="deselectAllUnits()">
+                                <i class="bi bi-x-lg me-1"></i>Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th style="width: 50px;">
+                                        <input type="checkbox" class="form-check-input" id="selectAllCheckbox" onchange="toggleAllUnits(this)">
+                                    </th>
+                                    <th>Unit</th>
+                                    <th>Purchaser</th>
+                                    <th>Purchase Price</th>
+                                    <th>Current Buyer's Lawyer</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var unit in Model.Units)
+                                {
+                                    <tr class="@(unit.HasBuyerLawyer ? "" : "table-warning")" data-has-lawyer="@unit.HasBuyerLawyer.ToString().ToLower()">
+                                        <td>
+                                            <input type="checkbox" class="form-check-input unit-checkbox"
+                                                   name="selectedUnitIds" value="@unit.UnitId">
+                                        </td>
+                                        <td>
+                                            <strong>Unit @unit.UnitNumber</strong>
+                                            <br /><small class="text-muted">@unit.UnitType</small>
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(unit.PurchaserName))
+                                            {
+                                                @unit.PurchaserName
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Not assigned</span>
+                                            }
+                                        </td>
+                                        <td>$@unit.PurchasePrice.ToString("N0")</td>
+                                        <td>
+                                            @if (unit.AssignedBuyerLawyers != null && unit.AssignedBuyerLawyers.Any())
+                                            {
+                                                foreach (var lawyer in unit.AssignedBuyerLawyers)
+                                                {
+                                                    <span class="badge bg-info me-1">@lawyer</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>No Buyer's Lawyer
+                                                </span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (unit.BuyerLawyerConfirmed)
+                                            {
+                                                <span class="badge bg-success">Confirmed</span>
+                                            }
+                                            else if (unit.HasBuyerLawyer)
+                                            {
+                                                <span class="badge bg-info">Assigned</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Pending</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span>
+                                <strong id="selectedCount">0</strong> unit(s) selected
+                            </span>
+                            <span class="text-muted">
+                                Total: @Model.Units.Count unit(s) |
+                                <span class="text-warning">@Model.Units.Count(u => !u.HasBuyerLawyer) without buyer's lawyer</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Options -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">
+                            <span class="badge bg-primary rounded-circle me-2">3</span>
+                            Options
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check mb-3">
+                            <input type="checkbox" name="skipIfSameLawyer" value="true" class="form-check-input" id="skipIfSameLawyer" checked>
+                            <label class="form-check-label" for="skipIfSameLawyer">
+                                <strong>Skip if this lawyer is already assigned as buyer's lawyer</strong>
+                            </label>
+                            <div class="form-text">Prevents duplicate buyer's lawyer assignments</div>
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" name="sendInvitation" value="true" class="form-check-input" id="sendInvitation" checked>
+                            <label class="form-check-label" for="sendInvitation">
+                                <strong>Generate Invitation Link</strong> (for new lawyers)
+                            </label>
+                            <div class="form-text">An invitation link will be generated for new lawyers to access the buyer's lawyer portal</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Buttons -->
+                <div class="d-flex justify-content-between">
+                    <a href="@Url.Action("Lawyers", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Cancel
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" disabled>
+                        <i class="bi bi-check-lg me-2"></i>Select Units First
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Styles {
+<style>
+    .sticky-top {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: #f8f9fa;
+    }
+</style>
+}
+
+@section Scripts {
+<script>
+    function toggleLawyerForm() {
+        var isExisting = document.getElementById('existingLawyer').checked;
+        document.getElementById('existingLawyerSection').classList.toggle('d-none', !isExisting);
+        document.getElementById('newLawyerSection').classList.toggle('d-none', isExisting);
+    }
+
+    function toggleAllUnits(checkbox) {
+        var checkboxes = document.querySelectorAll('.unit-checkbox');
+        checkboxes.forEach(function(cb) {
+            cb.checked = checkbox.checked;
+        });
+        updateSelectedCount();
+    }
+
+    function selectAllUnits() {
+        var checkboxes = document.querySelectorAll('.unit-checkbox');
+        checkboxes.forEach(function(cb) {
+            cb.checked = true;
+        });
+        document.getElementById('selectAllCheckbox').checked = true;
+        updateSelectedCount();
+    }
+
+    function selectUnassigned() {
+        var rows = document.querySelectorAll('tr[data-has-lawyer]');
+        document.querySelectorAll('.unit-checkbox').forEach(function(cb) {
+            cb.checked = false;
+        });
+        rows.forEach(function(row) {
+            if (row.dataset.hasLawyer === 'false') {
+                row.querySelector('.unit-checkbox').checked = true;
+            }
+        });
+        updateSelectedCount();
+    }
+
+    function deselectAllUnits() {
+        var checkboxes = document.querySelectorAll('.unit-checkbox');
+        checkboxes.forEach(function(cb) {
+            cb.checked = false;
+        });
+        document.getElementById('selectAllCheckbox').checked = false;
+        updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+        var count = document.querySelectorAll('.unit-checkbox:checked').length;
+        document.getElementById('selectedCount').textContent = count;
+
+        var submitBtn = document.getElementById('submitBtn');
+        if (count === 0) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-check-lg me-2"></i>Select Units First';
+        } else {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="bi bi-check-lg me-2"></i>Assign ' + count + ' Unit(s)';
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        var checkboxes = document.querySelectorAll('.unit-checkbox');
+        checkboxes.forEach(function(cb) {
+            cb.addEventListener('change', updateSelectedCount);
+        });
+        updateSelectedCount();
+    });
+
+    // Form validation
+    document.getElementById('bulkAssignForm').addEventListener('submit', function(e) {
+        var selectedUnits = document.querySelectorAll('.unit-checkbox:checked').length;
+        if (selectedUnits === 0) {
+            e.preventDefault();
+            alert('Please select at least one unit.');
+            return false;
+        }
+
+        var isExisting = document.getElementById('existingLawyer').checked;
+        if (isExisting) {
+            var select = document.getElementById('existingLawyerSelect');
+            if (select && !select.value) {
+                e.preventDefault();
+                alert('Please select a lawyer.');
+                return false;
+            }
+        } else {
+            var firstName = document.querySelector('input[name="lawyerFirstName"]').value;
+            var lastName = document.querySelector('input[name="lawyerLastName"]').value;
+            var email = document.querySelector('input[name="lawyerEmail"]').value;
+
+            if (!firstName || !lastName || !email) {
+                e.preventDefault();
+                alert('Please fill in all required fields for the new lawyer.');
+                return false;
+            }
+        }
+        return true;
+    });
+</script>
+}
