@@ -214,6 +214,17 @@ namespace PreConHub.Models.Entities
         TarionAdjustmentFee = 18,
         MeterInstallationFee = 19,
 
+        // APS Schedule B Part I — Stipulated Closing Fees
+        ChequeAdministrationFee = 20,       // APS 5(a) — $300 + HST
+        PartialDischargeFee = 21,           // APS 6(d)(viii) — $350 + HST
+        PDIFee = 22,                        // APS 6(d)(x) — $250 + HST
+        EngineeringReportFee = 23,          // APS 6(d)(xi) — $350 + HST
+        InternetDeliveryFee = 24,           // APS 6(d)(xii) — $150 + HST
+        CarbonMonoxideDetectorFee = 25,     // APS 6(d)(xiii) — up to $150 + HST
+        WireTransferFee = 26,               // APS 6(j) — $150 + HST per transaction
+        PDFScanFee = 27,                    // APS 6(k) — $150 + HST
+        ClosingDocChangesFee = 28,          // APS 6(l) — $500 + HST
+
         Other = 99
     }
 
@@ -897,6 +908,11 @@ namespace PreConHub.Models.Entities
         /// </summary>
         [Column(TypeName = "decimal(18,2)")]
         public decimal BuilderAbsorbedLevies { get; set; }
+
+        /// <summary>APS Schedule B Part I closing fees aggregate: cheque admin, partial discharge, PDI,
+        /// engineering report, internet delivery, CO detector, wire transfer, PDF scan, closing doc changes.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal ScheduleBClosingFees { get; set; }
 
         // =====================================
         // NEW: Credits & Incentives Detail

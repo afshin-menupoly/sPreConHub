@@ -193,6 +193,19 @@ namespace PreConHub.Services
                 .Sum(f => f.Amount);
             soa.OtherDebits = otherProjectFees;
 
+            // 17b. APS Schedule B Closing Fees (aggregated)
+            soa.ScheduleBClosingFees = unit.Project.Fees
+                .Where(f => f.FeeType == FeeType.ChequeAdministrationFee
+                         || f.FeeType == FeeType.PartialDischargeFee
+                         || f.FeeType == FeeType.PDIFee
+                         || f.FeeType == FeeType.EngineeringReportFee
+                         || f.FeeType == FeeType.InternetDeliveryFee
+                         || f.FeeType == FeeType.CarbonMonoxideDetectorFee
+                         || f.FeeType == FeeType.WireTransferFee
+                         || f.FeeType == FeeType.PDFScanFee
+                         || f.FeeType == FeeType.ClosingDocChangesFee)
+                .Sum(f => f.Amount);
+
             // 18. System Fees (loaded from SystemFeeConfig, with HST applied)
             soa.HCRAFee = GetSystemFeeWithHST(systemFees, "HCRA");
             soa.ElectronicRegFee = GetSystemFeeWithHST(systemFees, "ElectronicReg");
@@ -226,7 +239,8 @@ namespace PreConHub.Services
                 + GetSystemFeeBase(systemFees, "TransactionLevy")
                 + soa.LegalFeesEstimate
                 + soa.Upgrades
-                + soa.OtherDebits;
+                + soa.OtherDebits
+                + soa.ScheduleBClosingFees;
 
             soa.AdditionalConsideration = Math.Round(feeItemsBase * 1.13m, 2);
             soa.TotalSalePrice = soa.SalePrice + soa.AdditionalConsideration;

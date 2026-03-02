@@ -283,6 +283,12 @@ namespace PreConHub.Models.ViewModels
         public decimal? AdditionalCashAvailable { get; set; }
     }
 
+    public class FeeBreakdownItem
+    {
+        public string Name { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+    }
+
     public class SOAViewModel
     {
         // Debits
@@ -300,6 +306,8 @@ namespace PreConHub.Models.ViewModels
         public decimal Upgrades { get; set; }
         public decimal LegalFeesEstimate { get; set; }
         public decimal OtherDebits { get; set; }
+        public decimal ScheduleBClosingFees { get; set; }
+        public List<FeeBreakdownItem> ScheduleBFeeBreakdown { get; set; } = new();
         public decimal NetHSTPayable { get; set; }
         public decimal TotalDebits { get; set; }
 

@@ -514,6 +514,7 @@ namespace PreConHub.Controllers
                     Upgrades = unit.SOA.Upgrades,
                     LegalFeesEstimate = unit.SOA.LegalFeesEstimate,
                     OtherDebits = unit.SOA.OtherDebits,
+                    ScheduleBClosingFees = unit.SOA.ScheduleBClosingFees,
                     NetHSTPayable = unit.SOA.NetHSTPayable,
                     TotalDebits = unit.SOA.TotalDebits,
                     // Net Sale Price Breakdown
@@ -549,6 +550,25 @@ namespace PreConHub.Controllers
                     SystemBalanceDueOnClosing = unit.SOA.SystemBalanceDueOnClosing,
                     SystemCashRequiredToClose = unit.SOA.SystemCashRequiredToClose
                 };
+
+                // Load Schedule B fee breakdown for SOA display
+                if (unit.SOA.ScheduleBClosingFees > 0)
+                {
+                    var scheduleBFees = await _context.ProjectFees
+                        .Where(f => f.ProjectId == unit.ProjectId
+                            && (f.FeeType == FeeType.ChequeAdministrationFee
+                             || f.FeeType == FeeType.PartialDischargeFee
+                             || f.FeeType == FeeType.PDIFee
+                             || f.FeeType == FeeType.EngineeringReportFee
+                             || f.FeeType == FeeType.InternetDeliveryFee
+                             || f.FeeType == FeeType.CarbonMonoxideDetectorFee
+                             || f.FeeType == FeeType.WireTransferFee
+                             || f.FeeType == FeeType.PDFScanFee
+                             || f.FeeType == FeeType.ClosingDocChangesFee))
+                        .Select(f => new FeeBreakdownItem { Name = f.FeeName, Amount = f.Amount })
+                        .ToListAsync();
+                    viewModel.SOA!.ScheduleBFeeBreakdown = scheduleBFees;
+                }
             }
 
             if (unit.ShortfallAnalysis != null)

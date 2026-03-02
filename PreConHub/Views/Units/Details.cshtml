@@ -818,11 +818,39 @@
                                     {
                                         <tr><td>Common Exp. 1st Month</td><td class="text-end">$@Model.SOA.CommonExpensesFirstMonth.ToString("N2")</td></tr>
                                     }
+                                    @if (Model.SOA.ScheduleBClosingFees > 0)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <a data-bs-toggle="collapse" href="#scheduleBBreakdown" role="button"
+                                                   class="text-decoration-none">
+                                                    Schedule B Fees <i class="bi bi-chevron-down small"></i>
+                                                </a>
+                                            </td>
+                                            <td class="text-end">$@Model.SOA.ScheduleBClosingFees.ToString("N2")</td>
+                                        </tr>
+                                    }
                                     <tr class="border-top fw-bold">
                                         <td>TOTAL CREDIT VENDOR</td>
                                         <td class="text-end text-danger">$@Model.SOA.TotalDebits.ToString("N2")</td>
                                     </tr>
                                 </table>
+                                @if (Model.SOA.ScheduleBClosingFees > 0 && Model.SOA.ScheduleBFeeBreakdown.Any())
+                                {
+                                    <div class="collapse mb-2" id="scheduleBBreakdown">
+                                        <div class="card card-body py-1 px-2 small text-muted">
+                                            <table class="table table-sm table-borderless mb-0">
+                                                @foreach (var fee in Model.SOA.ScheduleBFeeBreakdown)
+                                                {
+                                                    <tr>
+                                                        <td class="ps-3">@fee.Name</td>
+                                                        <td class="text-end">$@fee.Amount.ToString("N2")</td>
+                                                    </tr>
+                                                }
+                                            </table>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                             <div class="col-md-6">
                                 <h6 class="text-success mb-2">Credit Purchaser</h6>
