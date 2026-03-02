@@ -2644,8 +2644,33 @@ namespace PreConHub.Controllers
                     OccupancyDate = model.OccupancyDate ?? project.OccupancyDate,
                     ClosingDate = model.ClosingDate ?? project.ClosingDate,
                     Status = UnitStatus.Pending,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = DateTime.UtcNow,
+                    // Phase 3 fields
+                    ParkingCount = model.ParkingCount,
+                    LockerCount = model.LockerCount,
+                    FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
+                    OutsideOccupancyDate = model.OutsideOccupancyDate,
+                    DelayedOccupancyDate = model.DelayedOccupancyDate,
+                    PurchaserTerminationDate = model.PurchaserTerminationDate
                 };
+
+                // Update project-level fields if not already set
+                bool projectUpdated = false;
+                if (string.IsNullOrWhiteSpace(project.TarionRegistrationNumber) && !string.IsNullOrWhiteSpace(model.TarionRegistrationNumber))
+                { project.TarionRegistrationNumber = model.TarionRegistrationNumber; projectUpdated = true; }
+                if (string.IsNullOrWhiteSpace(project.PropertyLegalDescription) && !string.IsNullOrWhiteSpace(model.PropertyLegalDescription))
+                { project.PropertyLegalDescription = model.PropertyLegalDescription; projectUpdated = true; }
+                if (string.IsNullOrWhiteSpace(project.VendorSolicitorName) && !string.IsNullOrWhiteSpace(model.VendorSolicitorName))
+                { project.VendorSolicitorName = model.VendorSolicitorName; projectUpdated = true; }
+                if (string.IsNullOrWhiteSpace(project.VendorSolicitorAddress) && !string.IsNullOrWhiteSpace(model.VendorSolicitorAddress))
+                { project.VendorSolicitorAddress = model.VendorSolicitorAddress; projectUpdated = true; }
+                if (string.IsNullOrWhiteSpace(project.VendorSolicitorPhone) && !string.IsNullOrWhiteSpace(model.VendorSolicitorPhone))
+                { project.VendorSolicitorPhone = model.VendorSolicitorPhone; projectUpdated = true; }
+                if (string.IsNullOrWhiteSpace(project.VendorSolicitorEmail) && !string.IsNullOrWhiteSpace(model.VendorSolicitorEmail))
+                { project.VendorSolicitorEmail = model.VendorSolicitorEmail; projectUpdated = true; }
+                if (!project.CommencementOfConstructionDate.HasValue && model.CommencementOfConstructionDate.HasValue)
+                { project.CommencementOfConstructionDate = model.CommencementOfConstructionDate; projectUpdated = true; }
+                if (projectUpdated) project.UpdatedAt = DateTime.UtcNow;
 
                 _context.Units.Add(unit);
                 await _context.SaveChangesAsync();
@@ -2807,6 +2832,64 @@ namespace PreConHub.Controllers
                         PaidDate = model.Deposit5Paid ? model.Deposit5DueDate : null,
                         CreatedAt = DateTime.UtcNow
                     });
+                }
+
+                // Create Schedule B fees as project fees (if not already present)
+                if (!string.IsNullOrWhiteSpace(model.ScheduleBFeesJson))
+                {
+                    try
+                    {
+                        var scheduleBFees = System.Text.Json.JsonSerializer.Deserialize<List<ExtractedScheduleBFee>>(
+                            model.ScheduleBFeesJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+                        if (scheduleBFees != null)
+                        {
+                            foreach (var fee in scheduleBFees)
+                            {
+                                if (fee.Amount <= 0) continue;
+                                var feeType = Enum.TryParse<FeeType>(fee.FeeType, out var ft) ? ft : FeeType.Other;
+
+                                // Only add if this fee type doesn't already exist for the project
+                                var exists = await _context.ProjectFees.AnyAsync(
+                                    f => f.ProjectId == id && f.FeeType == feeType);
+                                if (!exists)
+                                {
+                                    _context.ProjectFees.Add(new ProjectFee
+                                    {
+                                        ProjectId = id,
+                                        FeeName = fee.Name,
+                                        FeeType = feeType,
+                                        Amount = fee.Amount,
+                                        Description = fee.ApsReference,
+                                        AppliesToAllUnits = true
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error parsing Schedule B fees JSON for Project {ProjectId}", id);
+                    }
+                }
+
+                // Create levy cap if extracted
+                if (model.HasLevyCap && model.LevyCapAmount > 0)
+                {
+                    var existingCap = await _context.Set<ProjectLevyCap>()
+                        .AnyAsync(c => c.ProjectId == id && c.CapAmount == model.LevyCapAmount);
+                    if (!existingCap)
+                    {
+                        _context.Set<ProjectLevyCap>().Add(new ProjectLevyCap
+                        {
+                            ProjectId = id,
+                            LevyName = model.LevyCapDescription ?? "Combined Levy Cap (APS)",
+                            CapAmount = model.LevyCapAmount,
+                            ExcessResponsibility = ExcessLevyResponsibility.Builder,
+                            CoveredFeeTypes = "DevelopmentCharges,EducationDevelopmentCharges",
+                            Description = "Extracted from APS document"
+                        });
+                    }
                 }
 
                 await _context.SaveChangesAsync();

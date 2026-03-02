@@ -87,10 +87,50 @@ namespace PreConHub.Services
         // Special Conditions
         public List<string> SpecialConditions { get; set; } = new();
 
+        // =====================================
+        // Phase 1-3: Extended APS Fields
+        // =====================================
+
+        // Schedule B Part I — Closing Fees
+        public List<ExtractedScheduleBFee> ScheduleBFees { get; set; } = new();
+
+        // Tarion Addendum Dates
+        public DateTime? FirstTentativeOccupancyDate { get; set; }
+        public DateTime? OutsideOccupancyDate { get; set; }
+        public DateTime? DelayedOccupancyDate { get; set; }
+        public DateTime? PurchaserTerminationDate { get; set; }
+        public DateTime? CommencementOfConstructionDate { get; set; }
+
+        // Tarion / Legal
+        public string? TarionRegistrationNumber { get; set; }
+        public string? PropertyLegalDescription { get; set; }
+
+        // Vendor's Solicitor
+        public string? VendorSolicitorName { get; set; }
+        public string? VendorSolicitorAddress { get; set; }
+        public string? VendorSolicitorPhone { get; set; }
+        public string? VendorSolicitorEmail { get; set; }
+
+        // Levy Cap details
+        public string? LevyCapDescription { get; set; }  // e.g. "DC + EDC combined"
+        public List<string> LevyCapCoveredTypes { get; set; } = new();  // e.g. ["DevelopmentCharges","EducationDevelopmentCharges"]
+
+        // Parking & Locker counts
+        public int ParkingCount { get; set; }
+        public int LockerCount { get; set; }
+
         // Extraction Metadata
         public decimal ConfidenceScore { get; set; }
         public List<string> Warnings { get; set; } = new();
         public string? RawExtractedText { get; set; }
+    }
+
+    public class ExtractedScheduleBFee
+    {
+        public string Name { get; set; } = string.Empty;
+        public string? FeeType { get; set; }  // Maps to FeeType enum name
+        public decimal Amount { get; set; }
+        public string? ApsReference { get; set; }  // e.g. "Section 5(a)"
     }
 
     public class ExtractedPurchaser
@@ -112,6 +152,7 @@ namespace PreConHub.Services
     {
         public string? Name { get; set; }
         public decimal Amount { get; set; }
+        public decimal? Percentage { get; set; }  // e.g. 5.0 = 5% of purchase price
         public DateTime? DueDate { get; set; }
         public string? DueDescription { get; set; } // e.g., "Upon signing", "30 days after signing"
         public bool IsPaid { get; set; }
@@ -245,7 +286,7 @@ namespace PreConHub.Services
 
         private string BuildExtractionPrompt(string documentText)
         {
-            return $@"You are an expert at analyzing Ontario pre-construction real estate Agreement of Purchase and Sale (APS) documents. 
+            return $@"You are an expert at analyzing Ontario pre-construction real estate Agreement of Purchase and Sale (APS) documents.
 
 Extract the following information from this APS document and return it as valid JSON. If a field is not found, use null. For boolean fields, use true/false.
 
@@ -263,13 +304,26 @@ Required JSON structure:
     ""hasParking"": boolean,
     ""parkingPrice"": number or null,
     ""parkingNumber"": ""string or null"",
+    ""parkingCount"": number (default 0),
     ""hasLocker"": boolean,
     ""lockerPrice"": number or null,
     ""lockerNumber"": ""string or null"",
+    ""lockerCount"": number (default 0),
     ""apsSigningDate"": ""YYYY-MM-DD or null"",
     ""expectedOccupancyDate"": ""YYYY-MM-DD or null"",
     ""firmClosingDate"": ""YYYY-MM-DD or null"",
     ""outsideClosingDate"": ""YYYY-MM-DD or null"",
+    ""firstTentativeOccupancyDate"": ""YYYY-MM-DD or null — from Tarion Addendum"",
+    ""outsideOccupancyDate"": ""YYYY-MM-DD or null — latest date before purchaser can terminate"",
+    ""delayedOccupancyDate"": ""YYYY-MM-DD or null"",
+    ""purchaserTerminationDate"": ""YYYY-MM-DD or null — end of termination period"",
+    ""commencementOfConstructionDate"": ""YYYY-MM-DD or null — from Tarion Addendum"",
+    ""tarionRegistrationNumber"": ""string or null — Tarion enrolment number"",
+    ""propertyLegalDescription"": ""string or null — e.g. Lot 35 on Plan 806"",
+    ""vendorSolicitorName"": ""string or null — vendor's law firm name"",
+    ""vendorSolicitorAddress"": ""string or null"",
+    ""vendorSolicitorPhone"": ""string or null"",
+    ""vendorSolicitorEmail"": ""string or null"",
     ""purchasers"": [
         {{
             ""fullName"": ""string"",
@@ -289,6 +343,7 @@ Required JSON structure:
         {{
             ""name"": ""string (e.g., Deposit 1, Initial Deposit)"",
             ""amount"": number,
+            ""percentage"": number or null (e.g. 5.0 means 5% of purchase price),
             ""dueDate"": ""YYYY-MM-DD or null"",
             ""dueDescription"": ""string describing when due""
         }}
@@ -298,9 +353,20 @@ Required JSON structure:
     ""builderLawyerName"": ""string or null"",
     ""builderLawyerFirm"": ""string or null"",
     ""developmentCharges"": number or null,
+    ""educationLevy"": number or null,
     ""levyFees"": number or null,
     ""hasCapOnLevies"": boolean,
     ""levyCap"": number or null,
+    ""levyCapDescription"": ""string or null — e.g. DC + EDC combined cap"",
+    ""levyCapCoveredTypes"": [""DevelopmentCharges"", ""EducationDevelopmentCharges""],
+    ""scheduleBFees"": [
+        {{
+            ""name"": ""string — fee name from Schedule B Part I"",
+            ""feeType"": ""string — one of: ChequeAdministrationFee, PartialDischargeFee, PDIFee, EngineeringReportFee, InternetDeliveryFee, CarbonMonoxideDetectorFee, WireTransferFee, PDFScanFee, ClosingDocChangesFee, or Other"",
+            ""amount"": number (before HST),
+            ""apsReference"": ""string — APS section reference e.g. Section 5(a)""
+        }}
+    ],
     ""upgrades"": [
         {{
             ""description"": ""string"",
@@ -316,7 +382,12 @@ Required JSON structure:
 
 Important notes:
 - Extract ALL purchaser/buyer names found
-- Extract the COMPLETE deposit schedule with amounts and dates
+- Extract the COMPLETE deposit schedule with amounts, percentages, and dates
+- Look for Schedule B Part I fees: cheque admin ($300), partial discharge ($350), PDI ($250), engineering report ($350), internet delivery ($150), CO detector ($150), wire transfer ($150), PDF/scan ($150), closing doc changes ($500)
+- Look for levy caps in amendments — often DC and EDC share a combined cap
+- Extract Tarion Addendum dates: first tentative occupancy, outside occupancy, termination period
+- Extract vendor's solicitor information
+- Extract Tarion registration number and property legal description
 - Prices should be numbers without $ or commas
 - Dates should be in YYYY-MM-DD format
 - Include confidence score (0-1) based on how clearly the data was found

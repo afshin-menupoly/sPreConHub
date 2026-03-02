@@ -132,20 +132,24 @@
                                     <input type="checkbox" name="HasParking" value="true" class="form-check-input" id="hasParking" @(data?.HasParking == true ? "checked" : "") />
                                     <label class="form-check-label" for="hasParking">Has Parking</label>
                                 </div>
-                                <div class="input-group">
+                                <div class="input-group mb-2">
                                     <span class="input-group-text">$</span>
                                     <input type="number" name="ParkingPrice" class="form-control" value="@data?.ParkingPrice" step="0.01" placeholder="Parking Price" />
                                 </div>
+                                <label class="form-label small">Count</label>
+                                <input type="number" name="ParkingCount" class="form-control form-control-sm" value="@data?.ParkingCount" min="0" style="max-width:80px" />
                             </div>
                             <div class="col-md-6">
                                 <div class="form-check mb-2">
                                     <input type="checkbox" name="HasLocker" value="true" class="form-check-input" id="hasLocker" @(data?.HasLocker == true ? "checked" : "") />
                                     <label class="form-check-label" for="hasLocker">Has Locker</label>
                                 </div>
-                                <div class="input-group">
+                                <div class="input-group mb-2">
                                     <span class="input-group-text">$</span>
                                     <input type="number" name="LockerPrice" class="form-control" value="@data?.LockerPrice" step="0.01" placeholder="Locker Price" />
                                 </div>
+                                <label class="form-label small">Count</label>
+                                <input type="number" name="LockerCount" class="form-control form-control-sm" value="@data?.LockerCount" min="0" style="max-width:80px" />
                             </div>
                         </div>
                     </div>
@@ -166,9 +170,118 @@
                                 <label class="form-label">Closing Date</label>
                                 <input type="date" name="ClosingDate" class="form-control" value="@data?.FirmClosingDate?.ToString("yyyy-MM-dd")" />
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label">1st Tentative Occupancy</label>
+                                <input type="date" name="FirstTentativeOccupancyDate" class="form-control" value="@data?.FirstTentativeOccupancyDate?.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Outside Occupancy Date</label>
+                                <input type="date" name="OutsideOccupancyDate" class="form-control" value="@data?.OutsideOccupancyDate?.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Termination Period End</label>
+                                <input type="date" name="PurchaserTerminationDate" class="form-control" value="@data?.PurchaserTerminationDate?.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Delayed Occupancy Date</label>
+                                <input type="date" name="DelayedOccupancyDate" class="form-control" value="@data?.DelayedOccupancyDate?.ToString("yyyy-MM-dd")" />
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <!-- Tarion / Legal -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header" style="background-color:#6f42c1;color:#fff">
+                        <h5 class="mb-0"><i class="bi bi-shield-check me-2"></i>Tarion &amp; Legal</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Tarion Reg. #</label>
+                                <input type="text" name="TarionRegistrationNumber" class="form-control" value="@data?.TarionRegistrationNumber" />
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Property Legal Description</label>
+                                <input type="text" name="PropertyLegalDescription" class="form-control" value="@data?.PropertyLegalDescription" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Construction Start</label>
+                                <input type="date" name="CommencementOfConstructionDate" class="form-control" value="@data?.CommencementOfConstructionDate?.ToString("yyyy-MM-dd")" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Vendor Solicitor</label>
+                                <input type="text" name="VendorSolicitorName" class="form-control" value="@data?.VendorSolicitorName" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Solicitor Email</label>
+                                <input type="email" name="VendorSolicitorEmail" class="form-control" value="@data?.VendorSolicitorEmail" />
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label">Solicitor Address</label>
+                                <input type="text" name="VendorSolicitorAddress" class="form-control" value="@data?.VendorSolicitorAddress" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Solicitor Phone</label>
+                                <input type="text" name="VendorSolicitorPhone" class="form-control" value="@data?.VendorSolicitorPhone" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule B Fees -->
+                @if (data?.ScheduleBFees?.Any() == true)
+                {
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-dark text-white">
+                            <h5 class="mb-0"><i class="bi bi-list-check me-2"></i>Schedule B Closing Fees</h5>
+                        </div>
+                        <div class="card-body p-2">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr><th>Fee</th><th>APS Ref</th><th class="text-end">Amount</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var fee in data.ScheduleBFees)
+                                    {
+                                        <tr>
+                                            <td>@fee.Name <span class="badge bg-secondary small">@fee.FeeType</span></td>
+                                            <td class="text-muted small">@fee.ApsReference</td>
+                                            <td class="text-end">$@fee.Amount.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                            <input type="hidden" name="ScheduleBFeesJson" value="@System.Text.Json.JsonSerializer.Serialize(data.ScheduleBFees)" />
+                        </div>
+                    </div>
+                }
+
+                <!-- Levy Cap -->
+                @if (data?.HasCapOnLevies == true)
+                {
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-warning">
+                            <h5 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Levy Cap</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Cap Amount</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="LevyCapAmount" class="form-control" value="@data.LevyCap" step="0.01" />
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Description</label>
+                                    <input type="text" name="LevyCapDescription" class="form-control" value="@data.LevyCapDescription" placeholder="e.g. DC + EDC combined" />
+                                </div>
+                            </div>
+                            <input type="hidden" name="HasLevyCap" value="true" />
+                        </div>
+                    </div>
+                }
             </div>
 
             <!-- Right Column: Purchaser & Deposits -->

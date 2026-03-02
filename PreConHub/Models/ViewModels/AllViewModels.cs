@@ -1373,9 +1373,36 @@ namespace PreConHub.Models.ViewModels
         public bool HasLocker { get; set; }
         public decimal? LockerPrice { get; set; }
 
+        // Parking & Locker Counts
+        public int ParkingCount { get; set; }
+        public int LockerCount { get; set; }
+
         // Dates
         public DateTime? OccupancyDate { get; set; }
         public DateTime? ClosingDate { get; set; }
+
+        // Tarion Dates
+        public DateTime? FirstTentativeOccupancyDate { get; set; }
+        public DateTime? OutsideOccupancyDate { get; set; }
+        public DateTime? DelayedOccupancyDate { get; set; }
+        public DateTime? PurchaserTerminationDate { get; set; }
+
+        // Tarion / Legal (project-level — saved if not already set)
+        public string? TarionRegistrationNumber { get; set; }
+        public string? PropertyLegalDescription { get; set; }
+        public string? VendorSolicitorName { get; set; }
+        public string? VendorSolicitorAddress { get; set; }
+        public string? VendorSolicitorPhone { get; set; }
+        public string? VendorSolicitorEmail { get; set; }
+        public DateTime? CommencementOfConstructionDate { get; set; }
+
+        // Schedule B Fees (JSON-serialized for form roundtrip)
+        public string? ScheduleBFeesJson { get; set; }
+
+        // Levy Cap
+        public bool HasLevyCap { get; set; }
+        public decimal LevyCapAmount { get; set; }
+        public string? LevyCapDescription { get; set; }
 
         // Primary Purchaser
         public string? PurchaserFirstName { get; set; }
