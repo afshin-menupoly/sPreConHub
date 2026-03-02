@@ -364,6 +364,14 @@ namespace PreConHub.Controllers
                 BuilderDecision = unit.BuilderDecision,
                 IsConfirmedByLawyer = unit.IsConfirmedByLawyer,
 
+                // APS / Tarion dates
+                FirstTentativeOccupancyDate = unit.FirstTentativeOccupancyDate,
+                OutsideOccupancyDate = unit.OutsideOccupancyDate,
+                DelayedOccupancyDate = unit.DelayedOccupancyDate,
+                PurchaserTerminationDate = unit.PurchaserTerminationDate,
+                ParkingCount = unit.ParkingCount,
+                LockerCount = unit.LockerCount,
+
                 // Deposits
                 Deposits = unit.Deposits.Select(d => new DepositViewModel
                 {

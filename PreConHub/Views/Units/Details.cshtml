@@ -125,6 +125,48 @@
                             <td class="text-muted">Closing Date</td>
                             <td>@(Model.ClosingDate?.ToString("MMM dd, yyyy") ?? "TBD")</td>
                         </tr>
+                        @if (Model.FirstTentativeOccupancyDate.HasValue)
+                        {
+                            <tr>
+                                <td class="text-muted">1st Tentative Occupancy</td>
+                                <td>@Model.FirstTentativeOccupancyDate.Value.ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                        @if (Model.OutsideOccupancyDate.HasValue)
+                        {
+                            <tr>
+                                <td class="text-muted">Outside Occupancy Date</td>
+                                <td>@Model.OutsideOccupancyDate.Value.ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                        @if (Model.DelayedOccupancyDate.HasValue)
+                        {
+                            <tr>
+                                <td class="text-muted">Delayed Occupancy Date</td>
+                                <td>@Model.DelayedOccupancyDate.Value.ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                        @if (Model.PurchaserTerminationDate.HasValue)
+                        {
+                            <tr>
+                                <td class="text-muted">Termination Period End</td>
+                                <td>@Model.PurchaserTerminationDate.Value.ToString("MMM dd, yyyy")</td>
+                            </tr>
+                        }
+                        @if (Model.ParkingCount > 0)
+                        {
+                            <tr>
+                                <td class="text-muted">Parking Units</td>
+                                <td>@Model.ParkingCount</td>
+                            </tr>
+                        }
+                        @if (Model.LockerCount > 0)
+                        {
+                            <tr>
+                                <td class="text-muted">Locker Units</td>
+                                <td>@Model.LockerCount</td>
+                            </tr>
+                        }
                     </table>
                 </div>
             </div>

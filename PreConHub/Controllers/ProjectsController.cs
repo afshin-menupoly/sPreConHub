@@ -384,7 +384,14 @@ namespace PreConHub.Controllers
                 ProjectType = project.ProjectType,
                 TotalUnits = project.TotalUnits,
                 OccupancyDate = project.OccupancyDate,
-                ClosingDate = project.ClosingDate
+                ClosingDate = project.ClosingDate,
+                TarionRegistrationNumber = project.TarionRegistrationNumber,
+                PropertyLegalDescription = project.PropertyLegalDescription,
+                VendorSolicitorName = project.VendorSolicitorName,
+                VendorSolicitorAddress = project.VendorSolicitorAddress,
+                VendorSolicitorPhone = project.VendorSolicitorPhone,
+                VendorSolicitorEmail = project.VendorSolicitorEmail,
+                CommencementOfConstructionDate = project.CommencementOfConstructionDate
             };
 
             return View(viewModel);
@@ -421,6 +428,13 @@ namespace PreConHub.Controllers
             project.TotalUnits = model.TotalUnits;
             project.OccupancyDate = model.OccupancyDate;
             project.ClosingDate = model.ClosingDate;
+            project.TarionRegistrationNumber = model.TarionRegistrationNumber;
+            project.PropertyLegalDescription = model.PropertyLegalDescription;
+            project.VendorSolicitorName = model.VendorSolicitorName;
+            project.VendorSolicitorAddress = model.VendorSolicitorAddress;
+            project.VendorSolicitorPhone = model.VendorSolicitorPhone;
+            project.VendorSolicitorEmail = model.VendorSolicitorEmail;
+            project.CommencementOfConstructionDate = model.CommencementOfConstructionDate;
             project.UpdatedAt = DateTime.UtcNow;
 
             _context.AuditLogs.Add(new AuditLog

@@ -117,6 +117,36 @@ namespace PreConHub.Models.Entities
         public string? BuilderCompanyName { get; set; }
         public virtual ICollection<ProjectLevyCap> LevyCaps { get; set; } = new List<ProjectLevyCap>();
 
+        // =====================================
+        // APS / Tarion — Project-Level Data
+        // =====================================
+        /// <summary>Tarion enrolment/registration number for this project.</summary>
+        [StringLength(50)]
+        public string? TarionRegistrationNumber { get; set; }
+
+        /// <summary>Legal description of the property (e.g., "Lot 35 and Lot 36 on Plan 806, City of Toronto").</summary>
+        [StringLength(500)]
+        public string? PropertyLegalDescription { get; set; }
+
+        /// <summary>Vendor's solicitor — firm name.</summary>
+        [StringLength(200)]
+        public string? VendorSolicitorName { get; set; }
+
+        /// <summary>Vendor's solicitor — address.</summary>
+        [StringLength(500)]
+        public string? VendorSolicitorAddress { get; set; }
+
+        /// <summary>Vendor's solicitor — phone.</summary>
+        [StringLength(50)]
+        public string? VendorSolicitorPhone { get; set; }
+
+        /// <summary>Vendor's solicitor — email.</summary>
+        [StringLength(200)]
+        public string? VendorSolicitorEmail { get; set; }
+
+        /// <summary>Date construction commenced (Tarion addendum).</summary>
+        public DateTime? CommencementOfConstructionDate { get; set; }
+
         // Marketing Agency conditional access (spec Section H)
         public bool AllowMarketingAccess { get; set; } = false;
 
@@ -329,6 +359,26 @@ namespace PreConHub.Models.Entities
         [Column(TypeName = "decimal(18,2)")] public decimal? ActualMonthlyMaintenanceFee { get; set; }
         public virtual ICollection<ClosingExtensionRequest> ExtensionRequests { get; set; } = new List<ClosingExtensionRequest>();
         public virtual ICollection<SOAVersion> SOAVersions { get; set; } = new List<SOAVersion>();
+
+        // =====================================
+        // APS / Tarion Addendum — Critical Dates
+        // =====================================
+        /// <summary>Tarion: first tentative occupancy date from addendum.</summary>
+        public DateTime? FirstTentativeOccupancyDate { get; set; }
+        /// <summary>Tarion: outside occupancy date — latest allowed date before purchaser can terminate.</summary>
+        public DateTime? OutsideOccupancyDate { get; set; }
+        /// <summary>Tarion: delayed occupancy date (Section 3).</summary>
+        public DateTime? DelayedOccupancyDate { get; set; }
+        /// <summary>End of purchaser's termination period after Outside Occupancy Date.</summary>
+        public DateTime? PurchaserTerminationDate { get; set; }
+
+        // =====================================
+        // Parking & Locker Counts (APS)
+        // =====================================
+        /// <summary>Number of parking units included in APS (default 0).</summary>
+        public int ParkingCount { get; set; }
+        /// <summary>Number of storage locker units included in APS (default 0).</summary>
+        public int LockerCount { get; set; }
     }
 
     public enum UnitType
@@ -628,6 +678,11 @@ namespace PreConHub.Models.Entities
         public string? ConfirmedByLawyerId { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        /// <summary>Deposit as percentage of purchase price (e.g. 5.0 = 5%). From APS deposit schedule.</summary>
+        [Column(TypeName = "decimal(5,2)")]
+        public decimal? DepositPercentage { get; set; }
+
         public DepositHolder Holder { get; set; } = DepositHolder.Builder;
         public bool IsInterestEligible { get; set; } = false;
         [Column(TypeName = "decimal(5,3)")]

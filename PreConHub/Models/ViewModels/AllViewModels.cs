@@ -258,6 +258,16 @@ namespace PreConHub.Models.ViewModels
 
         // Extension Requests
         public List<ExtensionRequestItem> ExtensionRequests { get; set; } = new();
+
+        // APS / Tarion Dates
+        public DateTime? FirstTentativeOccupancyDate { get; set; }
+        public DateTime? OutsideOccupancyDate { get; set; }
+        public DateTime? DelayedOccupancyDate { get; set; }
+        public DateTime? PurchaserTerminationDate { get; set; }
+
+        // Parking & Locker counts
+        public int ParkingCount { get; set; }
+        public int LockerCount { get; set; }
     }
 
     public class PurchaserInfoViewModel
@@ -427,6 +437,15 @@ namespace PreConHub.Models.ViewModels
         public int TotalUnits { get; set; }
         public DateTime? OccupancyDate { get; set; }
         public DateTime? ClosingDate { get; set; }
+
+        // APS / Tarion fields
+        public string? TarionRegistrationNumber { get; set; }
+        public string? PropertyLegalDescription { get; set; }
+        public string? VendorSolicitorName { get; set; }
+        public string? VendorSolicitorAddress { get; set; }
+        public string? VendorSolicitorPhone { get; set; }
+        public string? VendorSolicitorEmail { get; set; }
+        public DateTime? CommencementOfConstructionDate { get; set; }
     }
 
     public class CreateUnitViewModel

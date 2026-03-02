@@ -90,6 +90,53 @@
                             </div>
                         </div>
 
+                        <div class="mb-4">
+                            <label asp-for="CommencementOfConstructionDate" class="form-label">Construction Commencement Date</label>
+                            <input asp-for="CommencementOfConstructionDate" type="date" class="form-control" style="max-width: 250px;" />
+                        </div>
+
+                        <!-- Tarion / Legal -->
+                        <h5 class="mb-3 pb-2 border-bottom">
+                            <i class="bi bi-shield-check me-2 text-primary"></i>Tarion &amp; Legal
+                        </h5>
+
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label asp-for="TarionRegistrationNumber" class="form-label">Tarion Registration #</label>
+                                <input asp-for="TarionRegistrationNumber" class="form-control" placeholder="e.g., 47271" />
+                            </div>
+                            <div class="col-md-8">
+                                <label asp-for="PropertyLegalDescription" class="form-label">Property Legal Description</label>
+                                <input asp-for="PropertyLegalDescription" class="form-control" placeholder="e.g., Lot 35 and Lot 36 on Plan 806, City of Toronto" />
+                            </div>
+                        </div>
+
+                        <!-- Vendor's Solicitor -->
+                        <h5 class="mb-3 pb-2 border-bottom">
+                            <i class="bi bi-person-badge me-2 text-primary"></i>Vendor's Solicitor
+                        </h5>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="VendorSolicitorName" class="form-label">Firm Name</label>
+                                <input asp-for="VendorSolicitorName" class="form-control" placeholder="e.g., Harris, Sheaffer LLP" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="VendorSolicitorEmail" class="form-label">Email</label>
+                                <input asp-for="VendorSolicitorEmail" type="email" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-8">
+                                <label asp-for="VendorSolicitorAddress" class="form-label">Address</label>
+                                <input asp-for="VendorSolicitorAddress" class="form-control" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="VendorSolicitorPhone" class="form-label">Phone</label>
+                                <input asp-for="VendorSolicitorPhone" class="form-control" />
+                            </div>
+                        </div>
+
                         <!-- Buttons -->
                         <div class="d-flex justify-content-between">
                             <a href="@Url.Action("Index", "Projects")" class="btn btn-outline-secondary">
