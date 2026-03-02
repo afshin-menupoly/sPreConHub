@@ -1,0 +1,231 @@
+@model PreConHub.Models.Entities.Project
+@{
+    ViewData["Title"] = "Manage Fees — " + Model.Name;
+}
+
+<div class="container-fluid py-4">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="@Url.Action("Index")">Projects</a></li>
+            <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", new { id = Model.Id })">@Model.Name</a></li>
+            <li class="breadcrumb-item active">Manage Fees</li>
+        </ol>
+    </nav>
+
+    <h1 class="h3 mb-4"><i class="bi bi-cash-stack text-primary me-2"></i>Manage Fees &amp; Levy Caps</h1>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show">
+            @TempData["Success"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- PROJECT FEES SECTION -->
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-primary text-white d-flex align-items-center">
+                    <i class="bi bi-receipt me-2"></i>
+                    <h5 class="mb-0">Project Fees</h5>
+                    <span class="badge bg-white text-primary ms-auto">@Model.Fees.Count fees</span>
+                </div>
+                <div class="card-body">
+                    @if (Model.Fees.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fee Name</th>
+                                        <th>Type</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var fee in Model.Fees.OrderBy(f => f.FeeType))
+                                    {
+                                        <tr>
+                                            <td>@fee.FeeName</td>
+                                            <td><span class="badge bg-secondary">@fee.FeeType</span></td>
+                                            <td class="text-end">$@fee.Amount.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No fees added yet.</p>
+                    }
+                </div>
+            </div>
+
+            <!-- ADD FEE FORM -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-plus-circle me-1"></i>Add Fee</h6>
+                </div>
+                <div class="card-body">
+                    <form asp-action="AddFee" method="post">
+                        <input type="hidden" name="projectId" value="@Model.Id" />
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <label class="form-label">Fee Name</label>
+                                <input type="text" name="feeName" class="form-control" required placeholder="e.g., Cheque Administration Fee" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Fee Type</label>
+                                <select name="feeType" class="form-select" required>
+                                    @foreach (var ft in Enum.GetValues<PreConHub.Models.Entities.FeeType>())
+                                    {
+                                        <option value="@ft">@ft</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Amount ($)</label>
+                                <input type="number" name="amount" class="form-control" step="0.01" min="0" required />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label">Description (optional)</label>
+                                <input type="text" name="description" class="form-control" placeholder="APS reference, notes..." />
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus me-1"></i>Add Fee
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- LEVY CAPS SECTION -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark d-flex align-items-center">
+                    <i class="bi bi-shield-check me-2"></i>
+                    <h5 class="mb-0">Levy Caps</h5>
+                    <span class="badge bg-dark ms-auto">@Model.LevyCaps.Count caps</span>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Levy caps limit what the purchaser pays for specific charges. Excess is absorbed by the builder.
+                        A single cap can cover multiple fee types combined (e.g., DC + EDC).
+                    </p>
+
+                    @if (Model.LevyCaps.Any())
+                    {
+                        @foreach (var cap in Model.LevyCaps)
+                        {
+                            <div class="border rounded p-3 mb-2">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <strong>@cap.LevyName</strong>
+                                        <span class="badge bg-info ms-1">$@cap.CapAmount.ToString("N2")</span>
+                                        @if (cap.ExcessResponsibility == PreConHub.Models.Entities.ExcessLevyResponsibility.Builder)
+                                        {
+                                            <span class="badge bg-success ms-1">Builder absorbs excess</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger ms-1">Buyer pays excess</span>
+                                        }
+                                    </div>
+                                    <form asp-action="DeleteLevyCap" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@cap.Id" />
+                                        <input type="hidden" name="projectId" value="@Model.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Remove this levy cap?')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(cap.CoveredFeeTypes))
+                                {
+                                    <div class="mt-1">
+                                        @foreach (var ft in cap.ParsedFeeTypes)
+                                        {
+                                            <span class="badge bg-light text-dark border me-1">@ft</span>
+                                        }
+                                    </div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(cap.Description))
+                                {
+                                    <div class="text-muted small mt-1">@cap.Description</div>
+                                }
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0">No levy caps defined.</p>
+                    }
+                </div>
+            </div>
+
+            <!-- ADD LEVY CAP FORM -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-plus-circle me-1"></i>Add Levy Cap</h6>
+                </div>
+                <div class="card-body">
+                    <form asp-action="AddLevyCap" method="post">
+                        <input type="hidden" name="projectId" value="@Model.Id" />
+                        <div class="mb-3">
+                            <label class="form-label">Cap Name</label>
+                            <input type="text" name="levyName" class="form-control" required
+                                   placeholder="e.g., DC + EDC Combined Cap" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Cap Amount ($)</label>
+                            <input type="number" name="capAmount" class="form-control" step="0.01" min="0" required
+                                   placeholder="e.g., 12900" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Covered Fee Types</label>
+                            <div class="small text-muted mb-1">Select which fee types this cap covers. Multiple = combined cap.</div>
+                            @{
+                                var levyFeeTypes = new[] {
+                                    PreConHub.Models.Entities.FeeType.DevelopmentCharges,
+                                    PreConHub.Models.Entities.FeeType.EducationDevelopmentCharges,
+                                    PreConHub.Models.Entities.FeeType.ParklandLevy,
+                                    PreConHub.Models.Entities.FeeType.CommunityBenefitCharges,
+                                    PreConHub.Models.Entities.FeeType.Section37Contribution,
+                                    PreConHub.Models.Entities.FeeType.Section42Contribution
+                                };
+                            }
+                            @foreach (var ft in levyFeeTypes)
+                            {
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="coveredFeeTypes"
+                                           value="@ft" id="ft_@ft">
+                                    <label class="form-check-label" for="ft_@ft">@ft</label>
+                                </div>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Who Pays Excess?</label>
+                            <select name="excessResponsibility" class="form-select">
+                                <option value="0">Builder absorbs excess</option>
+                                <option value="1">Buyer pays excess</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description (optional)</label>
+                            <input type="text" name="description" class="form-control"
+                                   placeholder="APS paragraph reference..." />
+                        </div>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-shield-plus me-1"></i>Add Levy Cap
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -484,6 +484,7 @@ namespace PreConHub.Controllers
         {
             var project = await _context.Projects
                 .Include(p => p.Fees)
+                .Include(p => p.LevyCaps)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (project == null)
@@ -532,6 +533,60 @@ namespace PreConHub.Controllers
             await _context.SaveChangesAsync();
 
             TempData["Success"] = "Fee added successfully.";
+            return RedirectToAction(nameof(AddFees), new { id = projectId });
+        }
+
+        // POST: /Projects/AddLevyCap
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddLevyCap(int projectId, string levyName, decimal capAmount,
+            ExcessLevyResponsibility excessResponsibility, string[] coveredFeeTypes, string? description)
+        {
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null) return NotFound();
+
+            var cap = new ProjectLevyCap
+            {
+                ProjectId = projectId,
+                LevyName = levyName,
+                CapAmount = capAmount,
+                ExcessResponsibility = excessResponsibility,
+                Description = description,
+                CoveredFeeTypes = coveredFeeTypes.Length > 0 ? string.Join(",", coveredFeeTypes) : null
+            };
+
+            _context.Set<ProjectLevyCap>().Add(cap);
+
+            var userId = _userManager.GetUserId(User);
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "ProjectLevyCap",
+                EntityId = projectId,
+                Action = "Create",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { levyName, capAmount, coveredFeeTypes }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Levy cap added successfully.";
+            return RedirectToAction(nameof(AddFees), new { id = projectId });
+        }
+
+        // POST: /Projects/DeleteLevyCap
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteLevyCap(int id, int projectId)
+        {
+            var cap = await _context.Set<ProjectLevyCap>().FindAsync(id);
+            if (cap == null || cap.ProjectId != projectId) return NotFound();
+
+            _context.Set<ProjectLevyCap>().Remove(cap);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Levy cap removed.";
             return RedirectToAction(nameof(AddFees), new { id = projectId });
         }
 

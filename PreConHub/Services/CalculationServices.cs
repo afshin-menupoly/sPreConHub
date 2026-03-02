@@ -106,35 +106,90 @@ namespace PreConHub.Services
                 ? CalculateTorontoLandTransferTax(totalPrice, unit.IsFirstTimeBuyer)
                 : 0;
 
-            // 4. Development Charges with Levy Cap Logic
+            // 4. Development Charges + 5. EDCs — with combined levy cap support
             var actualDevCharges = unit.Project.Fees
                 .Where(f => f.FeeType == FeeType.DevelopmentCharges)
                 .Sum(f => f.Amount);
+            var actualEDC = unit.Project.Fees
+                .Where(f => f.FeeType == FeeType.EducationDevelopmentCharges)
+                .Sum(f => f.Amount);
 
-            var devChargeCap = unit.Project.LevyCaps
-                .FirstOrDefault(c => c.LevyName.Contains("Development"));
+            // Check for a combined levy cap covering both DC + EDC
+            var combinedCap = unit.Project.LevyCaps
+                .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.CoveredFeeTypes)
+                    && c.ParsedFeeTypes.Contains(FeeType.DevelopmentCharges)
+                    && c.ParsedFeeTypes.Contains(FeeType.EducationDevelopmentCharges));
 
-            if (devChargeCap != null && actualDevCharges > devChargeCap.CapAmount)
+            if (combinedCap != null)
             {
-                soa.DevelopmentCharges = devChargeCap.CapAmount;
-                if (devChargeCap.ExcessResponsibility == ExcessLevyResponsibility.Builder)
+                // Combined cap: single cap amount applies to sum of DC + EDC
+                decimal combinedActual = actualDevCharges + actualEDC;
+                if (combinedActual > combinedCap.CapAmount)
                 {
-                    soa.BuilderAbsorbedLevies += (actualDevCharges - devChargeCap.CapAmount);
+                    decimal excess = combinedActual - combinedCap.CapAmount;
+                    if (combinedCap.ExcessResponsibility == ExcessLevyResponsibility.Builder)
+                    {
+                        // Pro-rate the cap across DC and EDC proportionally
+                        decimal ratio = combinedCap.CapAmount / combinedActual;
+                        soa.DevelopmentCharges = Math.Round(actualDevCharges * ratio, 2);
+                        soa.EducationDevelopmentCharges = Math.Round(actualEDC * ratio, 2);
+                        soa.BuilderAbsorbedLevies += excess;
+                    }
+                    else
+                    {
+                        // Buyer pays all — no cap applied
+                        soa.DevelopmentCharges = actualDevCharges;
+                        soa.EducationDevelopmentCharges = actualEDC;
+                    }
                 }
                 else
                 {
-                    soa.DevelopmentCharges = actualDevCharges; // Buyer pays all
+                    soa.DevelopmentCharges = actualDevCharges;
+                    soa.EducationDevelopmentCharges = actualEDC;
                 }
             }
             else
             {
-                soa.DevelopmentCharges = actualDevCharges;
-            }
+                // Individual cap logic (legacy: per-fee-type caps)
+                var devChargeCap = unit.Project.LevyCaps
+                    .FirstOrDefault(c => (!string.IsNullOrWhiteSpace(c.CoveredFeeTypes)
+                        && c.ParsedFeeTypes.Contains(FeeType.DevelopmentCharges)
+                        && c.ParsedFeeTypes.Count == 1)
+                        || (string.IsNullOrWhiteSpace(c.CoveredFeeTypes)
+                            && c.LevyName.Contains("Development")));
 
-            // 5. Education Development Charges (EDCs)
-            soa.EducationDevelopmentCharges = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.EducationDevelopmentCharges)
-                .Sum(f => f.Amount);
+                if (devChargeCap != null && actualDevCharges > devChargeCap.CapAmount)
+                {
+                    soa.DevelopmentCharges = devChargeCap.CapAmount;
+                    if (devChargeCap.ExcessResponsibility == ExcessLevyResponsibility.Builder)
+                        soa.BuilderAbsorbedLevies += (actualDevCharges - devChargeCap.CapAmount);
+                    else
+                        soa.DevelopmentCharges = actualDevCharges;
+                }
+                else
+                {
+                    soa.DevelopmentCharges = actualDevCharges;
+                }
+
+                // Individual EDC cap
+                var edcCap = unit.Project.LevyCaps
+                    .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c.CoveredFeeTypes)
+                        && c.ParsedFeeTypes.Contains(FeeType.EducationDevelopmentCharges)
+                        && c.ParsedFeeTypes.Count == 1);
+
+                if (edcCap != null && actualEDC > edcCap.CapAmount)
+                {
+                    soa.EducationDevelopmentCharges = edcCap.CapAmount;
+                    if (edcCap.ExcessResponsibility == ExcessLevyResponsibility.Builder)
+                        soa.BuilderAbsorbedLevies += (actualEDC - edcCap.CapAmount);
+                    else
+                        soa.EducationDevelopmentCharges = actualEDC;
+                }
+                else
+                {
+                    soa.EducationDevelopmentCharges = actualEDC;
+                }
+            }
 
             // 6. Parkland Levy
             soa.ParklandLevy = unit.Project.Fees

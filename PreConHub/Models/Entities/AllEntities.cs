@@ -1444,6 +1444,27 @@ namespace PreConHub.Models.Entities
 
         [StringLength(500)]
         public string? Description { get; set; }
+
+        /// <summary>Comma-separated FeeType enum names this cap covers.
+        /// e.g. "DevelopmentCharges,EducationDevelopmentCharges" for a combined DC+EDC cap.
+        /// When multiple fee types are listed, the cap applies to their sum.</summary>
+        [StringLength(500)]
+        public string? CoveredFeeTypes { get; set; }
+
+        /// <summary>Parse CoveredFeeTypes into a list of FeeType enums.</summary>
+        [NotMapped]
+        public List<FeeType> ParsedFeeTypes
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(CoveredFeeTypes)) return new List<FeeType>();
+                return CoveredFeeTypes.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(s => Enum.TryParse<FeeType>(s, out var ft) ? ft : (FeeType?)null)
+                    .Where(ft => ft.HasValue)
+                    .Select(ft => ft!.Value)
+                    .ToList();
+            }
+        }
     }
 
     public enum ExcessLevyResponsibility
