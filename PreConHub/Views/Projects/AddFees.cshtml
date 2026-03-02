@@ -41,6 +41,7 @@
                                         <th>Fee Name</th>
                                         <th>Type</th>
                                         <th class="text-end">Amount</th>
+                                        <th style="width:50px"></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -50,6 +51,16 @@
                                             <td>@fee.FeeName</td>
                                             <td><span class="badge bg-secondary">@fee.FeeType</span></td>
                                             <td class="text-end">$@fee.Amount.ToString("N2")</td>
+                                            <td>
+                                                <form asp-action="DeleteFee" method="post" class="d-inline">
+                                                    <input type="hidden" name="id" value="@fee.Id" />
+                                                    <input type="hidden" name="projectId" value="@Model.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                            onclick="return confirm('Remove this fee?')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>

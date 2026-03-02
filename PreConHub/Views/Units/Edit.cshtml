@@ -93,6 +93,8 @@
                                         <span class="input-group-text">$</span>
                                         <input asp-for="ParkingPrice" type="number" step="0.01" class="form-control" />
                                     </div>
+                                    <label asp-for="ParkingCount" class="form-label mt-2">Parking Spots</label>
+                                    <input asp-for="ParkingCount" type="number" class="form-control" min="0" />
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -106,6 +108,8 @@
                                         <span class="input-group-text">$</span>
                                         <input asp-for="LockerPrice" type="number" step="0.01" class="form-control" />
                                     </div>
+                                    <label asp-for="LockerCount" class="form-label mt-2">Lockers</label>
+                                    <input asp-for="LockerCount" type="number" class="form-control" min="0" />
                                 </div>
                             </div>
                         </div>
@@ -115,7 +119,7 @@
                             <i class="bi bi-calendar me-2 text-primary"></i>Dates
                         </h5>
 
-                        <div class="row mb-4">
+                        <div class="row mb-3">
                             <div class="col-md-6">
                                 <label asp-for="OccupancyDate" class="form-label">Occupancy Date</label>
                                 <input asp-for="OccupancyDate" type="date" class="form-control" />
@@ -123,6 +127,32 @@
                             <div class="col-md-6">
                                 <label asp-for="ClosingDate" class="form-label">Closing Date</label>
                                 <input asp-for="ClosingDate" type="date" class="form-control" />
+                            </div>
+                        </div>
+
+                        <!-- Tarion Dates -->
+                        <h5 class="mb-3 pb-2 border-bottom mt-4">
+                            <i class="bi bi-shield-check me-2 text-primary"></i>Tarion Dates
+                        </h5>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label asp-for="FirstTentativeOccupancyDate" class="form-label">First Tentative Occupancy</label>
+                                <input asp-for="FirstTentativeOccupancyDate" type="date" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="OutsideOccupancyDate" class="form-label">Outside Occupancy Date</label>
+                                <input asp-for="OutsideOccupancyDate" type="date" class="form-control" />
+                            </div>
+                        </div>
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label asp-for="DelayedOccupancyDate" class="form-label">Delayed Occupancy Date</label>
+                                <input asp-for="DelayedOccupancyDate" type="date" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="PurchaserTerminationDate" class="form-label">Purchaser Termination Date</label>
+                                <input asp-for="PurchaserTerminationDate" type="date" class="form-control" />
                             </div>
                         </div>
 

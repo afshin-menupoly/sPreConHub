@@ -157,6 +157,12 @@ namespace PreConHub.Controllers
                 LockerPrice = model.HasLocker ? model.LockerPrice : 0,
                 OccupancyDate = model.OccupancyDate ?? project.OccupancyDate,
                 ClosingDate = model.ClosingDate ?? project.ClosingDate,
+                ParkingCount = model.ParkingCount,
+                LockerCount = model.LockerCount,
+                FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
+                OutsideOccupancyDate = model.OutsideOccupancyDate,
+                DelayedOccupancyDate = model.DelayedOccupancyDate,
+                PurchaserTerminationDate = model.PurchaserTerminationDate,
                 Status = UnitStatus.Pending,
                 CreatedAt = DateTime.UtcNow
             };
@@ -221,7 +227,13 @@ namespace PreConHub.Controllers
                 OccupancyDate = unit.OccupancyDate,
                 ClosingDate = unit.ClosingDate,
                 ActualAnnualLandTax = unit.ActualAnnualLandTax,
-                ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee
+                ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
+                ParkingCount = unit.ParkingCount,
+                LockerCount = unit.LockerCount,
+                FirstTentativeOccupancyDate = unit.FirstTentativeOccupancyDate,
+                OutsideOccupancyDate = unit.OutsideOccupancyDate,
+                DelayedOccupancyDate = unit.DelayedOccupancyDate,
+                PurchaserTerminationDate = unit.PurchaserTerminationDate
             };
 
             ViewBag.ProjectName = unit.Project.Name;
@@ -281,6 +293,12 @@ namespace PreConHub.Controllers
             unit.ClosingDate = model.ClosingDate;
             unit.ActualAnnualLandTax = model.ActualAnnualLandTax;
             unit.ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee;
+            unit.ParkingCount = model.ParkingCount;
+            unit.LockerCount = model.LockerCount;
+            unit.FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate;
+            unit.OutsideOccupancyDate = model.OutsideOccupancyDate;
+            unit.DelayedOccupancyDate = model.DelayedOccupancyDate;
+            unit.PurchaserTerminationDate = model.PurchaserTerminationDate;
             unit.UpdatedAt = DateTime.UtcNow;
 
             _context.AuditLogs.Add(new AuditLog

@@ -550,6 +550,34 @@ namespace PreConHub.Controllers
             return RedirectToAction(nameof(AddFees), new { id = projectId });
         }
 
+        // POST: /Projects/DeleteFee
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteFee(int id, int projectId)
+        {
+            var fee = await _context.ProjectFees.FindAsync(id);
+            if (fee == null || fee.ProjectId != projectId) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "ProjectFee",
+                EntityId = projectId,
+                Action = "Delete",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { fee.FeeName, fee.FeeType, fee.Amount }),
+                Timestamp = DateTime.UtcNow
+            });
+
+            _context.ProjectFees.Remove(fee);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Fee \"{fee.FeeName}\" removed.";
+            return RedirectToAction(nameof(AddFees), new { id = projectId });
+        }
+
         // POST: /Projects/AddLevyCap
         [HttpPost]
         [ValidateAntiForgeryToken]

@@ -466,6 +466,14 @@ namespace PreConHub.Models.ViewModels
         public DateTime? ClosingDate { get; set; }
         public decimal? ActualAnnualLandTax { get; set; }
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
+
+        // Phase 3: Tarion dates & counts
+        public int ParkingCount { get; set; }
+        public int LockerCount { get; set; }
+        public DateTime? FirstTentativeOccupancyDate { get; set; }
+        public DateTime? OutsideOccupancyDate { get; set; }
+        public DateTime? DelayedOccupancyDate { get; set; }
+        public DateTime? PurchaserTerminationDate { get; set; }
     }
 
     #endregion
