@@ -366,6 +366,12 @@ namespace PreConHub.Controllers
                     }).ToList() ?? new List<ClosingPenaltyViewModel>()
             };
 
+            // APS Document
+            var apsDoc = await _context.Documents
+                .FirstOrDefaultAsync(d => d.UnitId == unit.Id && d.DocumentType == DocumentType.AgreementOfPurchaseSale);
+            viewModel.HasApsDocument = apsDoc != null;
+            viewModel.ApsDocumentId = apsDoc?.Id;
+
             return View(viewModel);
         }
 
@@ -1615,6 +1621,40 @@ namespace PreConHub.Controllers
 
             TempData["Success"] = "NSF charge resolved.";
             return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+        }
+
+        #endregion
+
+        #region APS Download
+
+        // GET: /Lawyer/DownloadAps/5 (id = unitId)
+        public async Task<IActionResult> DownloadAps(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+
+            // Verify this lawyer is assigned as BuilderLawyer for this unit
+            var assignment = await _context.LawyerAssignments
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+            if (assignment == null)
+                return NotFound();
+
+            var doc = await _context.Documents
+                .FirstOrDefaultAsync(d => d.UnitId == id && d.DocumentType == DocumentType.AgreementOfPurchaseSale);
+            if (doc == null)
+            {
+                TempData["Error"] = "No APS document found for this unit.";
+                return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+            }
+
+            var filePath = Path.Combine(_environment.WebRootPath, doc.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+            if (!System.IO.File.Exists(filePath))
+            {
+                TempData["Error"] = "APS file not found on server.";
+                return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+            }
+
+            return PhysicalFile(filePath, doc.ContentType, doc.FileName);
         }
 
         #endregion

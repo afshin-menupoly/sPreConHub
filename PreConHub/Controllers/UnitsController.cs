@@ -27,6 +27,7 @@ namespace PreConHub.Controllers
         private readonly IDocumentAnalysisService _documentAnalysisService;
         private readonly INotificationService _notificationService;
         private readonly IServiceScopeFactory _serviceScopeFactory;
+        private readonly IWebHostEnvironment _environment;
 
         public UnitsController(
             ApplicationDbContext context,
@@ -38,6 +39,7 @@ namespace PreConHub.Controllers
             IDocumentAnalysisService documentAnalysisService,
             INotificationService notificationService,
             IServiceScopeFactory serviceScopeFactory,
+            IWebHostEnvironment environment,
             ILogger<UnitsController> logger)
         {
             _context = context;
@@ -49,6 +51,7 @@ namespace PreConHub.Controllers
             _documentAnalysisService = documentAnalysisService;
             _notificationService = notificationService;
             _serviceScopeFactory = serviceScopeFactory;
+            _environment = environment;
             _logger = logger;
         }
 
@@ -577,7 +580,11 @@ namespace PreConHub.Controllers
                 // Assignment
                 IsAssigned = unit.IsAssigned,
                 AssignmentDate = unit.AssignmentDate,
-                AssigneeName = unit.AssigneeName
+                AssigneeName = unit.AssigneeName,
+
+                // APS Document
+                HasApsDocument = unit.Documents.Any(d => d.DocumentType == DocumentType.AgreementOfPurchaseSale),
+                ApsDocumentId = unit.Documents.FirstOrDefault(d => d.DocumentType == DocumentType.AgreementOfPurchaseSale)?.Id
             };
 
             if (unit.SOA != null)
@@ -3340,8 +3347,49 @@ namespace PreConHub.Controllers
 
             try
             {
-                using var stream = apsFile.OpenReadStream();
+                // Save APS PDF to disk first (before AI consumes the stream)
+                var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads", "aps", id.ToString());
+                Directory.CreateDirectory(uploadsDir);
+
+                var safeFileName = $"APS_{unit.UnitNumber}_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+                var filePath = Path.Combine(uploadsDir, safeFileName);
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await apsFile.CopyToAsync(fileStream);
+                }
+
+                // Process with AI using the saved file
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
                 var extractedData = await _documentAnalysisService.ProcessApsUploadAsync(stream);
+
+                // Remove any previous APS document for this unit
+                var existingApsDoc = await _context.Documents
+                    .FirstOrDefaultAsync(d => d.UnitId == id && d.DocumentType == DocumentType.AgreementOfPurchaseSale);
+                if (existingApsDoc != null)
+                {
+                    var oldPath = Path.Combine(_environment.WebRootPath, existingApsDoc.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                    if (System.IO.File.Exists(oldPath) && oldPath != filePath)
+                        System.IO.File.Delete(oldPath);
+                    _context.Documents.Remove(existingApsDoc);
+                }
+
+                // Create Document entity
+                var document = new Document
+                {
+                    UnitId = id,
+                    ProjectId = unit.ProjectId,
+                    FileName = apsFile.FileName,
+                    FilePath = $"/uploads/aps/{id}/{safeFileName}",
+                    ContentType = "application/pdf",
+                    FileSize = apsFile.Length,
+                    DocumentType = DocumentType.AgreementOfPurchaseSale,
+                    Source = DocumentSource.Builder,
+                    Description = "Agreement of Purchase and Sale (uploaded via AI analysis)",
+                    UploadedById = _userManager.GetUserId(User)!,
+                    UploadedAt = DateTime.UtcNow
+                };
+                _context.Documents.Add(document);
+                await _context.SaveChangesAsync();
 
                 var viewModel = new ReviewApsDataViewModel
                 {
@@ -4053,6 +4101,41 @@ namespace PreConHub.Controllers
 
             TempData["Success"] = $"Lawyer SOA confirmed for Unit {unit.UnitNumber}. Lawyer's balance of ${unit.SOA.BalanceDueOnClosing:N2} is now the official figure.";
             return RedirectToAction("Details", new { id });
+        }
+
+        #endregion
+
+        #region APS Download
+
+        // GET: /Units/DownloadAps/5
+        public async Task<IActionResult> DownloadAps(int id)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+            if (unit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            var doc = await _context.Documents
+                .FirstOrDefaultAsync(d => d.UnitId == id && d.DocumentType == DocumentType.AgreementOfPurchaseSale);
+            if (doc == null)
+            {
+                TempData["Error"] = "No APS document found for this unit.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            var filePath = Path.Combine(_environment.WebRootPath, doc.FilePath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+            if (!System.IO.File.Exists(filePath))
+            {
+                TempData["Error"] = "APS file not found on server.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            return PhysicalFile(filePath, doc.ContentType, doc.FileName);
         }
 
         #endregion

@@ -11,37 +11,18 @@
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
                     <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })">@Model.ProjectName</a></li>
-                    @if (Model.UnitId.HasValue)
-                    {
-                        <li class="breadcrumb-item"><a href="@Url.Action("Details", "Units", new { id = Model.UnitId })">Unit @Model.UnitNumber</a></li>
-                    }
+                    <li class="breadcrumb-item"><a href="@Url.Action("Details", "Units", new { id = Model.UnitId })">Unit @Model.UnitNumber</a></li>
                     <li class="breadcrumb-item active">Upload APS</li>
                 </ol>
             </nav>
             <h1 class="h3 mb-0">
                 <i class="bi bi-file-earmark-text text-primary me-2"></i>AI Document Analysis
             </h1>
-            @if (Model.UnitId.HasValue)
-            {
-                <p class="text-muted">Upload APS for <strong>Unit @Model.UnitNumber</strong> — extracted data will update this unit</p>
-            }
-            else
-            {
-                <p class="text-muted">Upload an Agreement of Purchase & Sale (APS) to create a new unit</p>
-            }
+            <p class="text-muted">Upload APS for <strong>Unit @Model.UnitNumber</strong> — extracted data will update this unit</p>
         </div>
-        @if (Model.UnitId.HasValue)
-        {
-            <a href="@Url.Action("Details", "Units", new { id = Model.UnitId })" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-2"></i>Back to Unit
-            </a>
-        }
-        else
-        {
-            <a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left me-2"></i>Back to Dashboard
-            </a>
-        }
+        <a href="@Url.Action("Details", "Units", new { id = Model.UnitId })" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Unit
+        </a>
     </div>
 
     <!-- Messages -->
@@ -68,14 +49,9 @@
                     <h5 class="mb-0"><i class="bi bi-cloud-upload me-2"></i>Upload APS Document</h5>
                 </div>
                 <div class="card-body p-4">
-                    @{
-                        var formAction = Model.UnitId.HasValue
-                            ? Url.Action("UploadUnitAps", "Units", new { id = Model.UnitId })
-                            : Url.Action("UploadAps", "Units", new { id = Model.ProjectId });
-                    }
-                    <form action="@formAction" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <form action="@Url.Action("UploadUnitAps", "Units", new { id = Model.UnitId })" method="post" enctype="multipart/form-data" id="uploadForm">
                         @Html.AntiForgeryToken()
-                        
+
                         <!-- Drop Zone -->
                         <div class="upload-zone border-2 border-dashed rounded-3 p-5 text-center mb-4" id="dropZone">
                             <i class="bi bi-file-earmark-pdf display-1 text-danger mb-3"></i>
@@ -154,39 +130,55 @@
                             <span class="badge bg-success rounded-circle p-2">4</span>
                         </div>
                         <div class="ms-3">
-                            @if (Model.UnitId.HasValue)
-                            {
-                                <h6 class="mb-1">Update Unit</h6>
-                                <p class="text-muted small mb-0">Unit fields are updated with extracted data</p>
-                            }
-                            else
-                            {
-                                <h6 class="mb-1">Create Unit</h6>
-                                <p class="text-muted small mb-0">Unit and purchaser records are created automatically</p>
-                            }
+                            <h6 class="mb-1">Update Unit</h6>
+                            <p class="text-muted small mb-0">Unit fields are updated with extracted data</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-warning">
-                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Data Extracted</h5>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="bi bi-cpu me-2"></i>AI Section Guide</h5>
                 </div>
                 <div class="card-body">
-                    <p class="small mb-2">The AI will attempt to extract:</p>
-                    <ul class="small mb-0">
-                        <li><strong>Unit Details:</strong> Number, type, size, price</li>
-                        <li><strong>Parking & Locker:</strong> Prices, counts</li>
-                        <li><strong>Purchaser Info:</strong> Names, contact details</li>
-                        <li><strong>Deposit Schedule:</strong> Amounts, percentages, due dates</li>
-                        <li><strong>Key Dates:</strong> Occupancy, closing, Tarion dates</li>
-                        <li><strong>Schedule B Fees:</strong> Cheque admin, PDI, wire transfer, etc.</li>
-                        <li><strong>Levy Caps:</strong> DC + EDC combined caps</li>
-                        <li><strong>Tarion/Legal:</strong> Registration #, legal description</li>
-                        <li><strong>Vendor's Solicitor:</strong> Firm, contact info</li>
+                    <p class="small mb-2">For best results, include these APS sections in your upload:</p>
+                    <ul class="small mb-0 list-unstyled">
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <strong>Schedule A</strong> — Unit details, purchase price, parking/locker
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <strong>Schedule B, Part I (Sections 5-6)</strong> — Closing fees
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <strong>Schedule C</strong> — Deposit schedule
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <strong>Tarion Addendum</strong> — Critical dates
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <strong>Signature pages</strong> — Purchaser names, contacts
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <strong>Vendor solicitor info</strong>
+                        </li>
+                        <li>
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>
+                            <strong>Levy/DC amendments</strong>
+                        </li>
                     </ul>
                 </div>
+            </div>
+
+            <div class="alert alert-warning mb-0">
+                <i class="bi bi-lightbulb me-2"></i>
+                <strong>Cost-Saving Tip:</strong> Upload only relevant APS pages. Exclude marketing brochures, floor plans, and general terms and conditions to reduce AI processing costs.
             </div>
         </div>
     </div>
@@ -231,7 +223,7 @@
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
-        
+
         const files = e.dataTransfer.files;
         if (files.length > 0 && files[0].type === 'application/pdf') {
             fileInput.files = files;

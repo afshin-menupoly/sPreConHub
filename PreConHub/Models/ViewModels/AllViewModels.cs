@@ -287,6 +287,10 @@ namespace PreConHub.Models.ViewModels
         public DateTime? AssignmentDate { get; set; }
         public string? AssigneeName { get; set; }
 
+        // APS Document
+        public bool HasApsDocument { get; set; }
+        public int? ApsDocumentId { get; set; }
+
         // Late Closing Penalty
         public decimal? DailyPenaltyAmount { get; set; }
         public bool IsPenaltyActive { get; set; }
@@ -658,6 +662,10 @@ namespace PreConHub.Models.ViewModels
         public bool IsAssigned { get; set; }
         public DateTime? AssignmentDate { get; set; }
         public string? AssigneeName { get; set; }
+
+        // APS Document
+        public bool HasApsDocument { get; set; }
+        public int? ApsDocumentId { get; set; }
 
         // Late Closing Penalty
         public decimal? DailyPenaltyAmount { get; set; }
