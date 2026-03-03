@@ -227,6 +227,9 @@ namespace PreConHub.Controllers
                     .ThenInclude(u => u.Deposits)
                 .Include(la => la.Unit)
                     .ThenInclude(u => u.ClosingPenalties)
+                .Include(la => la.Unit)
+                    .ThenInclude(u => u.NSFCharges)
+                        .ThenInclude(n => n.Deposit)
                 .Include(la => la.LawyerNotes)
                 .FirstOrDefaultAsync(la => la.Id == id && la.LawyerId == userId);
 
@@ -320,6 +323,29 @@ namespace PreConHub.Controllers
                         NoteType = n.NoteType,
                         CreatedAt = n.CreatedAt
                     }).ToList() ?? new List<LawyerNoteViewModel>(),
+
+                // NSF Charges
+                NSFCharges = unit.NSFCharges
+                    .OrderByDescending(n => n.BounceDate)
+                    .Select(n => new NSFChargeViewModel
+                    {
+                        Id = n.Id,
+                        DepositId = n.DepositId,
+                        DepositName = n.Deposit.DepositName,
+                        BounceDate = n.BounceDate,
+                        FeeAmount = n.FeeAmount,
+                        HSTAmount = n.HSTAmount,
+                        TotalCharge = n.TotalCharge,
+                        IsResolved = n.IsResolved,
+                        ResolvedDate = n.ResolvedDate,
+                        Notes = n.Notes
+                    }).ToList(),
+                TotalNSFCharges = unit.NSFCharges.Where(n => !n.IsResolved).Sum(n => n.TotalCharge),
+
+                // Assignment
+                IsAssigned = unit.IsAssigned,
+                AssignmentDate = unit.AssignmentDate,
+                AssigneeName = unit.AssigneeName,
 
                 // Late Closing Penalty
                 DailyPenaltyAmount = unit.DailyPenaltyAmount,
@@ -1427,6 +1453,167 @@ namespace PreConHub.Controllers
             }
 
             TempData["Success"] = $"Unit {unit.UnitNumber} closed. Final penalty: {unit.TotalAccumulatedPenalty:C} ({unit.PenaltyDaysCount} days).";
+            return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+        }
+
+        #endregion
+
+        #region NSF Charges
+
+        // GET: /Lawyer/RecordNSF/5?depositId=10 (UnitId)
+        public async Task<IActionResult> RecordNSF(int id, int depositId)
+        {
+            var userId = _userManager.GetUserId(User);
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit).ThenInclude(u => u.Project)
+                .Include(la => la.Unit).ThenInclude(u => u.Deposits)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+            if (assignment == null) return NotFound();
+
+            var deposit = assignment.Unit.Deposits.FirstOrDefault(d => d.Id == depositId);
+            if (deposit == null) return NotFound();
+
+            ViewBag.ReturnAssignmentId = assignment.Id;
+            return View("~/Views/Units/RecordNSF.cshtml", new RecordNSFViewModel
+            {
+                UnitId = assignment.Unit.Id,
+                UnitNumber = assignment.Unit.UnitNumber,
+                ProjectName = assignment.Unit.Project.Name,
+                ProjectId = assignment.Unit.ProjectId,
+                DepositId = deposit.Id,
+                DepositName = deposit.DepositName,
+                DepositAmount = deposit.Amount
+            });
+        }
+
+        // POST: /Lawyer/RecordNSF/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RecordNSF(int id, RecordNSFViewModel model)
+        {
+            var userId = _userManager.GetUserId(User);
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit).ThenInclude(u => u.Project).ThenInclude(p => p.Builder)
+                .Include(la => la.Unit).ThenInclude(u => u.Deposits)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+            if (assignment == null) return NotFound();
+
+            var unit = assignment.Unit;
+            var deposit = unit.Deposits.FirstOrDefault(d => d.Id == model.DepositId);
+            if (deposit == null) return NotFound();
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.ReturnAssignmentId = assignment.Id;
+                model.UnitNumber = unit.UnitNumber;
+                model.ProjectName = unit.Project.Name;
+                model.ProjectId = unit.ProjectId;
+                model.DepositName = deposit.DepositName;
+                model.DepositAmount = deposit.Amount;
+                return View("~/Views/Units/RecordNSF.cshtml", model);
+            }
+
+            var hstAmount = Math.Round(model.FeeAmount * 0.13m, 2);
+            var nsf = new NSFCharge
+            {
+                UnitId = unit.Id,
+                DepositId = deposit.Id,
+                BounceDate = model.BounceDate,
+                FeeAmount = model.FeeAmount,
+                HSTAmount = hstAmount,
+                TotalCharge = model.FeeAmount + hstAmount,
+                Notes = model.Notes
+            };
+
+            deposit.Status = DepositStatus.Bounced;
+            deposit.IsPaid = false;
+
+            _context.NSFCharges.Add(nsf);
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "NSFCharge",
+                EntityId = unit.Id,
+                Action = "RecordNSF",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = "Lawyer",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { DepositId = deposit.Id, deposit.DepositName, nsf.FeeAmount, nsf.TotalCharge, nsf.BounceDate }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // Notify builder + purchasers
+            try
+            {
+                await _notificationService.NotifyNSFChargeAsync(unit.Id, deposit.DepositName, nsf.TotalCharge);
+
+                // Also notify builder directly
+                var builder = unit.Project.Builder;
+                if (builder != null)
+                {
+                    var lawyerName = User.Identity?.Name ?? "Lawyer";
+                    await _notificationService.CreateAsync(
+                        userId: builder.Id,
+                        title: "Lawyer Recorded NSF Charge",
+                        message: $"{lawyerName} recorded NSF charge of {nsf.TotalCharge:C} for {deposit.DepositName} on Unit {unit.UnitNumber}.",
+                        type: NotificationType.NSF,
+                        priority: NotificationPriority.High,
+                        actionUrl: $"/Units/Details/{unit.Id}",
+                        actionText: "View Unit",
+                        projectId: unit.ProjectId,
+                        unitId: unit.Id
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending NSF notification for unit {UnitId}", unit.Id);
+            }
+
+            TempData["Success"] = $"NSF charge of {nsf.TotalCharge:C} recorded for {deposit.DepositName}.";
+            return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+        }
+
+        // POST: /Lawyer/ResolveNSF/5 (UnitId)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResolveNSF(int id, int nsfId)
+        {
+            var userId = _userManager.GetUserId(User);
+            var nsf = await _context.NSFCharges
+                .Include(n => n.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(n => n.Id == nsfId && n.UnitId == id);
+
+            if (nsf == null) return NotFound();
+
+            var assignment = await _context.LawyerAssignments
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+            if (assignment == null) return Forbid();
+
+            nsf.IsResolved = true;
+            nsf.ResolvedDate = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "NSFCharge",
+                EntityId = nsf.UnitId,
+                Action = "ResolveNSF",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = "Lawyer",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { NSFChargeId = nsf.Id, nsf.ResolvedDate }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "NSF charge resolved.";
             return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
         }
 

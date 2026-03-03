@@ -255,6 +255,10 @@ namespace PreConHub.Models.Entities
         PDFScanFee = 27,                    // APS 6(k) — $150 + HST
         ClosingDocChangesFee = 28,          // APS 6(l) — $500 + HST
 
+        // APS Conditional/Penalty Fees (Gaps 16-19)
+        NSFFee = 29,                        // $500 + HST per bounced cheque
+        AssignmentFee = 30,                 // $1,500+ HST when APS assigned
+
         Other = 99
     }
 
@@ -379,6 +383,18 @@ namespace PreConHub.Models.Entities
         public int ParkingCount { get; set; }
         /// <summary>Number of storage locker units included in APS (default 0).</summary>
         public int LockerCount { get; set; }
+
+        // =====================================
+        // NSF Charges & Assignment
+        // =====================================
+        public virtual ICollection<NSFCharge> NSFCharges { get; set; } = new List<NSFCharge>();
+        /// <summary>Whether this unit's APS has been assigned to a new buyer.</summary>
+        public bool IsAssigned { get; set; } = false;
+        /// <summary>Date the APS assignment occurred.</summary>
+        public DateTime? AssignmentDate { get; set; }
+        /// <summary>Name of the assignee (new buyer).</summary>
+        [StringLength(200)]
+        public string? AssigneeName { get; set; }
 
         // =====================================
         // Late Closing Penalty
@@ -711,6 +727,7 @@ namespace PreConHub.Models.Entities
         public decimal? InterestRate { get; set; }
         public InterestCompoundingType CompoundingType { get; set; } = InterestCompoundingType.Simple;
         public virtual ICollection<DepositInterestPeriod> InterestPeriods { get; set; } = new List<DepositInterestPeriod>();
+        public virtual ICollection<NSFCharge> NSFCharges { get; set; } = new List<NSFCharge>();
     }
 
     /// <summary>Government-published semi-annual interest rate period for a deposit (daily simple interest per period).</summary>
@@ -731,7 +748,8 @@ namespace PreConHub.Models.Entities
         Paid = 1,
         Late = 2,
         Refunded = 3,
-        Forfeited = 4
+        Forfeited = 4,
+        Bounced = 5
     }
     public enum DepositHolder { Builder = 0, Trust = 1, Lawyer = 2 }
     public enum InterestCompoundingType { Simple = 0, Annual = 1, Monthly = 2 }
@@ -994,6 +1012,22 @@ namespace PreConHub.Models.Entities
         /// <summary>Late closing penalty total — contractual daily penalty, no HST. Added to TotalVendorCredits.</summary>
         [Column(TypeName = "decimal(18,2)")]
         public decimal LatePenalties { get; set; }
+
+        /// <summary>Total NSF charges (bounced cheque fees). HST included per charge. Added to TotalVendorCredits.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal NSFChargesTotal { get; set; }
+
+        /// <summary>Default interest at 24% p.a. on bounced/late deposit amounts. No HST. Added to TotalVendorCredits.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DefaultInterest { get; set; }
+
+        /// <summary>Tarion delayed occupancy compensation ($150/day, max $7,500). No HST. Added to TotalPurchaserCredits.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DelayedOccupancyCompensation { get; set; }
+
+        /// <summary>APS assignment fee total. Flows through feeItemsBase × 1.13 (HST applicable).</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal AssignmentFeeTotal { get; set; }
 
         // =====================================
         // NEW: Credits & Incentives Detail
@@ -1628,7 +1662,8 @@ namespace PreConHub.Models.Entities
         Lawyer = 8,         // bi-briefcase, blue
         Purchaser = 9,      // bi-person, teal
         System = 10,        // bi-gear, gray
-        Penalty = 11        // bi-exclamation-triangle-fill, red
+        Penalty = 11,       // bi-exclamation-triangle-fill, red
+        NSF = 12            // bi-x-circle, red — bounced cheque
     }
 
     /// <summary>
@@ -1830,6 +1865,56 @@ namespace PreConHub.Models.Entities
 
         [StringLength(1000)]
         public string? Notes { get; set; }
+    }
+
+    #endregion
+
+    #region NSF Charges
+
+    /// <summary>
+    /// NSF (Non-Sufficient Funds) charge for a bounced deposit cheque.
+    /// $500 + HST = $565 per bounce. 24% interest accrues from bounce date.
+    /// </summary>
+    public class NSFCharge
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public int DepositId { get; set; }
+
+        [ForeignKey("DepositId")]
+        public virtual Deposit Deposit { get; set; } = null!;
+
+        public int UnitId { get; set; }
+
+        [ForeignKey("UnitId")]
+        public virtual Unit Unit { get; set; } = null!;
+
+        /// <summary>Date the cheque bounced.</summary>
+        public DateTime BounceDate { get; set; }
+
+        /// <summary>Base NSF fee amount (default $500).</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal FeeAmount { get; set; } = 500.00m;
+
+        /// <summary>HST on the NSF fee (default $65 = 500 × 13%).</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal HSTAmount { get; set; } = 65.00m;
+
+        /// <summary>Total charge including HST (default $565).</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TotalCharge { get; set; } = 565.00m;
+
+        /// <summary>Whether this NSF charge has been resolved (cheque re-cleared).</summary>
+        public bool IsResolved { get; set; } = false;
+
+        /// <summary>Date the NSF was resolved.</summary>
+        public DateTime? ResolvedDate { get; set; }
+
+        [StringLength(500)]
+        public string? Notes { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
     #endregion

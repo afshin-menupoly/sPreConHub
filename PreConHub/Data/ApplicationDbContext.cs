@@ -36,6 +36,7 @@ namespace PreConHub.Data
         public DbSet<SystemFeeConfig> SystemFeeConfigs { get; set; }
         public DbSet<SOAVersion> SOAVersions { get; set; }
         public DbSet<ClosingPenalty> ClosingPenalties { get; set; }
+        public DbSet<NSFCharge> NSFCharges { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -447,6 +448,30 @@ namespace PreConHub.Data
 
                 entity.HasIndex(e => new { e.UnitId, e.PenaltyDate }).IsUnique();
                 entity.HasIndex(e => e.UnitId);
+            });
+
+            // ============================================
+            // NSFCharge Configuration
+            // ============================================
+            builder.Entity<NSFCharge>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.FeeAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.HSTAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.TotalCharge).HasColumnType("decimal(18,2)");
+
+                entity.HasOne(e => e.Deposit)
+                    .WithMany(d => d.NSFCharges)
+                    .HasForeignKey(e => e.DepositId)
+                    .OnDelete(DeleteBehavior.NoAction);
+
+                entity.HasOne(e => e.Unit)
+                    .WithMany(u => u.NSFCharges)
+                    .HasForeignKey(e => e.UnitId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.UnitId);
+                entity.HasIndex(e => e.DepositId);
             });
 
             // ============================================

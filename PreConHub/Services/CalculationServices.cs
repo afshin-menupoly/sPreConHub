@@ -56,6 +56,7 @@ namespace PreConHub.Services
                 .Include(u => u.Deposits)
                     .ThenInclude(d => d.InterestPeriods)
                 .Include(u => u.Fees)
+                .Include(u => u.NSFCharges)
                 .Include(u => u.OccupancyFees)
                 .Include(u => u.Purchasers)
                     .ThenInclude(p => p.MortgageInfo)
@@ -258,7 +259,8 @@ namespace PreConHub.Services
                          || f.FeeType == FeeType.CarbonMonoxideDetectorFee
                          || f.FeeType == FeeType.WireTransferFee
                          || f.FeeType == FeeType.PDFScanFee
-                         || f.FeeType == FeeType.ClosingDocChangesFee)
+                         || f.FeeType == FeeType.ClosingDocChangesFee
+                         || f.FeeType == FeeType.AssignmentFee)
                 .Sum(f => f.Amount);
 
             // 18. System Fees (loaded from SystemFeeConfig, with HST applied)
@@ -329,6 +331,24 @@ namespace PreConHub.Services
             // Late Closing Penalties (contractual, no HST — not added to feeItemsBase)
             soa.LatePenalties = unit.TotalAccumulatedPenalty;
 
+            // NSF Charges (bounced cheque fees — HST already included in TotalCharge)
+            soa.NSFChargesTotal = unit.NSFCharges
+                .Where(n => !n.IsResolved)
+                .Sum(n => n.TotalCharge);
+
+            // Default Interest (24% p.a. on bounced/late deposit amounts from bounce/due date to closing)
+            soa.DefaultInterest = CalculateDefaultInterest(unit);
+
+            // Delayed Occupancy Compensation ($150/day, max 50 days = $7,500 — Tarion)
+            soa.DelayedOccupancyCompensation = CalculateDelayedOccupancyCompensation(unit);
+
+            // Assignment Fee (flows through feeItemsBase with HST, already included via ScheduleBClosingFees query)
+            soa.AssignmentFeeTotal = unit.IsAssigned
+                ? unit.Project.Fees
+                    .Where(f => f.FeeType == FeeType.AssignmentFee)
+                    .Sum(f => f.Amount)
+                : 0;
+
             // Calculate Total Vendor Credits (Credit Vendor — amounts owed TO vendor)
             // Based on: NetSalePrice + FederalHST + ProvincialHST + adjustments
             // NOTE: LTT is informational only — excluded from balance
@@ -341,7 +361,9 @@ namespace PreConHub.Services
                 + soa.OccupancyFeesChargeable
                 + soa.ReserveFundContribution
                 + soa.CommonExpensesFirstMonth
-                + soa.LatePenalties;
+                + soa.LatePenalties
+                + soa.NSFChargesTotal
+                + soa.DefaultInterest;
 
             soa.TotalDebits = soa.TotalVendorCredits; // backward compat
 
@@ -397,7 +419,8 @@ namespace PreConHub.Services
                 + soa.SecurityDepositRefund
                 + soa.BuilderCredits
                 + soa.OtherCredits
-                + soa.HSTRebateTotal;
+                + soa.HSTRebateTotal
+                + soa.DelayedOccupancyCompensation;
 
             soa.TotalCredits = soa.TotalPurchaserCredits; // backward compat
 
@@ -720,6 +743,62 @@ namespace PreConHub.Services
             if (purchasePrice <= 850000) return 1850;
             if (purchasePrice <= 1000000) return 2150;
             return 2450;
+        }
+
+        /// <summary>
+        /// Calculates default interest at 24% p.a. on bounced/late deposit amounts
+        /// from the bounce date (or due date for late deposits) to the unit's closing date.
+        /// </summary>
+        private decimal CalculateDefaultInterest(Unit unit)
+        {
+            var closingDate = unit.ClosingDate ?? unit.FirmClosingDate ?? DateTime.UtcNow;
+            decimal totalInterest = 0;
+
+            // Interest on bounced deposits (from bounce date)
+            foreach (var nsf in unit.NSFCharges.Where(n => !n.IsResolved))
+            {
+                var deposit = unit.Deposits.FirstOrDefault(d => d.Id == nsf.DepositId);
+                if (deposit == null) continue;
+
+                var daysOutstanding = (closingDate - nsf.BounceDate).Days;
+                if (daysOutstanding <= 0) continue;
+
+                // 24% per annum on the deposit amount
+                totalInterest += Math.Round(deposit.Amount * 0.24m * daysOutstanding / 365m, 2);
+            }
+
+            // Interest on late deposits (from due date to paid date or closing)
+            foreach (var deposit in unit.Deposits.Where(d => d.Status == DepositStatus.Late))
+            {
+                var startDate = deposit.DueDate;
+                var endDate = deposit.PaidDate ?? closingDate;
+                var daysLate = (endDate - startDate).Days;
+                if (daysLate <= 0) continue;
+
+                totalInterest += Math.Round(deposit.Amount * 0.24m * daysLate / 365m, 2);
+            }
+
+            return totalInterest;
+        }
+
+        /// <summary>
+        /// Calculates Tarion delayed occupancy compensation at $150/day, max 50 days ($7,500).
+        /// Compares scheduled occupancy vs actual occupancy.
+        /// </summary>
+        private decimal CalculateDelayedOccupancyCompensation(Unit unit)
+        {
+            // Scheduled occupancy: use DelayedOccupancyDate if set, else FirstTentativeOccupancyDate
+            var scheduledDate = unit.DelayedOccupancyDate ?? unit.FirstTentativeOccupancyDate;
+            var actualDate = unit.OccupancyDate;
+
+            if (scheduledDate == null || actualDate == null) return 0;
+
+            var delayDays = (actualDate.Value - scheduledDate.Value).Days;
+            if (delayDays <= 0) return 0;
+
+            // Cap at 50 days ($7,500 max)
+            var compensableDays = Math.Min(delayDays, 50);
+            return compensableDays * 150.00m;
         }
 
         private decimal CalculatePropertyTaxAdjustment(Unit unit)

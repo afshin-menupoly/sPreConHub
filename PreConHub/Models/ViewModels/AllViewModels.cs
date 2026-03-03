@@ -278,6 +278,15 @@ namespace PreConHub.Models.ViewModels
         // Unit Fees (upgrades, credits)
         public List<UnitFeeViewModel> UnitFees { get; set; } = new();
 
+        // NSF Charges
+        public List<NSFChargeViewModel> NSFCharges { get; set; } = new();
+        public decimal TotalNSFCharges { get; set; }
+
+        // Assignment
+        public bool IsAssigned { get; set; }
+        public DateTime? AssignmentDate { get; set; }
+        public string? AssigneeName { get; set; }
+
         // Late Closing Penalty
         public decimal? DailyPenaltyAmount { get; set; }
         public bool IsPenaltyActive { get; set; }
@@ -376,6 +385,10 @@ namespace PreConHub.Models.ViewModels
         public decimal ScheduleBClosingFees { get; set; }
         public List<FeeBreakdownItem> ScheduleBFeeBreakdown { get; set; } = new();
         public decimal LatePenalties { get; set; }
+        public decimal NSFChargesTotal { get; set; }
+        public decimal DefaultInterest { get; set; }
+        public decimal DelayedOccupancyCompensation { get; set; }
+        public decimal AssignmentFeeTotal { get; set; }
         public decimal NetHSTPayable { get; set; }
         public decimal TotalDebits { get; set; }
 
@@ -636,6 +649,15 @@ namespace PreConHub.Models.ViewModels
         // Notes
         public List<LawyerNoteViewModel> Notes { get; set; } = new();
         public decimal TotalDepositsPaid { get; set; }
+
+        // NSF Charges
+        public List<NSFChargeViewModel> NSFCharges { get; set; } = new();
+        public decimal TotalNSFCharges { get; set; }
+
+        // Assignment
+        public bool IsAssigned { get; set; }
+        public DateTime? AssignmentDate { get; set; }
+        public string? AssigneeName { get; set; }
 
         // Late Closing Penalty
         public decimal? DailyPenaltyAmount { get; set; }
@@ -2582,6 +2604,63 @@ namespace PreConHub.Models.ViewModels
         public DateTime AssignedAt { get; set; }
         public DateTime? ReviewedAt { get; set; }
         public List<LawyerNoteViewModel> Notes { get; set; } = new();
+    }
+
+    #endregion
+
+    #region NSF & Assignment ViewModels
+
+    public class NSFChargeViewModel
+    {
+        public int Id { get; set; }
+        public int DepositId { get; set; }
+        public string DepositName { get; set; } = "";
+        public DateTime BounceDate { get; set; }
+        public decimal FeeAmount { get; set; }
+        public decimal HSTAmount { get; set; }
+        public decimal TotalCharge { get; set; }
+        public bool IsResolved { get; set; }
+        public DateTime? ResolvedDate { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class RecordNSFViewModel
+    {
+        public int DepositId { get; set; }
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+        public int ProjectId { get; set; }
+        public string DepositName { get; set; } = "";
+        public decimal DepositAmount { get; set; }
+
+        [Display(Name = "Bounce Date")]
+        [DataType(DataType.Date)]
+        public DateTime BounceDate { get; set; } = DateTime.Today;
+
+        [Display(Name = "NSF Fee")]
+        [DataType(DataType.Currency)]
+        public decimal FeeAmount { get; set; } = 500.00m;
+
+        [StringLength(500)]
+        public string? Notes { get; set; }
+    }
+
+    public class RecordAssignmentViewModel
+    {
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+        public int ProjectId { get; set; }
+
+        [Required]
+        [Display(Name = "Assignee Name")]
+        [StringLength(200)]
+        public string AssigneeName { get; set; } = "";
+
+        [Display(Name = "Assignment Date")]
+        [DataType(DataType.Date)]
+        public DateTime AssignmentDate { get; set; } = DateTime.Today;
     }
 
     #endregion

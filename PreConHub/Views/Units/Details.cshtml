@@ -44,6 +44,12 @@
             <a href="@Url.Action("SetDailyPenalty", "Units", new { id = Model.UnitId })" class="btn btn-outline-danger">
                 <i class="bi bi-exclamation-triangle me-1"></i>Late Penalty
             </a>
+            @if (!Model.IsAssigned)
+            {
+                <a href="@Url.Action("RecordAssignment", "Units", new { id = Model.UnitId })" class="btn btn-outline-info">
+                    <i class="bi bi-arrow-left-right me-1"></i>Record Assignment
+                </a>
+            }
             @if (Model.Status != PreConHub.Models.Entities.UnitStatus.Closed)
             {
                 <form asp-action="CloseUnit" asp-route-id="@Model.UnitId" method="post" class="d-inline">
@@ -367,6 +373,99 @@
                                         </tbody>
                                     </table>
                                 </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+
+            <!-- NSF Charges Card -->
+            @if (Model.NSFCharges.Any())
+            {
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-x-circle me-2 text-danger"></i>NSF Charges (Bounced Cheques)</h5>
+                        <span class="badge bg-danger">@Model.NSFCharges.Count(n => !n.IsResolved) unresolved</span>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.TotalNSFCharges > 0)
+                        {
+                            <div class="alert alert-danger mb-3">
+                                <i class="bi bi-exclamation-circle me-1"></i>
+                                <strong>Outstanding NSF Total:</strong> @Model.TotalNSFCharges.ToString("C") (plus 24% default interest accruing)
+                            </div>
+                        }
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Deposit</th>
+                                        <th>Bounce Date</th>
+                                        <th class="text-end">Fee</th>
+                                        <th class="text-end">HST</th>
+                                        <th class="text-end">Total</th>
+                                        <th>Status</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var nsf in Model.NSFCharges)
+                                    {
+                                        <tr class="@(!nsf.IsResolved ? "table-danger" : "")">
+                                            <td>@nsf.DepositName</td>
+                                            <td>@nsf.BounceDate.ToString("MMM dd, yyyy")</td>
+                                            <td class="text-end">@nsf.FeeAmount.ToString("C")</td>
+                                            <td class="text-end">@nsf.HSTAmount.ToString("C")</td>
+                                            <td class="text-end fw-bold">@nsf.TotalCharge.ToString("C")</td>
+                                            <td>
+                                                @if (nsf.IsResolved)
+                                                {
+                                                    <span class="badge bg-success">Resolved @(nsf.ResolvedDate?.ToString("MMM dd") ?? "")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-danger">Outstanding</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (!nsf.IsResolved)
+                                                {
+                                                    <form asp-action="ResolveNSF" asp-route-id="@Model.UnitId" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="nsfId" value="@nsf.Id" />
+                                                        <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Mark this NSF as resolved?')">
+                                                            <i class="bi bi-check-lg me-1"></i>Resolve
+                                                        </button>
+                                                    </form>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Assignment Card -->
+            @if (Model.IsAssigned)
+            {
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-arrow-left-right me-2 text-info"></i>APS Assignment</h5>
+                        <span class="badge bg-info">Assigned</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-2">
+                            <div class="col-6 text-muted small">Assigned To</div>
+                            <div class="col-6 fw-bold">@Model.AssigneeName</div>
+                        </div>
+                        @if (Model.AssignmentDate.HasValue)
+                        {
+                            <div class="row mb-2">
+                                <div class="col-6 text-muted small">Assignment Date</div>
+                                <div class="col-6">@Model.AssignmentDate.Value.ToString("MMM dd, yyyy")</div>
                             </div>
                         }
                     </div>
@@ -736,6 +835,7 @@
                                         <th>Holder</th>
                                         <th class="text-end">Interest Rate</th>
                                         <th class="text-center">Interest Periods</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -747,7 +847,11 @@
                                             <td>@deposit.DueDate.ToString("MMM dd, yyyy")</td>
                                             <td>@(deposit.PaidDate?.ToString("MMM dd, yyyy") ?? "—")</td>
                                             <td class="text-center">
-                                                @if (deposit.IsPaid)
+                                                @if (deposit.Status == PreConHub.Models.Entities.DepositStatus.Bounced)
+                                                {
+                                                    <span class="badge bg-danger">Bounced</span>
+                                                }
+                                                else if (deposit.IsPaid)
                                                 {
                                                     <span class="badge bg-success">Paid</span>
                                                 }
@@ -781,10 +885,18 @@
                                                     @deposit.InterestPeriods.Count period(s)
                                                 </button>
                                             </td>
+                                            <td class="text-center">
+                                                @if (deposit.Status != PreConHub.Models.Entities.DepositStatus.Bounced)
+                                                {
+                                                    <a href="@Url.Action("RecordNSF", "Units", new { id = Model.UnitId, depositId = deposit.Id })" class="btn btn-sm btn-outline-danger" title="Record bounced cheque">
+                                                        <i class="bi bi-x-circle me-1"></i>NSF
+                                                    </a>
+                                                }
+                                            </td>
                                         </tr>
                                         @* Collapsible rate periods row *@
                                         <tr class="collapse" id="periods-@deposit.Id">
-                                            <td colspan="8" class="bg-light p-0">
+                                            <td colspan="9" class="bg-light p-0">
                                                 <div class="p-3">
                                                     <h6 class="fw-semibold mb-2">
                                                         <i class="bi bi-percent text-info me-1"></i>
@@ -1144,6 +1256,27 @@
                                             <td class="text-end">$@Model.SOA.LatePenalties.ToString("N2")</td>
                                         </tr>
                                     }
+                                    @if (Model.SOA.NSFChargesTotal > 0)
+                                    {
+                                        <tr class="text-danger">
+                                            <td><i class="bi bi-x-circle me-1"></i>NSF Charges (incl. HST)</td>
+                                            <td class="text-end">$@Model.SOA.NSFChargesTotal.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (Model.SOA.DefaultInterest > 0)
+                                    {
+                                        <tr class="text-danger">
+                                            <td><i class="bi bi-percent me-1"></i>Default Interest (24% p.a.)</td>
+                                            <td class="text-end">$@Model.SOA.DefaultInterest.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (Model.SOA.AssignmentFeeTotal > 0)
+                                    {
+                                        <tr>
+                                            <td><i class="bi bi-arrow-left-right me-1"></i>Assignment Fee</td>
+                                            <td class="text-end">$@Model.SOA.AssignmentFeeTotal.ToString("N2")</td>
+                                        </tr>
+                                    }
                                     <tr class="border-top fw-bold">
                                         <td>TOTAL CREDIT VENDOR</td>
                                         <td class="text-end text-danger">$@Model.SOA.TotalDebits.ToString("N2")</td>
@@ -1181,6 +1314,13 @@
                                     @if (Model.SOA.OtherCredits > 0)
                                     {
                                         <tr><td>Other Credits</td><td class="text-end">$@Model.SOA.OtherCredits.ToString("N2")</td></tr>
+                                    }
+                                    @if (Model.SOA.DelayedOccupancyCompensation > 0)
+                                    {
+                                        <tr class="text-success">
+                                            <td><i class="bi bi-clock me-1"></i>Delayed Occupancy Compensation</td>
+                                            <td class="text-end">$@Model.SOA.DelayedOccupancyCompensation.ToString("N2")</td>
+                                        </tr>
                                     }
                                     <tr class="border-top fw-bold">
                                         <td>TOTAL CREDIT PURCHASER</td>

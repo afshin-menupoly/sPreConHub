@@ -51,6 +51,9 @@ namespace PreConHub.Services
         Task NotifyPenaltyPausedAsync(int unitId, decimal totalPenalty, int daysCharged);
         Task NotifyPenaltyFinalStatementAsync(int unitId, decimal totalPenalty, int daysCharged);
 
+        // NSF charge notifications
+        Task NotifyNSFChargeAsync(int unitId, string depositName, decimal totalCharge);
+
         // Background job triggers
         Task CheckClosingDateRemindersAsync();
         Task CheckDepositDueRemindersAsync();
@@ -688,6 +691,63 @@ namespace PreConHub.Services
                     projectId: unit.ProjectId,
                     unitId: unitId,
                     groupKey: $"penalty-final-lawyer-{unitId}"
+                );
+            }
+        }
+
+        public async Task NotifyNSFChargeAsync(int unitId, string depositName, decimal totalCharge)
+        {
+            var unit = await _context.Units.Include(u => u.Project)
+                .Include(u => u.Purchasers).ThenInclude(p => p.Purchaser)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            // Notify builder
+            await CreateAsync(
+                userId: unit.Project.BuilderId,
+                title: "NSF Charge Recorded",
+                message: $"NSF charge of {totalCharge:C} recorded for {depositName} on Unit {unit.UnitNumber}.",
+                type: NotificationType.NSF,
+                priority: NotificationPriority.High,
+                actionUrl: $"/Units/Details/{unitId}",
+                actionText: "View Unit",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"nsf-{unitId}"
+            );
+
+            // Notify purchasers
+            foreach (var up in unit.Purchasers.Where(p => p.Purchaser != null))
+            {
+                await CreateAsync(
+                    userId: up.PurchaserId,
+                    title: "NSF Charge — Bounced Cheque",
+                    message: $"Your deposit cheque ({depositName}) for Unit {unit.UnitNumber} has bounced. NSF fee: {totalCharge:C}. Please contact your builder immediately.",
+                    type: NotificationType.NSF,
+                    priority: NotificationPriority.High,
+                    actionUrl: "/Purchaser/Dashboard",
+                    actionText: "View Details",
+                    projectId: unit.ProjectId,
+                    unitId: unitId,
+                    groupKey: $"nsf-purchaser-{unitId}"
+                );
+            }
+
+            // Notify builder's lawyer
+            var builderLawyer = await GetBuilderLawyerForUnitAsync(unitId);
+            if (builderLawyer != null)
+            {
+                await CreateAsync(
+                    userId: builderLawyer.LawyerId,
+                    title: "NSF Charge Recorded",
+                    message: $"NSF charge of {totalCharge:C} recorded for {depositName} on Unit {unit.UnitNumber}.",
+                    type: NotificationType.NSF,
+                    priority: NotificationPriority.High,
+                    actionUrl: $"/Lawyer/ReviewUnit/{builderLawyer.Id}",
+                    actionText: "Review Unit",
+                    projectId: unit.ProjectId,
+                    unitId: unitId,
+                    groupKey: $"nsf-lawyer-{unitId}"
                 );
             }
         }
