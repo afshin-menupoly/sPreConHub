@@ -31,28 +31,30 @@ PreConHub is an ASP.NET Core 8.0 MVC application for coordinating pre-constructi
 
 ```
 PreConHub/
-├── Controllers/        # 8 MVC controllers, role-gated with [Authorize]
+├── Controllers/        # 11 MVC controllers, role-gated with [Authorize]
 ├── Models/
-│   ├── Entities/       # AllEntities.cs — all 30+ domain entities in one file
+│   ├── Entities/       # AllEntities.cs — all 40+ domain entities in one file
 │   └── ViewModels/     # AllViewModels.cs + ReportViewModels.cs + DocumentViewModels.cs
 ├── Services/           # 7 service classes (business logic, calculations, PDF, email)
 ├── Data/
 │   ├── ApplicationDbContext.cs  # EF Core DbContext (extends IdentityDbContext)
-│   └── Migrations/
+│   └── Migrations/     # 14 EF Core migrations
 ├── Views/              # Razor .cshtml templates organized by controller
 ├── Hubs/               # NotificationHub.cs — SignalR real-time notifications
 ├── Areas/Identity/     # ASP.NET Identity Razor Pages (login, register)
 └── wwwroot/            # Static assets (Bootstrap 5, jQuery, site.css/js)
 ```
 
-### Four User Roles
+### Six User Roles
 
 - **Admin** — platform administration, user management
+- **SuperAdmin** — elevated admin with full access
 - **Builder** — creates projects, manages units/fees, assigns lawyers, views dashboards
 - **Purchaser** — submits mortgage/financial info, views SOA, receives invitations
-- **Lawyer** — reviews units, approves or requests revisions, adds notes
+- **Lawyer** — reviews units (as builder's lawyer or buyer's lawyer), approves/revisions, penalty actions
+- **MarketingAgency** — views assigned projects, suggests discounts/credits
 
-Controllers enforce roles: `ProjectsController` and `UnitsController` require Builder/Admin; `PurchaserController` requires Purchaser; `LawyerController` requires Lawyer.
+Controllers enforce roles: `ProjectsController` and `UnitsController` require Builder/Admin; `PurchaserController` requires Purchaser; `LawyerController` and `BuyerLawyerController` require Lawyer; `MarketingAgencyController` requires MarketingAgency.
 
 ### Key Services
 
@@ -62,9 +64,9 @@ Controllers enforce roles: `ProjectsController` and `UnitsController` require Bu
 | `ShortfallAnalysisService` | Compares SOA totals vs. purchaser funds; assigns risk levels (Low/Medium/High/VeryHigh) and closing recommendations |
 | `ProjectSummaryService` | Cached dashboard aggregations (ready-to-close, needs-discount, at-risk counts) |
 | `PdfService` | QuestPDF-based SOA document generation |
-| `EmailService` | SMTP templated emails (invitations, approvals, status updates). Currently disabled via config |
+| `EmailService` | SMTP templated emails (invitations, approvals, penalties, status updates). Currently disabled via config |
 | `DocumentAnalysisService` | AI-powered APS document parsing using iText7 + Claude API. Currently disabled via config |
-| `NotificationService` | Database-backed in-app notifications with real-time SignalR delivery |
+| `NotificationService` | Database-backed in-app notifications with real-time SignalR delivery + cross-party penalty emails |
 
 `CalculationServices.cs` contains three service interfaces/implementations: `ISoaCalculationService`, `IShortfallAnalysisService`, and `IProjectSummaryService`.
 
@@ -72,8 +74,8 @@ Controllers enforce roles: `ProjectsController` and `UnitsController` require Bu
 
 - SQL Server via Entity Framework Core 8.0.8
 - Connection string in `appsettings.json` under `ConnectionStrings:DefaultConnection`
-- `ApplicationDbContext` has 18 DbSets with Fluent API relationship configuration
-- Key relationships: Project -> Units -> (UnitFees, Deposits, UnitPurchasers, Documents, SOA, ShortfallAnalysis)
+- `ApplicationDbContext` has 22 DbSets with Fluent API relationship configuration
+- Key relationships: Project -> Units -> (UnitFees, Deposits, UnitPurchasers, Documents, SOA, ShortfallAnalysis, ClosingPenalties)
 - Admin user is seeded on startup in `Program.cs`
 
 ### Real-Time

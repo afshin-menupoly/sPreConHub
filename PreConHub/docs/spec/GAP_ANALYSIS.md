@@ -1,7 +1,7 @@
 # PreConHub — Gap Analysis & Remediation Status
 
 **Original analysis date:** 2026-02-18
-**Last updated:** 2026-02-20 (Session 10 — ALL SPEC REQUIREMENTS IMPLEMENTED)
+**Last updated:** 2026-03-02 (Session 22 — ALL SPEC + POST-SPEC + APS + PENALTIES COMPLETE)
 **Spec source:** `PreConHub/docs/spec/PreConHubReconstructionPlatform.docx` + `WORKFLOW_SPEC.md`
 **Codebase:** ASP.NET Core 8 MVC at `PreConHub/`
 
@@ -29,10 +29,9 @@
 
 ## Overall Assessment
 
-> **STATUS: 100% COMPLETE.** All spec requirements from `PreConHubReconstructionPlatform.docx` are implemented.
-> Full cross-check performed in Session 10 confirmed no remaining gaps.
-> Original estimate was ~65% system change required — all changes have been applied across 10 sessions.
-> Remaining ~30%: Priorities 7–15 covering SOAVersion entity, 7-tier color system, project investment, per-project MA assignment, SOA versioning, extension request workflow completion, purchaser/unit detail enhancements, notifications, and report updates.
+> **STATUS: 100% COMPLETE.** All spec requirements + post-spec improvements implemented across 22 sessions.
+> Post-spec: P18-P20 (role separation, UX, builder decision), Sessions 14-15 (SOA fixes, UX, security), Sessions 16-17 (buyer's lawyer), Sessions 18-20 (APS gaps + manual entry + unit-level APS), Session 21 (late closing penalty system), Session 22 (builder's lawyer penalty access + cross-party notifications & emails).
+> For detailed session-by-session status, see `memory/preconhub-status.md`.
 
 ---
 
@@ -54,11 +53,11 @@
 | **Priority 8** | 7-Tier Color System | ✅ COMPLETE |
 | **Priority 9** | Project Investment Management | ✅ COMPLETE |
 | **Priority 10** | Marketing Agency Per-Project Assignment | ✅ COMPLETE |
-| **Priority 11** | SOA Version History | ⏳ NOT STARTED |
-| **Priority 12** | Extension Request Workflow | ⏳ NOT STARTED |
-| **Priority 13** | Purchaser & Unit Detail Enhancements | ⏳ NOT STARTED |
-| **Priority 14** | Notification Enhancements | ⏳ NOT STARTED |
-| **Priority 15** | Report Enhancements (colors + new reports) | ⏳ NOT STARTED |
+| **Priority 11** | SOA Version History | ✅ COMPLETE |
+| **Priority 12** | Extension Request Workflow | ✅ COMPLETE |
+| **Priority 13** | Purchaser & Unit Detail Enhancements | ✅ COMPLETE |
+| **Priority 14** | Notification Enhancements | ✅ COMPLETE |
+| **Priority 15** | Report Enhancements (colors + new reports) | ✅ COMPLETE |
 
 ---
 
@@ -260,7 +259,7 @@ All files created/modified. Committed and pushed to GitHub.
 
 ---
 
-## REMAINING GAPS (Priorities 7–15)
+## PRIORITIES 7–15 (ALL COMPLETE)
 
 ### Priority 7 — Data Model + Migration
 - NEW `SOAVersion` entity (Id, UnitId, VersionNumber, Source enum, BalanceDue, VendorCredits, PurchaserCredits, CashRequired, UploadedFilePath, CreatedByUserId, CreatedByRole, CreatedAt, Notes)
@@ -381,6 +380,11 @@ All files created/modified. Committed and pushed to GitHub.
 | `LawyerSOAUpload` | ✅ Applied |
 | `AdminMgmt_SuperAdmin_BuilderQuotas` | ✅ Applied |
 | `Priority7_SpecAlignment` | ✅ Applied |
+| `AddBuyerLawyerFields` | ✅ Applied |
+| `AddScheduleBClosingFees` | ✅ Applied |
+| `AddCombinedLevyCap` | ✅ Applied |
+| `AddAPSEntityFields` | ✅ Applied |
+| `AddLateClosingPenalty` | ✅ Applied |
 
 ---
 
@@ -457,7 +461,7 @@ Storage: `SystemFeeConfig` table — admin-editable key/value pairs so amounts c
 
 ---
 
-### Part A — Data Model (Migration Required) ⏳ NOT STARTED
+### Part A — Data Model (Migration Required) ✅ COMPLETE
 
 **New entity: `DepositInterestPeriod`**
 ```csharp
@@ -507,7 +511,7 @@ public class SystemFeeConfig {
 
 ---
 
-### Part B — Builder UI: Deposit Interest Rate Periods ⏳ NOT STARTED
+### Part B — Builder UI: Deposit Interest Rate Periods ✅ COMPLETE
 
 - Add "Interest Rate Periods" section to the unit deposit management page
 - Per deposit: table showing existing periods (PeriodStart, PeriodEnd, AnnualRate%)
@@ -516,7 +520,7 @@ public class SystemFeeConfig {
 
 ---
 
-### Part C — Builder UI: Unit-level Fields ⏳ NOT STARTED
+### Part C — Builder UI: Unit-level Fields ✅ COMPLETE
 
 - Add `ActualAnnualLandTax` (decimal, optional) to `UnitsController.Edit` GET/POST + `Views/Units/Edit.cshtml`
 - Add `ActualMonthlyMaintenanceFee` (decimal, optional) to same form
@@ -525,7 +529,7 @@ public class SystemFeeConfig {
 
 ---
 
-### Part D — Admin UI: Fee Schedule ⏳ NOT STARTED
+### Part D — Admin UI: Fee Schedule ✅ COMPLETE
 
 - New admin page: `Views/Admin/FeeSchedule.cshtml`
 - Lists all `SystemFeeConfig` rows with Edit inline form
@@ -534,7 +538,7 @@ public class SystemFeeConfig {
 
 ---
 
-### Part E — Calculation Engine Rewrite ⏳ NOT STARTED
+### Part E — Calculation Engine Rewrite ✅ COMPLETE
 
 **File:** `Services/CalculationServices.cs` — `CalculateSOAAsync` method
 
@@ -555,7 +559,7 @@ Key changes:
 
 ---
 
-### Part F — PDF Layout Rewrite ⏳ NOT STARTED
+### Part F — PDF Layout Rewrite ✅ COMPLETE
 
 **File:** `Services/PdfService.cs` — `GenerateStatementOfAdjustments` method
 

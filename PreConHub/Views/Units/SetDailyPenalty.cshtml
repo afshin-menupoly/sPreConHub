@@ -4,11 +4,23 @@
     ViewData["Title"] = $"Set Daily Penalty — Unit {Model.UnitNumber}";
 }
 
+@{
+    var isLawyerContext = ViewBag.ReturnAssignmentId != null;
+}
+
 <nav aria-label="breadcrumb" class="mb-3">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a asp-controller="Projects" asp-action="Index">Projects</a></li>
-        <li class="breadcrumb-item"><a asp-controller="Projects" asp-action="Dashboard" asp-route-id="@Model.ProjectId">@Model.ProjectName</a></li>
-        <li class="breadcrumb-item"><a asp-controller="Units" asp-action="Details" asp-route-id="@Model.UnitId">Unit @Model.UnitNumber</a></li>
+        @if (isLawyerContext)
+        {
+            <li class="breadcrumb-item"><a asp-controller="Lawyer" asp-action="Dashboard">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Lawyer" asp-action="ReviewUnit" asp-route-id="@ViewBag.ReturnAssignmentId">Unit @Model.UnitNumber</a></li>
+        }
+        else
+        {
+            <li class="breadcrumb-item"><a asp-controller="Projects" asp-action="Index">Projects</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Projects" asp-action="Dashboard" asp-route-id="@Model.ProjectId">@Model.ProjectName</a></li>
+            <li class="breadcrumb-item"><a asp-controller="Units" asp-action="Details" asp-route-id="@Model.UnitId">Unit @Model.UnitNumber</a></li>
+        }
         <li class="breadcrumb-item active">Set Daily Penalty</li>
     </ol>
 </nav>
@@ -84,9 +96,18 @@
                     }
 
                     <div class="d-flex justify-content-between">
-                        <a asp-action="Details" asp-route-id="@Model.UnitId" class="btn btn-outline-secondary">
-                            <i class="bi bi-arrow-left me-1"></i>Cancel
-                        </a>
+                        @if (isLawyerContext)
+                        {
+                            <a asp-controller="Lawyer" asp-action="ReviewUnit" asp-route-id="@ViewBag.ReturnAssignmentId" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Cancel
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-controller="Units" asp-action="Details" asp-route-id="@Model.UnitId" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Cancel
+                            </a>
+                        }
                         <button type="submit" class="btn btn-danger">
                             <i class="bi bi-check-lg me-1"></i>Save Penalty Rate
                         </button>
