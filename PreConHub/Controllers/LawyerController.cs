@@ -225,6 +225,8 @@ namespace PreConHub.Controllers
                     .ThenInclude(u => u.ShortfallAnalysis)
                 .Include(la => la.Unit)
                     .ThenInclude(u => u.Deposits)
+                .Include(la => la.Unit)
+                    .ThenInclude(u => u.ClosingPenalties)
                 .Include(la => la.LawyerNotes)
                 .FirstOrDefaultAsync(la => la.Id == id && la.LawyerId == userId);
 
@@ -317,7 +319,25 @@ namespace PreConHub.Controllers
                         Note = n.Note,
                         NoteType = n.NoteType,
                         CreatedAt = n.CreatedAt
-                    }).ToList() ?? new List<LawyerNoteViewModel>()
+                    }).ToList() ?? new List<LawyerNoteViewModel>(),
+
+                // Late Closing Penalty
+                DailyPenaltyAmount = unit.DailyPenaltyAmount,
+                IsPenaltyActive = unit.IsPenaltyActive,
+                PenaltyStartDate = unit.PenaltyStartDate,
+                PenaltyPausedAt = unit.PenaltyPausedAt,
+                TotalAccumulatedPenalty = unit.TotalAccumulatedPenalty,
+                PenaltyDaysCount = unit.PenaltyDaysCount,
+                PenaltyHistory = unit.ClosingPenalties?
+                    .OrderByDescending(cp => cp.PenaltyDate)
+                    .Select(cp => new ClosingPenaltyViewModel
+                    {
+                        Id = cp.Id,
+                        PenaltyDate = cp.PenaltyDate,
+                        DailyAmount = cp.DailyAmount,
+                        AccumulatedTotal = cp.AccumulatedTotal,
+                        CreatedAt = cp.CreatedAt
+                    }).ToList() ?? new List<ClosingPenaltyViewModel>()
             };
 
             return View(viewModel);
@@ -1081,6 +1101,336 @@ namespace PreConHub.Controllers
             TempData["Success"] = $"Lawyer SOA confirmed for Unit {unit.UnitNumber}. Lawyer's balance of ${unit.SOA.BalanceDueOnClosing:N2} is now the official figure.";
             return RedirectToAction(nameof(ReviewUnit), new { id });
         }
+
+        #region Late Closing Penalty
+
+        // GET: /Lawyer/SetDailyPenalty/5 (UnitId)
+        public async Task<IActionResult> SetDailyPenalty(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+            if (assignment == null) return NotFound();
+
+            var unit = assignment.Unit;
+            var viewModel = new SetDailyPenaltyViewModel
+            {
+                UnitId = unit.Id,
+                UnitNumber = unit.UnitNumber,
+                ProjectName = unit.Project.Name,
+                ProjectId = unit.ProjectId,
+                ClosingDate = unit.ClosingDate,
+                Status = unit.Status,
+                DailyPenaltyAmount = unit.DailyPenaltyAmount,
+                CurrentDailyPenalty = unit.DailyPenaltyAmount,
+                IsPenaltyActive = unit.IsPenaltyActive,
+                TotalAccumulatedPenalty = unit.TotalAccumulatedPenalty,
+                PenaltyDaysCount = unit.PenaltyDaysCount
+            };
+
+            ViewBag.ReturnAssignmentId = assignment.Id;
+            return View("~/Views/Units/SetDailyPenalty.cshtml", viewModel);
+        }
+
+        // POST: /Lawyer/SetDailyPenalty/5 (UnitId)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetDailyPenalty(int id, SetDailyPenaltyViewModel model)
+        {
+            var userId = _userManager.GetUserId(User);
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit).ThenInclude(u => u.Project).ThenInclude(p => p.Builder)
+                .Include(la => la.Unit).ThenInclude(u => u.SOA)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+            if (assignment == null) return NotFound();
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.ReturnAssignmentId = assignment.Id;
+                return View("~/Views/Units/SetDailyPenalty.cshtml", model);
+            }
+
+            var unit = assignment.Unit;
+            var oldAmount = unit.DailyPenaltyAmount;
+            unit.DailyPenaltyAmount = model.DailyPenaltyAmount;
+            unit.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "SetDailyPenalty",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = "Lawyer",
+                OldValues = JsonSerializer.Serialize(new { DailyPenaltyAmount = oldAmount }),
+                NewValues = JsonSerializer.Serialize(new { DailyPenaltyAmount = model.DailyPenaltyAmount }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // Notify builder (in-app + email)
+            try
+            {
+                var lawyerName = User.Identity?.Name ?? "Builder's Lawyer";
+                await _notificationService.CreateAsync(
+                    userId: unit.Project.BuilderId,
+                    title: "Penalty Rate Changed by Lawyer",
+                    message: $"{lawyerName} set the daily penalty for Unit {unit.UnitNumber} to {(model.DailyPenaltyAmount.HasValue ? model.DailyPenaltyAmount.Value.ToString("C") : "$0")}/day.",
+                    type: NotificationType.Penalty,
+                    priority: NotificationPriority.High,
+                    actionUrl: $"/Units/Details/{unit.Id}",
+                    actionText: "View Unit",
+                    projectId: unit.ProjectId,
+                    unitId: unit.Id
+                );
+
+                var builder = unit.Project.Builder;
+                if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                {
+                    await _emailService.SendPenaltyAccruedEmailAsync(
+                        builder.Email, $"{builder.FirstName} {builder.LastName}",
+                        unit.UnitNumber, unit.Project.Name,
+                        unit.ClosingDate.HasValue ? (DateTime.Today - unit.ClosingDate.Value.Date).Days : 0,
+                        model.DailyPenaltyAmount ?? 0, unit.TotalAccumulatedPenalty,
+                        unit.SOA?.BalanceDueOnClosing ?? 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending penalty set notification for unit {UnitId}", id);
+            }
+
+            TempData["Success"] = $"Daily penalty for Unit {unit.UnitNumber} set to {(model.DailyPenaltyAmount.HasValue ? model.DailyPenaltyAmount.Value.ToString("C") : "$0")}/day.";
+            return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+        }
+
+        // POST: /Lawyer/PausePenalty/5 (UnitId)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PausePenalty(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit).ThenInclude(u => u.Project).ThenInclude(p => p.Builder)
+                .Include(la => la.Unit).ThenInclude(u => u.Purchasers).ThenInclude(p => p.Purchaser)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+            if (assignment == null) return NotFound();
+
+            var unit = assignment.Unit;
+            unit.IsPenaltyActive = false;
+            unit.PenaltyPausedAt = DateTime.UtcNow;
+            unit.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "PausePenalty",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = "Lawyer",
+                NewValues = JsonSerializer.Serialize(new { IsPenaltyActive = false, PenaltyPausedAt = unit.PenaltyPausedAt }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // Notify builder + purchasers (in-app + email)
+            try
+            {
+                var lawyerName = User.Identity?.Name ?? "Builder's Lawyer";
+
+                // Notify builder in-app
+                await _notificationService.CreateAsync(
+                    userId: unit.Project.BuilderId,
+                    title: "Penalty Paused by Lawyer",
+                    message: $"{lawyerName} paused the late closing penalty for Unit {unit.UnitNumber}. Total accumulated: {unit.TotalAccumulatedPenalty:C}.",
+                    type: NotificationType.Penalty,
+                    priority: NotificationPriority.High,
+                    actionUrl: $"/Units/Details/{unit.Id}",
+                    actionText: "View Unit",
+                    projectId: unit.ProjectId,
+                    unitId: unit.Id
+                );
+
+                // Notify purchasers in-app
+                await _notificationService.NotifyPenaltyPausedAsync(id, unit.TotalAccumulatedPenalty, unit.PenaltyDaysCount);
+
+                // Email builder
+                var builder = unit.Project.Builder;
+                if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                {
+                    await _emailService.SendPenaltyPausedEmailAsync(
+                        builder.Email, $"{builder.FirstName} {builder.LastName}",
+                        unit.UnitNumber, unit.Project.Name,
+                        unit.PenaltyDaysCount, unit.TotalAccumulatedPenalty);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending penalty paused notification for unit {UnitId}", id);
+            }
+
+            TempData["Success"] = $"Penalty paused for Unit {unit.UnitNumber}. Total accumulated: {unit.TotalAccumulatedPenalty:C}.";
+            return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+        }
+
+        // POST: /Lawyer/ResumePenalty/5 (UnitId)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResumePenalty(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit).ThenInclude(u => u.Project).ThenInclude(p => p.Builder)
+                .Include(la => la.Unit).ThenInclude(u => u.SOA)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+            if (assignment == null) return NotFound();
+
+            var unit = assignment.Unit;
+            if (!unit.DailyPenaltyAmount.HasValue || unit.DailyPenaltyAmount.Value <= 0)
+            {
+                TempData["Error"] = "Cannot resume penalty — daily amount must be set first.";
+                return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+            }
+
+            unit.IsPenaltyActive = true;
+            unit.PenaltyPausedAt = null;
+            unit.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "ResumePenalty",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = "Lawyer",
+                NewValues = JsonSerializer.Serialize(new { IsPenaltyActive = true }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // Notify builder (in-app + email)
+            try
+            {
+                var lawyerName = User.Identity?.Name ?? "Builder's Lawyer";
+                await _notificationService.CreateAsync(
+                    userId: unit.Project.BuilderId,
+                    title: "Penalty Resumed by Lawyer",
+                    message: $"{lawyerName} resumed the late closing penalty for Unit {unit.UnitNumber} at {unit.DailyPenaltyAmount:C}/day.",
+                    type: NotificationType.Penalty,
+                    priority: NotificationPriority.High,
+                    actionUrl: $"/Units/Details/{unit.Id}",
+                    actionText: "View Unit",
+                    projectId: unit.ProjectId,
+                    unitId: unit.Id
+                );
+
+                var builder = unit.Project.Builder;
+                if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                {
+                    await _emailService.SendPenaltyAccruedEmailAsync(
+                        builder.Email, $"{builder.FirstName} {builder.LastName}",
+                        unit.UnitNumber, unit.Project.Name,
+                        unit.ClosingDate.HasValue ? (DateTime.Today - unit.ClosingDate.Value.Date).Days : 0,
+                        unit.DailyPenaltyAmount ?? 0, unit.TotalAccumulatedPenalty,
+                        unit.SOA?.BalanceDueOnClosing ?? 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending penalty resumed notification for unit {UnitId}", id);
+            }
+
+            TempData["Success"] = $"Penalty resumed for Unit {unit.UnitNumber} at {unit.DailyPenaltyAmount:C}/day.";
+            return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+        }
+
+        // POST: /Lawyer/CloseUnit/5 (UnitId)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CloseUnit(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            var assignment = await _context.LawyerAssignments
+                .Include(la => la.Unit).ThenInclude(u => u.Project).ThenInclude(p => p.Builder)
+                .Include(la => la.Unit).ThenInclude(u => u.Purchasers).ThenInclude(p => p.Purchaser)
+                .Include(la => la.Unit).ThenInclude(u => u.SOA)
+                .FirstOrDefaultAsync(la => la.UnitId == id && la.LawyerId == userId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+            if (assignment == null) return NotFound();
+
+            var unit = assignment.Unit;
+            unit.Status = UnitStatus.Closed;
+            unit.IsPenaltyActive = false;
+            unit.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "CloseUnit",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = "Lawyer",
+                NewValues = JsonSerializer.Serialize(new { Status = "Closed", TotalAccumulatedPenalty = unit.TotalAccumulatedPenalty, PenaltyDaysCount = unit.PenaltyDaysCount }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // Notify builder + purchasers (in-app + email)
+            try
+            {
+                var lawyerName = User.Identity?.Name ?? "Builder's Lawyer";
+
+                // Notify builder in-app
+                await _notificationService.CreateAsync(
+                    userId: unit.Project.BuilderId,
+                    title: "Unit Closed by Lawyer",
+                    message: $"{lawyerName} closed Unit {unit.UnitNumber}. Final penalty: {unit.TotalAccumulatedPenalty:C} ({unit.PenaltyDaysCount} days).",
+                    type: NotificationType.Closing,
+                    priority: NotificationPriority.High,
+                    actionUrl: $"/Units/Details/{unit.Id}",
+                    actionText: "View Unit",
+                    projectId: unit.ProjectId,
+                    unitId: unit.Id
+                );
+
+                // Notify purchasers + builder in-app via service
+                await _notificationService.NotifyPenaltyFinalStatementAsync(id, unit.TotalAccumulatedPenalty, unit.PenaltyDaysCount);
+
+                // Email builder
+                var builder = unit.Project.Builder;
+                if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                {
+                    await _emailService.SendPenaltyFinalStatementEmailAsync(
+                        builder.Email, $"{builder.FirstName} {builder.LastName}",
+                        unit.UnitNumber, unit.Project.Name,
+                        unit.PenaltyDaysCount, unit.TotalAccumulatedPenalty,
+                        unit.SOA?.BalanceDueOnClosing ?? 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending close unit notification for unit {UnitId}", id);
+            }
+
+            TempData["Success"] = $"Unit {unit.UnitNumber} closed. Final penalty: {unit.TotalAccumulatedPenalty:C} ({unit.PenaltyDaysCount} days).";
+            return RedirectToAction(nameof(ReviewUnit), new { id = assignment.Id });
+        }
+
+        #endregion
 
     }
 }

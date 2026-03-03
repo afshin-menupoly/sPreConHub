@@ -61,11 +61,21 @@ namespace PreConHub.Services
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<NotificationService> _logger;
+        private readonly IEmailService _emailService;
 
-        public NotificationService(ApplicationDbContext context, ILogger<NotificationService> logger)
+        public NotificationService(ApplicationDbContext context, ILogger<NotificationService> logger, IEmailService emailService)
         {
             _context = context;
             _logger = logger;
+            _emailService = emailService;
+        }
+
+        private async Task<LawyerAssignment?> GetBuilderLawyerForUnitAsync(int unitId)
+        {
+            return await _context.LawyerAssignments
+                .Include(la => la.Lawyer)
+                .FirstOrDefaultAsync(la => la.UnitId == unitId
+                    && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
         }
 
         #region Create Notifications
@@ -548,6 +558,24 @@ namespace PreConHub.Services
                     groupKey: $"penalty-purchaser-{unitId}-{DateTime.Today:yyyyMMdd}"
                 );
             }
+
+            // Notify builder's lawyer
+            var builderLawyer = await GetBuilderLawyerForUnitAsync(unitId);
+            if (builderLawyer != null)
+            {
+                await CreateAsync(
+                    userId: builderLawyer.LawyerId,
+                    title: "Late Closing Penalty Accrued",
+                    message: $"Unit {unit.UnitNumber}: Day {daysLate} penalty of {dailyAmount:C} charged. Total: {totalPenalty:C}.",
+                    type: NotificationType.Penalty,
+                    priority: NotificationPriority.High,
+                    actionUrl: $"/Lawyer/ReviewUnit/{builderLawyer.Id}",
+                    actionText: "Review Unit",
+                    projectId: unit.ProjectId,
+                    unitId: unitId,
+                    groupKey: $"penalty-lawyer-{unitId}-{DateTime.Today:yyyyMMdd}"
+                );
+            }
         }
 
         public async Task NotifyPenaltyPausedAsync(int unitId, decimal totalPenalty, int daysCharged)
@@ -557,6 +585,7 @@ namespace PreConHub.Services
                 .FirstOrDefaultAsync(u => u.Id == unitId);
             if (unit == null) return;
 
+            // Notify purchasers
             foreach (var up in unit.Purchasers.Where(p => p.Purchaser != null))
             {
                 await CreateAsync(
@@ -570,6 +599,38 @@ namespace PreConHub.Services
                     projectId: unit.ProjectId,
                     unitId: unitId,
                     groupKey: $"penalty-paused-{unitId}"
+                );
+            }
+
+            // Notify builder
+            await CreateAsync(
+                userId: unit.Project.BuilderId,
+                title: "Late Closing Penalty Paused",
+                message: $"Unit {unit.UnitNumber}: The late closing penalty has been paused. {daysCharged} days charged, total: {totalPenalty:C}.",
+                type: NotificationType.Info,
+                priority: NotificationPriority.Normal,
+                actionUrl: $"/Units/Details/{unitId}",
+                actionText: "View Unit",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"penalty-paused-builder-{unitId}"
+            );
+
+            // Notify builder's lawyer
+            var builderLawyer = await GetBuilderLawyerForUnitAsync(unitId);
+            if (builderLawyer != null)
+            {
+                await CreateAsync(
+                    userId: builderLawyer.LawyerId,
+                    title: "Late Closing Penalty Paused",
+                    message: $"Unit {unit.UnitNumber}: The late closing penalty has been paused. {daysCharged} days charged, total: {totalPenalty:C}.",
+                    type: NotificationType.Info,
+                    priority: NotificationPriority.Normal,
+                    actionUrl: $"/Lawyer/ReviewUnit/{builderLawyer.Id}",
+                    actionText: "Review Unit",
+                    projectId: unit.ProjectId,
+                    unitId: unitId,
+                    groupKey: $"penalty-paused-lawyer-{unitId}"
                 );
             }
         }
@@ -609,6 +670,24 @@ namespace PreConHub.Services
                     projectId: unit.ProjectId,
                     unitId: unitId,
                     groupKey: $"penalty-final-purchaser-{unitId}"
+                );
+            }
+
+            // Notify builder's lawyer
+            var builderLawyer = await GetBuilderLawyerForUnitAsync(unitId);
+            if (builderLawyer != null)
+            {
+                await CreateAsync(
+                    userId: builderLawyer.LawyerId,
+                    title: "Unit Closed — Final Penalty Statement",
+                    message: $"Unit {unit.UnitNumber} closed. Final penalty: {totalPenalty:C} ({daysCharged} days).",
+                    type: NotificationType.Closing,
+                    priority: NotificationPriority.High,
+                    actionUrl: $"/Lawyer/ReviewUnit/{builderLawyer.Id}",
+                    actionText: "Review Unit",
+                    projectId: unit.ProjectId,
+                    unitId: unitId,
+                    groupKey: $"penalty-final-lawyer-{unitId}"
                 );
             }
         }
@@ -781,6 +860,7 @@ namespace PreConHub.Services
             var lateUnits = await _context.Units
                 .Include(u => u.Project)
                 .Include(u => u.Purchasers).ThenInclude(p => p.Purchaser)
+                .Include(u => u.SOA)
                 .Where(u => u.ClosingDate.HasValue && u.ClosingDate.Value.Date < today)
                 .Where(u => u.DailyPenaltyAmount.HasValue && u.DailyPenaltyAmount.Value > 0)
                 .Where(u => u.Status != UnitStatus.Closed
@@ -854,15 +934,47 @@ namespace PreConHub.Services
 
                 await _context.SaveChangesAsync();
 
-                // Send notifications
+                // Send notifications + emails
                 try
                 {
                     var daysLate = (today - unit.ClosingDate!.Value.Date).Days;
                     await NotifyPenaltyAccruedAsync(unit.Id, dailyAmount, newTotal, daysLate);
+
+                    // Send emails to builder, builder's lawyer, and purchasers
+                    var balanceDue = unit.SOA?.BalanceDueOnClosing ?? 0;
+
+                    // Load builder for email
+                    var builder = await _context.Users.FindAsync(unit.Project.BuilderId);
+                    if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                    {
+                        await _emailService.SendPenaltyAccruedEmailAsync(
+                            builder.Email, $"{builder.FirstName} {builder.LastName}",
+                            unit.UnitNumber, unit.Project.Name,
+                            daysLate, dailyAmount, newTotal, balanceDue);
+                    }
+
+                    // Builder's lawyer email
+                    var builderLawyer = await GetBuilderLawyerForUnitAsync(unit.Id);
+                    if (builderLawyer?.Lawyer != null && !string.IsNullOrEmpty(builderLawyer.Lawyer.Email))
+                    {
+                        await _emailService.SendPenaltyAccruedEmailAsync(
+                            builderLawyer.Lawyer.Email, $"{builderLawyer.Lawyer.FirstName} {builderLawyer.Lawyer.LastName}",
+                            unit.UnitNumber, unit.Project.Name,
+                            daysLate, dailyAmount, newTotal, balanceDue);
+                    }
+
+                    // Purchaser emails
+                    foreach (var up in unit.Purchasers.Where(p => p.Purchaser != null && !string.IsNullOrEmpty(p.Purchaser.Email)))
+                    {
+                        await _emailService.SendPenaltyAccruedEmailAsync(
+                            up.Purchaser.Email!, $"{up.Purchaser.FirstName} {up.Purchaser.LastName}",
+                            unit.UnitNumber, unit.Project.Name,
+                            daysLate, dailyAmount, newTotal, balanceDue);
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error sending penalty accrued notification for unit {UnitId}", unit.Id);
+                    _logger.LogError(ex, "Error sending penalty accrued notification/email for unit {UnitId}", unit.Id);
                 }
 
             }

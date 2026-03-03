@@ -729,7 +729,8 @@ namespace PreConHub.Controllers
         public async Task<IActionResult> SetDailyPenalty(int id, SetDailyPenaltyViewModel model)
         {
             var unit = await _context.Units
-                .Include(u => u.Project)
+                .Include(u => u.Project).ThenInclude(p => p.Builder)
+                .Include(u => u.SOA)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (unit == null) return NotFound();
@@ -759,6 +760,59 @@ namespace PreConHub.Controllers
             });
             await _context.SaveChangesAsync();
 
+            // Notify builder's lawyer + send emails
+            try
+            {
+                var builderLawyer = await _context.LawyerAssignments
+                    .Include(la => la.Lawyer)
+                    .FirstOrDefaultAsync(la => la.UnitId == id
+                        && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+                if (builderLawyer != null)
+                {
+                    var builderName = User.Identity?.Name ?? "Builder";
+                    await _notificationService.CreateAsync(
+                        userId: builderLawyer.LawyerId,
+                        title: "Penalty Rate Changed by Builder",
+                        message: $"{builderName} set the daily penalty for Unit {unit.UnitNumber} to {(model.DailyPenaltyAmount.HasValue ? model.DailyPenaltyAmount.Value.ToString("C") : "$0")}/day.",
+                        type: NotificationType.Penalty,
+                        priority: NotificationPriority.High,
+                        actionUrl: $"/Lawyer/ReviewUnit/{builderLawyer.Id}",
+                        actionText: "Review Unit",
+                        projectId: unit.ProjectId,
+                        unitId: unit.Id
+                    );
+
+                    // Email lawyer
+                    if (!string.IsNullOrEmpty(builderLawyer.Lawyer?.Email))
+                    {
+                        var lawyerName = $"{builderLawyer.Lawyer.FirstName} {builderLawyer.Lawyer.LastName}";
+                        await _emailService.SendPenaltyAccruedEmailAsync(
+                            builderLawyer.Lawyer.Email, lawyerName,
+                            unit.UnitNumber, unit.Project.Name,
+                            unit.ClosingDate.HasValue ? (DateTime.Today - unit.ClosingDate.Value.Date).Days : 0,
+                            model.DailyPenaltyAmount ?? 0, unit.TotalAccumulatedPenalty,
+                            unit.SOA?.BalanceDueOnClosing ?? 0);
+                    }
+                }
+
+                // Email builder
+                var builder = unit.Project.Builder;
+                if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                {
+                    await _emailService.SendPenaltyAccruedEmailAsync(
+                        builder.Email, $"{builder.FirstName} {builder.LastName}",
+                        unit.UnitNumber, unit.Project.Name,
+                        unit.ClosingDate.HasValue ? (DateTime.Today - unit.ClosingDate.Value.Date).Days : 0,
+                        model.DailyPenaltyAmount ?? 0, unit.TotalAccumulatedPenalty,
+                        unit.SOA?.BalanceDueOnClosing ?? 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending penalty set notifications for unit {UnitId}", id);
+            }
+
             TempData["Success"] = $"Daily penalty for Unit {unit.UnitNumber} set to {(model.DailyPenaltyAmount.HasValue ? model.DailyPenaltyAmount.Value.ToString("C") : "$0")}/day.";
             return RedirectToAction("Details", new { id });
         }
@@ -769,7 +823,7 @@ namespace PreConHub.Controllers
         public async Task<IActionResult> PausePenalty(int id)
         {
             var unit = await _context.Units
-                .Include(u => u.Project)
+                .Include(u => u.Project).ThenInclude(p => p.Builder)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (unit == null) return NotFound();
@@ -795,10 +849,50 @@ namespace PreConHub.Controllers
             });
             await _context.SaveChangesAsync();
 
-            // Notify purchasers
+            // Notify purchasers + builder's lawyer + send emails
             try
             {
                 await _notificationService.NotifyPenaltyPausedAsync(id, unit.TotalAccumulatedPenalty, unit.PenaltyDaysCount);
+
+                var builderLawyer = await _context.LawyerAssignments
+                    .Include(la => la.Lawyer)
+                    .FirstOrDefaultAsync(la => la.UnitId == id
+                        && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+                if (builderLawyer != null)
+                {
+                    var builderName = User.Identity?.Name ?? "Builder";
+                    await _notificationService.CreateAsync(
+                        userId: builderLawyer.LawyerId,
+                        title: "Penalty Paused by Builder",
+                        message: $"{builderName} paused the late closing penalty for Unit {unit.UnitNumber}. Total accumulated: {unit.TotalAccumulatedPenalty:C}.",
+                        type: NotificationType.Penalty,
+                        priority: NotificationPriority.High,
+                        actionUrl: $"/Lawyer/ReviewUnit/{builderLawyer.Id}",
+                        actionText: "Review Unit",
+                        projectId: unit.ProjectId,
+                        unitId: unit.Id
+                    );
+
+                    // Email lawyer
+                    if (!string.IsNullOrEmpty(builderLawyer.Lawyer?.Email))
+                    {
+                        await _emailService.SendPenaltyPausedEmailAsync(
+                            builderLawyer.Lawyer.Email, $"{builderLawyer.Lawyer.FirstName} {builderLawyer.Lawyer.LastName}",
+                            unit.UnitNumber, unit.Project.Name,
+                            unit.PenaltyDaysCount, unit.TotalAccumulatedPenalty);
+                    }
+                }
+
+                // Email builder
+                var builder = unit.Project.Builder;
+                if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                {
+                    await _emailService.SendPenaltyPausedEmailAsync(
+                        builder.Email, $"{builder.FirstName} {builder.LastName}",
+                        unit.UnitNumber, unit.Project.Name,
+                        unit.PenaltyDaysCount, unit.TotalAccumulatedPenalty);
+                }
             }
             catch (Exception ex)
             {
@@ -815,7 +909,8 @@ namespace PreConHub.Controllers
         public async Task<IActionResult> ResumePenalty(int id)
         {
             var unit = await _context.Units
-                .Include(u => u.Project)
+                .Include(u => u.Project).ThenInclude(p => p.Builder)
+                .Include(u => u.SOA)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (unit == null) return NotFound();
@@ -847,6 +942,58 @@ namespace PreConHub.Controllers
             });
             await _context.SaveChangesAsync();
 
+            // Notify builder's lawyer + send emails
+            try
+            {
+                var builderLawyer = await _context.LawyerAssignments
+                    .Include(la => la.Lawyer)
+                    .FirstOrDefaultAsync(la => la.UnitId == id
+                        && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+                if (builderLawyer != null)
+                {
+                    var builderName = User.Identity?.Name ?? "Builder";
+                    await _notificationService.CreateAsync(
+                        userId: builderLawyer.LawyerId,
+                        title: "Penalty Resumed by Builder",
+                        message: $"{builderName} resumed the late closing penalty for Unit {unit.UnitNumber} at {unit.DailyPenaltyAmount:C}/day.",
+                        type: NotificationType.Penalty,
+                        priority: NotificationPriority.High,
+                        actionUrl: $"/Lawyer/ReviewUnit/{builderLawyer.Id}",
+                        actionText: "Review Unit",
+                        projectId: unit.ProjectId,
+                        unitId: unit.Id
+                    );
+
+                    // Email lawyer
+                    if (!string.IsNullOrEmpty(builderLawyer.Lawyer?.Email))
+                    {
+                        await _emailService.SendPenaltyAccruedEmailAsync(
+                            builderLawyer.Lawyer.Email, $"{builderLawyer.Lawyer.FirstName} {builderLawyer.Lawyer.LastName}",
+                            unit.UnitNumber, unit.Project.Name,
+                            unit.ClosingDate.HasValue ? (DateTime.Today - unit.ClosingDate.Value.Date).Days : 0,
+                            unit.DailyPenaltyAmount ?? 0, unit.TotalAccumulatedPenalty,
+                            unit.SOA?.BalanceDueOnClosing ?? 0);
+                    }
+                }
+
+                // Email builder
+                var builder = unit.Project.Builder;
+                if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                {
+                    await _emailService.SendPenaltyAccruedEmailAsync(
+                        builder.Email, $"{builder.FirstName} {builder.LastName}",
+                        unit.UnitNumber, unit.Project.Name,
+                        unit.ClosingDate.HasValue ? (DateTime.Today - unit.ClosingDate.Value.Date).Days : 0,
+                        unit.DailyPenaltyAmount ?? 0, unit.TotalAccumulatedPenalty,
+                        unit.SOA?.BalanceDueOnClosing ?? 0);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending penalty resumed notifications for unit {UnitId}", id);
+            }
+
             TempData["Success"] = $"Penalty resumed for Unit {unit.UnitNumber} at {unit.DailyPenaltyAmount:C}/day.";
             return RedirectToAction("Details", new { id });
         }
@@ -857,7 +1004,8 @@ namespace PreConHub.Controllers
         public async Task<IActionResult> CloseUnit(int id)
         {
             var unit = await _context.Units
-                .Include(u => u.Project)
+                .Include(u => u.Project).ThenInclude(p => p.Builder)
+                .Include(u => u.SOA)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
             if (unit == null) return NotFound();
@@ -883,10 +1031,52 @@ namespace PreConHub.Controllers
             });
             await _context.SaveChangesAsync();
 
-            // Send final statement notification
+            // Send final statement notifications + emails
             try
             {
                 await _notificationService.NotifyPenaltyFinalStatementAsync(id, unit.TotalAccumulatedPenalty, unit.PenaltyDaysCount);
+
+                var builderLawyer = await _context.LawyerAssignments
+                    .Include(la => la.Lawyer)
+                    .FirstOrDefaultAsync(la => la.UnitId == id
+                        && la.Role == LawyerRole.BuilderLawyer && la.IsActive);
+
+                if (builderLawyer != null)
+                {
+                    var builderName = User.Identity?.Name ?? "Builder";
+                    await _notificationService.CreateAsync(
+                        userId: builderLawyer.LawyerId,
+                        title: "Unit Closed by Builder",
+                        message: $"{builderName} closed Unit {unit.UnitNumber}. Final penalty: {unit.TotalAccumulatedPenalty:C} ({unit.PenaltyDaysCount} days).",
+                        type: NotificationType.Closing,
+                        priority: NotificationPriority.High,
+                        actionUrl: $"/Lawyer/ReviewUnit/{builderLawyer.Id}",
+                        actionText: "Review Unit",
+                        projectId: unit.ProjectId,
+                        unitId: unit.Id
+                    );
+
+                    // Email lawyer
+                    if (!string.IsNullOrEmpty(builderLawyer.Lawyer?.Email))
+                    {
+                        await _emailService.SendPenaltyFinalStatementEmailAsync(
+                            builderLawyer.Lawyer.Email, $"{builderLawyer.Lawyer.FirstName} {builderLawyer.Lawyer.LastName}",
+                            unit.UnitNumber, unit.Project.Name,
+                            unit.PenaltyDaysCount, unit.TotalAccumulatedPenalty,
+                            unit.SOA?.BalanceDueOnClosing ?? 0);
+                    }
+                }
+
+                // Email builder
+                var builder = unit.Project.Builder;
+                if (builder != null && !string.IsNullOrEmpty(builder.Email))
+                {
+                    await _emailService.SendPenaltyFinalStatementEmailAsync(
+                        builder.Email, $"{builder.FirstName} {builder.LastName}",
+                        unit.UnitNumber, unit.Project.Name,
+                        unit.PenaltyDaysCount, unit.TotalAccumulatedPenalty,
+                        unit.SOA?.BalanceDueOnClosing ?? 0);
+                }
             }
             catch (Exception ex)
             {

@@ -636,6 +636,16 @@ namespace PreConHub.Models.ViewModels
         // Notes
         public List<LawyerNoteViewModel> Notes { get; set; } = new();
         public decimal TotalDepositsPaid { get; set; }
+
+        // Late Closing Penalty
+        public decimal? DailyPenaltyAmount { get; set; }
+        public bool IsPenaltyActive { get; set; }
+        public DateTime? PenaltyStartDate { get; set; }
+        public DateTime? PenaltyPausedAt { get; set; }
+        public decimal TotalAccumulatedPenalty { get; set; }
+        public int PenaltyDaysCount { get; set; }
+        public List<ClosingPenaltyViewModel> PenaltyHistory { get; set; } = new();
+        public bool IsClosingDatePassed => ClosingDate.HasValue && ClosingDate.Value.Date < DateTime.Today;
     }
 
     // ===== LAWYER DASHBOARD VIEW MODEL =====
