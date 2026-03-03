@@ -348,6 +348,7 @@ namespace PreConHub.Controllers
                 .Include(u => u.SOA)
                 .Include(u => u.ShortfallAnalysis)
                 .Include(u => u.Documents)
+                .Include(u => u.Fees)
                 .Include(u => u.ExtensionRequests)
                     .ThenInclude(er => er.RequestedByPurchaser)
                 .Include(u => u.LawyerAssignments)
@@ -519,7 +520,17 @@ namespace PreConHub.Controllers
                         Status = er.Status,
                         ReviewerNotes = er.ReviewerNotes,
                         ReviewedAt = er.ReviewedAt
-                    }).ToList()
+                    }).ToList(),
+
+                // Unit Fees (upgrades, credits)
+                UnitFees = unit.Fees.Select(f => new UnitFeeViewModel
+                {
+                    Id = f.Id,
+                    FeeName = f.FeeName,
+                    Amount = f.Amount,
+                    IsCredit = f.IsCredit,
+                    Description = f.Description
+                }).ToList()
             };
 
             if (unit.SOA != null)
@@ -2619,6 +2630,81 @@ namespace PreConHub.Controllers
             }
         }
 
+        // GET: /Units/UploadUnitAps/5 (unitId) — upload APS for existing unit
+        public async Task<IActionResult> UploadUnitAps(int id)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == id);
+            if (unit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            var viewModel = new UploadApsViewModel
+            {
+                ProjectId = unit.ProjectId,
+                ProjectName = unit.Project.Name,
+                UnitId = id,
+                UnitNumber = unit.UnitNumber
+            };
+
+            return View("UploadAps", viewModel);
+        }
+
+        // POST: /Units/UploadUnitAps/5 (unitId) — AI extraction for existing unit
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(10_000_000)]
+        public async Task<IActionResult> UploadUnitAps(int id, IFormFile apsFile)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == id);
+            if (unit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (apsFile == null || apsFile.Length == 0)
+            {
+                TempData["Error"] = "Please select a PDF file to upload.";
+                return RedirectToAction(nameof(UploadUnitAps), new { id });
+            }
+
+            if (!apsFile.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "Please upload a valid PDF file.";
+                return RedirectToAction(nameof(UploadUnitAps), new { id });
+            }
+
+            try
+            {
+                using var stream = apsFile.OpenReadStream();
+                var extractedData = await _documentAnalysisService.ProcessApsUploadAsync(stream);
+
+                var viewModel = new ReviewApsDataViewModel
+                {
+                    ProjectId = unit.ProjectId,
+                    ProjectName = unit.Project.Name,
+                    UnitId = id,
+                    FileName = apsFile.FileName,
+                    ExtractedData = extractedData
+                };
+
+                HttpContext.Session.SetString($"ApsData_Unit_{id}",
+                    System.Text.Json.JsonSerializer.Serialize(extractedData));
+
+                return View("ReviewApsData", viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing APS document for Unit {UnitId}", id);
+                TempData["Error"] = $"Error processing document: {ex.Message}";
+                return RedirectToAction(nameof(UploadUnitAps), new { id });
+            }
+        }
+
         // POST: /Units/ConfirmApsData/5
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -2634,43 +2720,78 @@ namespace PreConHub.Controllers
 
             try
             {
-                // Check if unit already exists
-                var existingUnit = await _context.Units
-                    .AnyAsync(u => u.ProjectId == id && u.UnitNumber == model.UnitNumber);
+                Unit unit;
+                bool isUpdate = model.UnitId.HasValue;
 
-                if (existingUnit)
+                if (isUpdate)
                 {
-                    TempData["Error"] = $"Unit {model.UnitNumber} already exists in this project.";
-                    return RedirectToAction(nameof(UploadAps), new { id });
+                    // UPDATE existing unit
+                    unit = await _context.Units.FirstOrDefaultAsync(u => u.Id == model.UnitId.Value);
+                    if (unit == null)
+                        return NotFound();
+
+                    // Only overwrite if APS has data
+                    if (!string.IsNullOrWhiteSpace(model.UnitNumber)) unit.UnitNumber = model.UnitNumber;
+                    if (!string.IsNullOrWhiteSpace(model.FloorNumber)) unit.FloorNumber = model.FloorNumber;
+                    if (!string.IsNullOrWhiteSpace(model.UnitType) && Enum.TryParse<UnitType>(model.UnitType, out var ut)) unit.UnitType = ut;
+                    if (model.Bedrooms.HasValue) unit.Bedrooms = model.Bedrooms.Value;
+                    if (model.Bathrooms.HasValue) unit.Bathrooms = model.Bathrooms.Value;
+                    if (model.SquareFootage.HasValue) unit.SquareFootage = model.SquareFootage.Value;
+                    if (model.PurchasePrice.HasValue) unit.PurchasePrice = model.PurchasePrice.Value;
+                    unit.HasParking = model.HasParking;
+                    if (model.ParkingPrice.HasValue) unit.ParkingPrice = model.ParkingPrice.Value;
+                    unit.HasLocker = model.HasLocker;
+                    if (model.LockerPrice.HasValue) unit.LockerPrice = model.LockerPrice.Value;
+                    if (model.OccupancyDate.HasValue) unit.OccupancyDate = model.OccupancyDate.Value;
+                    if (model.ClosingDate.HasValue) unit.ClosingDate = model.ClosingDate.Value;
+                    if (model.ParkingCount > 0) unit.ParkingCount = model.ParkingCount;
+                    if (model.LockerCount > 0) unit.LockerCount = model.LockerCount;
+                    if (model.FirstTentativeOccupancyDate.HasValue) unit.FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate;
+                    if (model.OutsideOccupancyDate.HasValue) unit.OutsideOccupancyDate = model.OutsideOccupancyDate;
+                    if (model.DelayedOccupancyDate.HasValue) unit.DelayedOccupancyDate = model.DelayedOccupancyDate;
+                    if (model.PurchaserTerminationDate.HasValue) unit.PurchaserTerminationDate = model.PurchaserTerminationDate;
+                    unit.UpdatedAt = DateTime.UtcNow;
                 }
-
-                // Create Unit
-                var unit = new Unit
+                else
                 {
-                    ProjectId = id,
-                    UnitNumber = model.UnitNumber ?? "Unknown",
-                    FloorNumber = model.FloorNumber,
-                    UnitType = Enum.TryParse<UnitType>(model.UnitType, out var unitType) ? unitType : UnitType.Other,
-                    Bedrooms = model.Bedrooms ?? 0,
-                    Bathrooms = model.Bathrooms ?? 0,
-                    SquareFootage = model.SquareFootage ?? 0,
-                    PurchasePrice = model.PurchasePrice ?? 0,
-                    HasParking = model.HasParking,
-                    ParkingPrice = model.ParkingPrice ?? 0,
-                    HasLocker = model.HasLocker,
-                    LockerPrice = model.LockerPrice ?? 0,
-                    OccupancyDate = model.OccupancyDate ?? project.OccupancyDate,
-                    ClosingDate = model.ClosingDate ?? project.ClosingDate,
-                    Status = UnitStatus.Pending,
-                    CreatedAt = DateTime.UtcNow,
-                    // Phase 3 fields
-                    ParkingCount = model.ParkingCount,
-                    LockerCount = model.LockerCount,
-                    FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
-                    OutsideOccupancyDate = model.OutsideOccupancyDate,
-                    DelayedOccupancyDate = model.DelayedOccupancyDate,
-                    PurchaserTerminationDate = model.PurchaserTerminationDate
-                };
+                    // CREATE new unit (existing flow)
+                    var existingUnit = await _context.Units
+                        .AnyAsync(u => u.ProjectId == id && u.UnitNumber == model.UnitNumber);
+
+                    if (existingUnit)
+                    {
+                        TempData["Error"] = $"Unit {model.UnitNumber} already exists in this project.";
+                        return RedirectToAction(nameof(UploadAps), new { id });
+                    }
+
+                    unit = new Unit
+                    {
+                        ProjectId = id,
+                        UnitNumber = model.UnitNumber ?? "Unknown",
+                        FloorNumber = model.FloorNumber,
+                        UnitType = Enum.TryParse<UnitType>(model.UnitType, out var unitType) ? unitType : UnitType.Other,
+                        Bedrooms = model.Bedrooms ?? 0,
+                        Bathrooms = model.Bathrooms ?? 0,
+                        SquareFootage = model.SquareFootage ?? 0,
+                        PurchasePrice = model.PurchasePrice ?? 0,
+                        HasParking = model.HasParking,
+                        ParkingPrice = model.ParkingPrice ?? 0,
+                        HasLocker = model.HasLocker,
+                        LockerPrice = model.LockerPrice ?? 0,
+                        OccupancyDate = model.OccupancyDate ?? project.OccupancyDate,
+                        ClosingDate = model.ClosingDate ?? project.ClosingDate,
+                        Status = UnitStatus.Pending,
+                        CreatedAt = DateTime.UtcNow,
+                        ParkingCount = model.ParkingCount,
+                        LockerCount = model.LockerCount,
+                        FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
+                        OutsideOccupancyDate = model.OutsideOccupancyDate,
+                        DelayedOccupancyDate = model.DelayedOccupancyDate,
+                        PurchaserTerminationDate = model.PurchaserTerminationDate
+                    };
+
+                    _context.Units.Add(unit);
+                }
 
                 // Update project-level fields if not already set
                 bool projectUpdated = false;
@@ -2690,10 +2811,9 @@ namespace PreConHub.Controllers
                 { project.CommencementOfConstructionDate = model.CommencementOfConstructionDate; projectUpdated = true; }
                 if (projectUpdated) project.UpdatedAt = DateTime.UtcNow;
 
-                _context.Units.Add(unit);
                 await _context.SaveChangesAsync();
 
-                // Create Purchaser(s)
+                // Create Purchaser(s) — only for new units or if not already linked
                 if (!string.IsNullOrWhiteSpace(model.PurchaserEmail))
                 {
                     var email = model.PurchaserEmail.Trim().ToLower();
@@ -2923,13 +3043,20 @@ namespace PreConHub.Controllers
                     _logger.LogWarning(ex, "Error calculating SOA for newly created unit {UnitId}", unit.Id);
                 }
 
-                _logger.LogInformation("Unit {UnitNumber} created from APS analysis for Project {ProjectId}",
-                    unit.UnitNumber, id);
-
-                TempData["Success"] = $"Unit {unit.UnitNumber} created successfully from APS document!";
-
-                // Clear session data
-                HttpContext.Session.Remove($"ApsData_{id}");
+                if (isUpdate)
+                {
+                    _logger.LogInformation("Unit {UnitNumber} updated from APS analysis for Project {ProjectId}",
+                        unit.UnitNumber, id);
+                    TempData["Success"] = $"Unit {unit.UnitNumber} updated successfully from APS document!";
+                    HttpContext.Session.Remove($"ApsData_Unit_{model.UnitId}");
+                }
+                else
+                {
+                    _logger.LogInformation("Unit {UnitNumber} created from APS analysis for Project {ProjectId}",
+                        unit.UnitNumber, id);
+                    TempData["Success"] = $"Unit {unit.UnitNumber} created successfully from APS document!";
+                    HttpContext.Session.Remove($"ApsData_{id}");
+                }
 
                 return RedirectToAction("Details", new { id = unit.Id });
             }
@@ -2939,6 +3066,92 @@ namespace PreConHub.Controllers
                 TempData["Error"] = $"Error creating unit: {ex.Message}";
                 return RedirectToAction(nameof(UploadAps), new { id });
             }
+        }
+
+        #endregion
+
+        #region Unit Fee Management
+
+        // POST: /Units/AddUnitFee
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddUnitFee(int unitId, string feeName, decimal amount, bool isCredit, string? description)
+        {
+            var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (string.IsNullOrWhiteSpace(feeName) || amount <= 0)
+            {
+                TempData["Error"] = "Fee name and a positive amount are required.";
+                return RedirectToAction("Details", new { id = unitId });
+            }
+
+            var fee = new UnitFee
+            {
+                UnitId = unitId,
+                FeeName = feeName.Trim(),
+                Amount = amount,
+                IsCredit = isCredit,
+                Description = description?.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Set<UnitFee>().Add(fee);
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                Action = isCredit ? "AddUnitCredit" : "AddUnitFee",
+                EntityType = "UnitFee",
+                EntityId = unitId,
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { feeName, amount, isCredit, unitNumber = unit.UnitNumber }),
+                Timestamp = DateTime.UtcNow
+            });
+
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"{(isCredit ? "Credit" : "Fee")} '{feeName}' added successfully.";
+            return RedirectToAction("Details", new { id = unitId });
+        }
+
+        // POST: /Units/DeleteUnitFee
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteUnitFee(int id, int unitId)
+        {
+            var fee = await _context.Set<UnitFee>().Include(f => f.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(f => f.Id == id);
+            if (fee == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && fee.Unit.Project.BuilderId != userId)
+                return Forbid();
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                Action = fee.IsCredit ? "DeleteUnitCredit" : "DeleteUnitFee",
+                EntityType = "UnitFee",
+                EntityId = unitId,
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { fee.FeeName, fee.Amount, fee.IsCredit, unitNumber = fee.Unit.UnitNumber }),
+                Timestamp = DateTime.UtcNow
+            });
+
+            _context.Set<UnitFee>().Remove(fee);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"{(fee.IsCredit ? "Credit" : "Fee")} '{fee.FeeName}' deleted.";
+            return RedirectToAction("Details", new { id = unitId });
         }
 
         #endregion

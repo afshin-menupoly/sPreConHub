@@ -51,6 +51,16 @@
     }
 
     <form asp-action="ConfirmApsData" asp-route-id="@Model.ProjectId" method="post">
+        <input type="hidden" name="UnitId" value="@Model.UnitId" />
+
+        @if (Model.UnitId.HasValue)
+        {
+            <div class="alert alert-info mb-4">
+                <i class="bi bi-info-circle me-2"></i>
+                This will <strong>update</strong> the existing unit with the extracted data. Only fields with extracted values will be overwritten.
+            </div>
+        }
+
         <div class="row">
             <!-- Left Column: Unit & Property -->
             <div class="col-lg-6">
@@ -63,7 +73,14 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Unit Number <span class="text-danger">*</span></label>
-                                <input type="text" name="UnitNumber" class="form-control" value="@data?.UnitNumber" required />
+                                @if (Model.UnitId.HasValue)
+                                {
+                                    <input type="text" name="UnitNumber" class="form-control" value="@data?.UnitNumber" readonly />
+                                }
+                                else
+                                {
+                                    <input type="text" name="UnitNumber" class="form-control" value="@data?.UnitNumber" required />
+                                }
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Floor</label>

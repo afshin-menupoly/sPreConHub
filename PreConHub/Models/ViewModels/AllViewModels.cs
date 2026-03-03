@@ -268,6 +268,18 @@ namespace PreConHub.Models.ViewModels
         // Parking & Locker counts
         public int ParkingCount { get; set; }
         public int LockerCount { get; set; }
+
+        // Unit Fees (upgrades, credits)
+        public List<UnitFeeViewModel> UnitFees { get; set; } = new();
+    }
+
+    public class UnitFeeViewModel
+    {
+        public int Id { get; set; }
+        public string FeeName { get; set; } = "";
+        public decimal Amount { get; set; }
+        public bool IsCredit { get; set; }
+        public string? Description { get; set; }
     }
 
     public class PurchaserInfoViewModel
@@ -1354,6 +1366,8 @@ namespace PreConHub.Models.ViewModels
     {
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = "";
+        public int? UnitId { get; set; }          // null = create new unit, set = update existing
+        public string? UnitNumber { get; set; }    // display context when uploading for existing unit
     }
 
     /// <summary>
@@ -1363,6 +1377,7 @@ namespace PreConHub.Models.ViewModels
     {
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = "";
+        public int? UnitId { get; set; }  // If set, ConfirmApsData updates existing unit instead of creating new
         public string FileName { get; set; } = "";
         public ApsExtractedData? ExtractedData { get; set; }
 

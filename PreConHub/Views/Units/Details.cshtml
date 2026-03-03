@@ -38,6 +38,9 @@
             <a href="@Url.Action("AssignBuyerLawyer", "Units", new { id = Model.UnitId })" class="btn btn-outline-info">
                 <i class="bi bi-person-badge me-2"></i>Assign Buyer's Lawyer
             </a>
+            <a href="@Url.Action("UploadUnitAps", "Units", new { id = Model.UnitId })" class="btn btn-info">
+                <i class="bi bi-file-earmark-text me-1"></i>Upload APS
+            </a>
             @if (Model.SOA != null && !Model.SOA.IsConfirmedByBuilder)
             {
                 <form asp-action="ConfirmSOA" asp-route-id="@Model.UnitId" method="post" class="d-inline">
@@ -782,6 +785,149 @@
                                 <i class="bi bi-plus me-1"></i>Add First Deposit
                             </a>
                         </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Unit Fees & Credits Card -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-receipt me-2 text-primary"></i>Unit Fees & Credits</h5>
+                    <button class="btn btn-sm btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#addFeeForm">
+                        <i class="bi bi-plus me-1"></i>Add Fee / Credit
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Add Fee Form (collapsed) -->
+                    <div class="collapse mb-3" id="addFeeForm">
+                        <div class="card card-body bg-light border">
+                            <form asp-action="AddUnitFee" asp-controller="Units" method="post">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="unitId" value="@Model.UnitId" />
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Fee Name</label>
+                                        <input type="text" name="feeName" class="form-control form-control-sm" placeholder="e.g., Kitchen Upgrade" required />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small">Amount ($)</label>
+                                        <input type="number" name="amount" class="form-control form-control-sm" step="0.01" min="0.01" required />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small">Type</label>
+                                        <select name="isCredit" class="form-select form-select-sm">
+                                            <option value="false">Upgrade / Fee</option>
+                                            <option value="true">Credit / Discount</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Description</label>
+                                        <input type="text" name="description" class="form-control form-control-sm" placeholder="Optional notes" />
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="submit" class="btn btn-success btn-sm w-100">
+                                            <i class="bi bi-plus-circle me-1"></i>Add
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    @{
+                        var upgrades = Model.UnitFees.Where(f => !f.IsCredit).ToList();
+                        var credits = Model.UnitFees.Where(f => f.IsCredit).ToList();
+                    }
+
+                    @if (!Model.UnitFees.Any())
+                    {
+                        <p class="text-muted mb-0">No unit-level fees or credits. Click "Add Fee / Credit" to add upgrades, extras, or builder credits.</p>
+                    }
+                    else
+                    {
+                        @if (upgrades.Any())
+                        {
+                            <h6 class="text-muted mb-2">Upgrades & Fees</h6>
+                            <table class="table table-sm mb-3">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Fee Name</th>
+                                        <th>Description</th>
+                                        <th class="text-end">Amount</th>
+                                        <th style="width: 50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var fee in upgrades)
+                                    {
+                                        <tr>
+                                            <td>@fee.FeeName</td>
+                                            <td class="text-muted small">@(fee.Description ?? "—")</td>
+                                            <td class="text-end">$@fee.Amount.ToString("N2")</td>
+                                            <td>
+                                                <form asp-action="DeleteUnitFee" asp-controller="Units" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@fee.Id" />
+                                                    <input type="hidden" name="unitId" value="@Model.UnitId" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1" onclick="return confirm('Delete this fee?')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="2">Total Upgrades</td>
+                                        <td class="text-end">$@upgrades.Sum(f => f.Amount).ToString("N2")</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        }
+
+                        @if (credits.Any())
+                        {
+                            <h6 class="text-muted mb-2">Credits & Discounts</h6>
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Credit Name</th>
+                                        <th>Description</th>
+                                        <th class="text-end">Amount</th>
+                                        <th style="width: 50px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var credit in credits)
+                                    {
+                                        <tr>
+                                            <td>@credit.FeeName</td>
+                                            <td class="text-muted small">@(credit.Description ?? "—")</td>
+                                            <td class="text-end text-success">-$@credit.Amount.ToString("N2")</td>
+                                            <td>
+                                                <form asp-action="DeleteUnitFee" asp-controller="Units" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@credit.Id" />
+                                                    <input type="hidden" name="unitId" value="@Model.UnitId" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1" onclick="return confirm('Delete this credit?')">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="2">Total Credits</td>
+                                        <td class="text-end text-success">-$@credits.Sum(f => f.Amount).ToString("N2")</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        }
                     }
                 </div>
             </div>
