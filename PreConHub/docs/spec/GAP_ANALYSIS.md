@@ -23,7 +23,7 @@
 | 9 | 2026-02-20 | Priorities 11–15 (SOA History, Extensions, Purchaser/Unit, Notifications, Reports) | No new migrations |
 | 10 | 2026-02-20 | Final cross-check: P16–P17 (shortfall calc, VTB caps, SOA confirmation) | No new migrations |
 
-> **DATABASE:** 7 migrations applied. All complete.
+> **DATABASE:** 15 migrations applied. All complete.
 
 ---
 
@@ -354,8 +354,8 @@ All files created/modified. Committed and pushed to GitHub.
 17. ✅ Builder decision log for AI suggestions (`UnitsController.ReviewSuggestion`)
 18. ✅ Marketing Agency role seeded in `Program.cs`
 19. ✅ Purchaser comments/notes field (`MortgageInfo.Comments`, ViewModel, controller)
-20. ❌ Lawyer SOA upload via `LawyerController` — NOT YET DONE
-21. ❌ SOA differences flag (system calc vs. lawyer-uploaded balance) — NOT YET DONE
+20. ✅ Lawyer SOA upload via `LawyerController` — DONE (Session 7)
+21. ✅ SOA differences flag (system calc vs. lawyer-uploaded balance) — DONE (Session 7)
 
 ### Priority 4 — Audit & Compliance ✅ COMPLETE
 22. ✅ Consistent `AuditLog` writes across all 4 controllers
@@ -380,6 +380,9 @@ All files created/modified. Committed and pushed to GitHub.
 | `LawyerSOAUpload` | ✅ Applied |
 | `AdminMgmt_SuperAdmin_BuilderQuotas` | ✅ Applied |
 | `Priority7_SpecAlignment` | ✅ Applied |
+| `AddBuilderDecision` | ✅ Applied |
+| `AddLawFirmToApplicationUser` | ✅ Applied |
+| `AddCellPhoneToApplicationUser` | ✅ Applied |
 | `AddBuyerLawyerFields` | ✅ Applied |
 | `AddScheduleBClosingFees` | ✅ Applied |
 | `AddCombinedLevyCap` | ✅ Applied |
