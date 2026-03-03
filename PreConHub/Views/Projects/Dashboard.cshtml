@@ -364,6 +364,7 @@
                                     Builder Dec <i class="@Model.SortIcon("BuilderDecision")"></i>
                                 </a>
                             </th>
+                            <th class="text-center">Penalty</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -463,6 +464,24 @@
                                     @if (unit.BuilderDecision.HasValue && unit.BuilderDecision != PreConHub.Models.Entities.BuilderDecision.None)
                                     {
                                         <span class="badge @unit.BuilderDecisionBadgeClass">@unit.BuilderDecisionText</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted small">—</span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    @if (unit.IsPenaltyActive)
+                                    {
+                                        <span class="badge bg-danger" title="@unit.TotalAccumulatedPenalty.ToString("C") accumulated">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i>@unit.TotalAccumulatedPenalty.ToString("C")
+                                        </span>
+                                    }
+                                    else if (unit.TotalAccumulatedPenalty > 0)
+                                    {
+                                        <span class="badge bg-warning text-dark" title="Penalty paused">
+                                            @unit.TotalAccumulatedPenalty.ToString("C")
+                                        </span>
                                     }
                                     else
                                     {

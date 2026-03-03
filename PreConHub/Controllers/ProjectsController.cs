@@ -164,7 +164,9 @@ namespace PreConHub.Controllers
                 ShortfallAmount = u.ShortfallAnalysis?.ShortfallAmount ?? 0,
                 ShortfallPercent = u.ShortfallAnalysis?.ShortfallPercentage ?? 0,
                 Recommendation = u.Recommendation ?? ClosingRecommendation.ProceedToClose,
-                BuilderDecision = u.BuilderDecision
+                BuilderDecision = u.BuilderDecision,
+                IsPenaltyActive = u.IsPenaltyActive,
+                TotalAccumulatedPenalty = u.TotalAccumulatedPenalty
             }).ToList();
 
             // Search filter

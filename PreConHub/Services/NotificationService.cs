@@ -46,9 +46,15 @@ namespace PreConHub.Services
         Task DeleteAsync(int notificationId, string userId);
         Task DeleteOldNotificationsAsync(int daysOld = 90);
         
+        // Late closing penalty notifications
+        Task NotifyPenaltyAccruedAsync(int unitId, decimal dailyAmount, decimal totalPenalty, int daysLate);
+        Task NotifyPenaltyPausedAsync(int unitId, decimal totalPenalty, int daysCharged);
+        Task NotifyPenaltyFinalStatementAsync(int unitId, decimal totalPenalty, int daysCharged);
+
         // Background job triggers
         Task CheckClosingDateRemindersAsync();
         Task CheckDepositDueRemindersAsync();
+        Task CheckLateClosingPenaltiesAsync();
     }
 
     public class NotificationService : INotificationService
@@ -501,6 +507,114 @@ namespace PreConHub.Services
 
         #endregion
 
+        #region Late Closing Penalty Notifications
+
+        public async Task NotifyPenaltyAccruedAsync(int unitId, decimal dailyAmount, decimal totalPenalty, int daysLate)
+        {
+            var unit = await _context.Units.Include(u => u.Project)
+                .Include(u => u.Purchasers).ThenInclude(p => p.Purchaser)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            var groupKey = $"penalty-accrued-{unitId}-{DateTime.Today:yyyyMMdd}";
+
+            // Notify builder
+            await CreateAsync(
+                userId: unit.Project.BuilderId,
+                title: "Late Closing Penalty Accrued",
+                message: $"Unit {unit.UnitNumber}: Day {daysLate} penalty of {dailyAmount:C} charged. Total: {totalPenalty:C}.",
+                type: NotificationType.Penalty,
+                priority: NotificationPriority.High,
+                actionUrl: $"/Units/Details/{unitId}",
+                actionText: "View Unit",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: groupKey
+            );
+
+            // Notify purchasers
+            foreach (var up in unit.Purchasers.Where(p => p.Purchaser != null))
+            {
+                await CreateAsync(
+                    userId: up.PurchaserId,
+                    title: "Late Closing Penalty Notice",
+                    message: $"Unit {unit.UnitNumber}: A daily penalty of {dailyAmount:C} has been charged (Day {daysLate}). Total penalty: {totalPenalty:C}.",
+                    type: NotificationType.Penalty,
+                    priority: NotificationPriority.Urgent,
+                    actionUrl: "/Purchaser/Dashboard",
+                    actionText: "View Details",
+                    projectId: unit.ProjectId,
+                    unitId: unitId,
+                    groupKey: $"penalty-purchaser-{unitId}-{DateTime.Today:yyyyMMdd}"
+                );
+            }
+        }
+
+        public async Task NotifyPenaltyPausedAsync(int unitId, decimal totalPenalty, int daysCharged)
+        {
+            var unit = await _context.Units.Include(u => u.Project)
+                .Include(u => u.Purchasers).ThenInclude(p => p.Purchaser)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            foreach (var up in unit.Purchasers.Where(p => p.Purchaser != null))
+            {
+                await CreateAsync(
+                    userId: up.PurchaserId,
+                    title: "Late Closing Penalty Paused",
+                    message: $"Unit {unit.UnitNumber}: The late closing penalty has been paused. {daysCharged} days charged, total: {totalPenalty:C}.",
+                    type: NotificationType.Info,
+                    priority: NotificationPriority.Normal,
+                    actionUrl: "/Purchaser/Dashboard",
+                    actionText: "View Details",
+                    projectId: unit.ProjectId,
+                    unitId: unitId,
+                    groupKey: $"penalty-paused-{unitId}"
+                );
+            }
+        }
+
+        public async Task NotifyPenaltyFinalStatementAsync(int unitId, decimal totalPenalty, int daysCharged)
+        {
+            var unit = await _context.Units.Include(u => u.Project)
+                .Include(u => u.Purchasers).ThenInclude(p => p.Purchaser)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+            if (unit == null) return;
+
+            // Notify builder
+            await CreateAsync(
+                userId: unit.Project.BuilderId,
+                title: "Unit Closed — Final Penalty Statement",
+                message: $"Unit {unit.UnitNumber} closed. Final penalty: {totalPenalty:C} ({daysCharged} days).",
+                type: NotificationType.Closing,
+                priority: NotificationPriority.High,
+                actionUrl: $"/Units/Details/{unitId}",
+                actionText: "View Unit",
+                projectId: unit.ProjectId,
+                unitId: unitId,
+                groupKey: $"penalty-final-{unitId}"
+            );
+
+            // Notify purchasers
+            foreach (var up in unit.Purchasers.Where(p => p.Purchaser != null))
+            {
+                await CreateAsync(
+                    userId: up.PurchaserId,
+                    title: "Unit Closed — Final Penalty Statement",
+                    message: $"Unit {unit.UnitNumber} has been closed. Final late closing penalty: {totalPenalty:C} ({daysCharged} days charged).",
+                    type: NotificationType.Closing,
+                    priority: NotificationPriority.High,
+                    actionUrl: "/Purchaser/Dashboard",
+                    actionText: "View Details",
+                    projectId: unit.ProjectId,
+                    unitId: unitId,
+                    groupKey: $"penalty-final-purchaser-{unitId}"
+                );
+            }
+        }
+
+        #endregion
+
         #region Get Notifications
 
         public async Task<List<Notification>> GetUserNotificationsAsync(string userId, int count = 20, bool unreadOnly = false)
@@ -657,6 +771,103 @@ namespace PreConHub.Services
             }
 
             _logger.LogInformation("Deposit due reminder check completed");
+        }
+
+        public async Task CheckLateClosingPenaltiesAsync()
+        {
+            var today = DateTime.Today;
+
+            // Find units past closing date with a daily penalty amount set, not already closed/cancelled/defaulted
+            var lateUnits = await _context.Units
+                .Include(u => u.Project)
+                .Include(u => u.Purchasers).ThenInclude(p => p.Purchaser)
+                .Where(u => u.ClosingDate.HasValue && u.ClosingDate.Value.Date < today)
+                .Where(u => u.DailyPenaltyAmount.HasValue && u.DailyPenaltyAmount.Value > 0)
+                .Where(u => u.Status != UnitStatus.Closed
+                         && u.Status != UnitStatus.Cancelled
+                         && u.Status != UnitStatus.Defaulted)
+                .ToListAsync();
+
+            foreach (var unit in lateUnits)
+            {
+                // Auto-activate if not started
+                if (!unit.IsPenaltyActive && !unit.PenaltyStartDate.HasValue)
+                {
+                    unit.IsPenaltyActive = true;
+                    unit.PenaltyStartDate = today;
+                    unit.Status = UnitStatus.LateClosingPenalty;
+
+                    _context.AuditLogs.Add(new AuditLog
+                    {
+                        EntityType = "Unit",
+                        EntityId = unit.Id,
+                        Action = "PenaltyAutoActivated",
+                        UserId = "SYSTEM",
+                        UserName = "Background Service",
+                        UserRole = "System",
+                        NewValues = System.Text.Json.JsonSerializer.Serialize(new { DailyPenaltyAmount = unit.DailyPenaltyAmount, PenaltyStartDate = today }),
+                        Timestamp = DateTime.UtcNow
+                    });
+                    await _context.SaveChangesAsync();
+                }
+
+                // Skip paused units
+                if (!unit.IsPenaltyActive) continue;
+
+                // Idempotent: check if today already charged (unique index protection)
+                var alreadyCharged = await _context.ClosingPenalties
+                    .AnyAsync(cp => cp.UnitId == unit.Id && cp.PenaltyDate == today);
+                if (alreadyCharged) continue;
+
+                // Create penalty record
+                var dailyAmount = unit.DailyPenaltyAmount!.Value;
+                var newTotal = unit.TotalAccumulatedPenalty + dailyAmount;
+                var newDaysCount = unit.PenaltyDaysCount + 1;
+
+                var penalty = new ClosingPenalty
+                {
+                    UnitId = unit.Id,
+                    PenaltyDate = today,
+                    DailyAmount = dailyAmount,
+                    AccumulatedTotal = newTotal,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                _context.ClosingPenalties.Add(penalty);
+
+                // Update unit totals
+                unit.TotalAccumulatedPenalty = newTotal;
+                unit.PenaltyDaysCount = newDaysCount;
+                unit.UpdatedAt = DateTime.UtcNow;
+
+                _context.AuditLogs.Add(new AuditLog
+                {
+                    EntityType = "ClosingPenalty",
+                    EntityId = unit.Id,
+                    Action = "PenaltyAccrued",
+                    UserId = "SYSTEM",
+                    UserName = "Background Service",
+                    UserRole = "System",
+                    NewValues = System.Text.Json.JsonSerializer.Serialize(new { DailyAmount = dailyAmount, AccumulatedTotal = newTotal, DaysCount = newDaysCount, PenaltyDate = today }),
+                    Timestamp = DateTime.UtcNow
+                });
+
+                await _context.SaveChangesAsync();
+
+                // Send notifications
+                try
+                {
+                    var daysLate = (today - unit.ClosingDate!.Value.Date).Days;
+                    await NotifyPenaltyAccruedAsync(unit.Id, dailyAmount, newTotal, daysLate);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending penalty accrued notification for unit {UnitId}", unit.Id);
+                }
+
+            }
+
+            _logger.LogInformation("Late closing penalty check completed. Processed {Count} units", lateUnits.Count);
         }
 
         #endregion

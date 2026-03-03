@@ -92,6 +92,17 @@ namespace PreConHub.Services
 
             try
             {
+                // Check late closing penalties and accrue daily charges
+                await notificationService.CheckLateClosingPenaltiesAsync();
+                _logger.LogInformation("Late closing penalty check completed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking late closing penalties");
+            }
+
+            try
+            {
                 // Clean up old notifications (older than 90 days and read)
                 await notificationService.DeleteOldNotificationsAsync(90);
                 _logger.LogInformation("Old notification cleanup completed");
@@ -138,6 +149,7 @@ namespace PreConHub.Services
                 {
                     await notificationService.CheckClosingDateRemindersAsync();
                     await notificationService.CheckDepositDueRemindersAsync();
+                    await notificationService.CheckLateClosingPenaltiesAsync();
                     _logger.LogInformation("Startup notification checks completed");
                 }
                 catch (Exception ex)

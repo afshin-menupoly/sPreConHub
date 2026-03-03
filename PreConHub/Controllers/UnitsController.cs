@@ -163,6 +163,7 @@ namespace PreConHub.Controllers
                 OutsideOccupancyDate = model.OutsideOccupancyDate,
                 DelayedOccupancyDate = model.DelayedOccupancyDate,
                 PurchaserTerminationDate = model.PurchaserTerminationDate,
+                DailyPenaltyAmount = model.DailyPenaltyAmount,
                 Status = UnitStatus.Pending,
                 CreatedAt = DateTime.UtcNow
             };
@@ -233,7 +234,8 @@ namespace PreConHub.Controllers
                 FirstTentativeOccupancyDate = unit.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = unit.OutsideOccupancyDate,
                 DelayedOccupancyDate = unit.DelayedOccupancyDate,
-                PurchaserTerminationDate = unit.PurchaserTerminationDate
+                PurchaserTerminationDate = unit.PurchaserTerminationDate,
+                DailyPenaltyAmount = unit.DailyPenaltyAmount
             };
 
             ViewBag.ProjectName = unit.Project.Name;
@@ -299,6 +301,7 @@ namespace PreConHub.Controllers
             unit.OutsideOccupancyDate = model.OutsideOccupancyDate;
             unit.DelayedOccupancyDate = model.DelayedOccupancyDate;
             unit.PurchaserTerminationDate = model.PurchaserTerminationDate;
+            unit.DailyPenaltyAmount = model.DailyPenaltyAmount;
             unit.UpdatedAt = DateTime.UtcNow;
 
             _context.AuditLogs.Add(new AuditLog
@@ -349,6 +352,7 @@ namespace PreConHub.Controllers
                 .Include(u => u.ShortfallAnalysis)
                 .Include(u => u.Documents)
                 .Include(u => u.Fees)
+                .Include(u => u.ClosingPenalties)
                 .Include(u => u.ExtensionRequests)
                     .ThenInclude(er => er.RequestedByPurchaser)
                 .Include(u => u.LawyerAssignments)
@@ -390,6 +394,24 @@ namespace PreConHub.Controllers
                 PurchaserTerminationDate = unit.PurchaserTerminationDate,
                 ParkingCount = unit.ParkingCount,
                 LockerCount = unit.LockerCount,
+
+                // Late Closing Penalty
+                DailyPenaltyAmount = unit.DailyPenaltyAmount,
+                IsPenaltyActive = unit.IsPenaltyActive,
+                PenaltyStartDate = unit.PenaltyStartDate,
+                PenaltyPausedAt = unit.PenaltyPausedAt,
+                TotalAccumulatedPenalty = unit.TotalAccumulatedPenalty,
+                PenaltyDaysCount = unit.PenaltyDaysCount,
+                PenaltyHistory = unit.ClosingPenalties
+                    .OrderByDescending(cp => cp.PenaltyDate)
+                    .Select(cp => new ClosingPenaltyViewModel
+                    {
+                        Id = cp.Id,
+                        PenaltyDate = cp.PenaltyDate,
+                        DailyAmount = cp.DailyAmount,
+                        AccumulatedTotal = cp.AccumulatedTotal,
+                        CreatedAt = cp.CreatedAt
+                    }).ToList(),
 
                 // Deposits
                 Deposits = unit.Deposits.Select(d => new DepositViewModel
@@ -552,6 +574,7 @@ namespace PreConHub.Controllers
                     LegalFeesEstimate = unit.SOA.LegalFeesEstimate,
                     OtherDebits = unit.SOA.OtherDebits,
                     ScheduleBClosingFees = unit.SOA.ScheduleBClosingFees,
+                    LatePenalties = unit.SOA.LatePenalties,
                     NetHSTPayable = unit.SOA.NetHSTPayable,
                     TotalDebits = unit.SOA.TotalDebits,
                     // Net Sale Price Breakdown
@@ -666,6 +689,215 @@ namespace PreConHub.Controllers
 
             return Json(new { success = true, message = $"Builder decision set to '{decision}'." });
         }
+
+        #region Late Closing Penalty
+
+        // GET: /Units/SetDailyPenalty/5
+        public async Task<IActionResult> SetDailyPenalty(int id)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            var viewModel = new SetDailyPenaltyViewModel
+            {
+                UnitId = unit.Id,
+                UnitNumber = unit.UnitNumber,
+                ProjectName = unit.Project.Name,
+                ProjectId = unit.ProjectId,
+                ClosingDate = unit.ClosingDate,
+                Status = unit.Status,
+                DailyPenaltyAmount = unit.DailyPenaltyAmount,
+                CurrentDailyPenalty = unit.DailyPenaltyAmount,
+                IsPenaltyActive = unit.IsPenaltyActive,
+                TotalAccumulatedPenalty = unit.TotalAccumulatedPenalty,
+                PenaltyDaysCount = unit.PenaltyDaysCount
+            };
+
+            return View(viewModel);
+        }
+
+        // POST: /Units/SetDailyPenalty/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetDailyPenalty(int id, SetDailyPenaltyViewModel model)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var oldAmount = unit.DailyPenaltyAmount;
+            unit.DailyPenaltyAmount = model.DailyPenaltyAmount;
+            unit.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "SetDailyPenalty",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                OldValues = System.Text.Json.JsonSerializer.Serialize(new { DailyPenaltyAmount = oldAmount }),
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { DailyPenaltyAmount = model.DailyPenaltyAmount }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Daily penalty for Unit {unit.UnitNumber} set to {(model.DailyPenaltyAmount.HasValue ? model.DailyPenaltyAmount.Value.ToString("C") : "$0")}/day.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // POST: /Units/PausePenalty/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> PausePenalty(int id)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            unit.IsPenaltyActive = false;
+            unit.PenaltyPausedAt = DateTime.UtcNow;
+            unit.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "PausePenalty",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { IsPenaltyActive = false, PenaltyPausedAt = unit.PenaltyPausedAt }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // Notify purchasers
+            try
+            {
+                await _notificationService.NotifyPenaltyPausedAsync(id, unit.TotalAccumulatedPenalty, unit.PenaltyDaysCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending penalty paused notification for unit {UnitId}", id);
+            }
+
+            TempData["Success"] = $"Penalty paused for Unit {unit.UnitNumber}. Total accumulated: {unit.TotalAccumulatedPenalty:C}.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // POST: /Units/ResumePenalty/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ResumePenalty(int id)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (!unit.DailyPenaltyAmount.HasValue || unit.DailyPenaltyAmount.Value <= 0)
+            {
+                TempData["Error"] = "Cannot resume penalty — daily amount must be set first.";
+                return RedirectToAction("Details", new { id });
+            }
+
+            unit.IsPenaltyActive = true;
+            unit.PenaltyPausedAt = null;
+            unit.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "ResumePenalty",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { IsPenaltyActive = true }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Penalty resumed for Unit {unit.UnitNumber} at {unit.DailyPenaltyAmount:C}/day.";
+            return RedirectToAction("Details", new { id });
+        }
+
+        // POST: /Units/CloseUnit/5
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CloseUnit(int id)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (unit == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            unit.Status = UnitStatus.Closed;
+            unit.IsPenaltyActive = false;
+            unit.UpdatedAt = DateTime.UtcNow;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "CloseUnit",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { Status = "Closed", TotalAccumulatedPenalty = unit.TotalAccumulatedPenalty, PenaltyDaysCount = unit.PenaltyDaysCount }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            // Send final statement notification
+            try
+            {
+                await _notificationService.NotifyPenaltyFinalStatementAsync(id, unit.TotalAccumulatedPenalty, unit.PenaltyDaysCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending final statement notification for unit {UnitId}", id);
+            }
+
+            TempData["Success"] = $"Unit {unit.UnitNumber} closed. Final penalty: {unit.TotalAccumulatedPenalty:C} ({unit.PenaltyDaysCount} days).";
+            return RedirectToAction("Details", new { id });
+        }
+
+        #endregion
 
         // POST: /Units/Delete/5
         [HttpPost]

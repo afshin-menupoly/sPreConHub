@@ -379,6 +379,26 @@ namespace PreConHub.Models.Entities
         public int ParkingCount { get; set; }
         /// <summary>Number of storage locker units included in APS (default 0).</summary>
         public int LockerCount { get; set; }
+
+        // =====================================
+        // Late Closing Penalty
+        // =====================================
+        /// <summary>Daily penalty amount charged when closing is late.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? DailyPenaltyAmount { get; set; }
+        /// <summary>Whether penalty is currently accruing.</summary>
+        public bool IsPenaltyActive { get; set; } = false;
+        /// <summary>Date penalty started accruing.</summary>
+        public DateTime? PenaltyStartDate { get; set; }
+        /// <summary>Date penalty was paused (null if not paused).</summary>
+        public DateTime? PenaltyPausedAt { get; set; }
+        /// <summary>Running total of all accrued penalties.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal TotalAccumulatedPenalty { get; set; }
+        /// <summary>Total number of days penalty has been charged.</summary>
+        public int PenaltyDaysCount { get; set; }
+        /// <summary>Immutable daily penalty accrual records.</summary>
+        public virtual ICollection<ClosingPenalty> ClosingPenalties { get; set; } = new List<ClosingPenalty>();
     }
 
     public enum UnitType
@@ -405,7 +425,8 @@ namespace PreConHub.Models.Entities
         AtRisk = 6,               // High risk of default
         Closed = 7,               // Successfully closed
         Defaulted = 8,            // Purchaser defaulted
-        Cancelled = 9             // Deal cancelled
+        Cancelled = 9,            // Deal cancelled
+        LateClosingPenalty = 10   // Past closing date, daily penalty accruing
     }
 
     public enum ClosingRecommendation
@@ -431,7 +452,8 @@ namespace PreConHub.Models.Entities
         PotentialDefault = 6,
         MutualRelease = 7,
         CombinationSuggestion = 8,
-        Downsizing = 9               // Manual-only, not in AI recommendations
+        Downsizing = 9,              // Manual-only, not in AI recommendations
+        Terminated = 10              // Builder terminated the deal
     }
 
     #endregion
@@ -968,6 +990,10 @@ namespace PreConHub.Models.Entities
         /// engineering report, internet delivery, CO detector, wire transfer, PDF scan, closing doc changes.</summary>
         [Column(TypeName = "decimal(18,2)")]
         public decimal ScheduleBClosingFees { get; set; }
+
+        /// <summary>Late closing penalty total — contractual daily penalty, no HST. Added to TotalVendorCredits.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal LatePenalties { get; set; }
 
         // =====================================
         // NEW: Credits & Incentives Detail
@@ -1601,7 +1627,8 @@ namespace PreConHub.Models.Entities
         Deposit = 7,        // bi-cash-stack, green
         Lawyer = 8,         // bi-briefcase, blue
         Purchaser = 9,      // bi-person, teal
-        System = 10         // bi-gear, gray
+        System = 10,        // bi-gear, gray
+        Penalty = 11        // bi-exclamation-triangle-fill, red
     }
 
     /// <summary>
@@ -1803,6 +1830,38 @@ namespace PreConHub.Models.Entities
 
         [StringLength(1000)]
         public string? Notes { get; set; }
+    }
+
+    #endregion
+
+    #region Late Closing Penalty
+
+    /// <summary>
+    /// Immutable daily accrual record for late closing penalties.
+    /// One record per unit per day — no edit/delete endpoints.
+    /// </summary>
+    public class ClosingPenalty
+    {
+        [Key]
+        public int Id { get; set; }
+
+        public int UnitId { get; set; }
+
+        [ForeignKey("UnitId")]
+        public virtual Unit Unit { get; set; } = null!;
+
+        /// <summary>The date this penalty was charged for.</summary>
+        public DateTime PenaltyDate { get; set; }
+
+        /// <summary>Daily penalty amount at the time of accrual.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal DailyAmount { get; set; }
+
+        /// <summary>Running total after this accrual.</summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal AccumulatedTotal { get; set; }
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 
     #endregion

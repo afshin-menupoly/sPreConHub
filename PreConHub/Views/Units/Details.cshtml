@@ -41,6 +41,18 @@
             <a href="@Url.Action("UploadUnitAps", "Units", new { id = Model.UnitId })" class="btn btn-info">
                 <i class="bi bi-file-earmark-text me-1"></i>Upload APS
             </a>
+            <a href="@Url.Action("SetDailyPenalty", "Units", new { id = Model.UnitId })" class="btn btn-outline-danger">
+                <i class="bi bi-exclamation-triangle me-1"></i>Late Penalty
+            </a>
+            @if (Model.Status != PreConHub.Models.Entities.UnitStatus.Closed)
+            {
+                <form asp-action="CloseUnit" asp-route-id="@Model.UnitId" method="post" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-dark" onclick="return confirm('Close this unit? Penalty accrual will stop and a final statement will be sent.')">
+                        <i class="bi bi-lock me-1"></i>Close Unit
+                    </button>
+                </form>
+            }
             @if (Model.SOA != null && !Model.SOA.IsConfirmedByBuilder)
             {
                 <form asp-action="ConfirmSOA" asp-route-id="@Model.UnitId" method="post" class="d-inline">
@@ -187,6 +199,7 @@
                             PreConHub.Models.Entities.UnitStatus.NeedsDiscount => "bg-primary",
                             PreConHub.Models.Entities.UnitStatus.NeedsVTB => "bg-warning text-dark",
                             PreConHub.Models.Entities.UnitStatus.AtRisk => "bg-danger",
+                            PreConHub.Models.Entities.UnitStatus.LateClosingPenalty => "bg-danger",
                             _ => "bg-secondary"
                         };
                         var recBadge = Model.Recommendation switch
@@ -224,7 +237,7 @@
                                 @foreach (var opt in new (int Val, string Label)[] {
                                     (0, "No Decision"), (1, "Proceed to Close"), (2, "Close with Discount"),
                                     (3, "VTB Second Mortgage"), (4, "VTB First Mortgage"), (5, "High Risk of Default"),
-                                    (6, "Potential Default"), (7, "Mutual Release"), (8, "Combination"), (9, "Downsizing") })
+                                    (6, "Potential Default"), (7, "Mutual Release"), (8, "Combination"), (9, "Downsizing"), (10, "Terminated") })
                                 {
                                     if (opt.Val == bdVal)
                                     {
@@ -253,6 +266,112 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Late Closing Penalty Card -->
+            @if (Model.DailyPenaltyAmount.HasValue && Model.DailyPenaltyAmount.Value > 0 || Model.TotalAccumulatedPenalty > 0)
+            {
+                <div class="card border-0 shadow-sm mb-4 @(Model.IsPenaltyActive ? "border-danger" : "")">
+                    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2 text-danger"></i>Late Closing Penalty</h5>
+                        @if (Model.IsPenaltyActive)
+                        {
+                            <span class="badge bg-danger">ACTIVE</span>
+                        }
+                        else if (Model.PenaltyPausedAt.HasValue)
+                        {
+                            <span class="badge bg-warning text-dark">PAUSED</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">INACTIVE</span>
+                        }
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-2">
+                            <div class="col-6 text-muted small">Daily Rate</div>
+                            <div class="col-6 fw-bold">@((Model.DailyPenaltyAmount ?? 0).ToString("C"))/day</div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6 text-muted small">Days Charged</div>
+                            <div class="col-6 fw-bold">@Model.PenaltyDaysCount</div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6 text-muted small">Total Accumulated</div>
+                            <div class="col-6 fw-bold text-danger">@Model.TotalAccumulatedPenalty.ToString("C")</div>
+                        </div>
+                        @if (Model.PenaltyStartDate.HasValue)
+                        {
+                            <div class="row mb-2">
+                                <div class="col-6 text-muted small">Started</div>
+                                <div class="col-6">@Model.PenaltyStartDate.Value.ToString("MMM dd, yyyy")</div>
+                            </div>
+                        }
+                        @if (Model.PenaltyPausedAt.HasValue)
+                        {
+                            <div class="row mb-2">
+                                <div class="col-6 text-muted small">Paused At</div>
+                                <div class="col-6">@Model.PenaltyPausedAt.Value.ToString("MMM dd, yyyy")</div>
+                            </div>
+                        }
+                        <div class="d-flex gap-2 mt-3">
+                            @if (Model.IsPenaltyActive)
+                            {
+                                <form asp-action="PausePenalty" asp-route-id="@Model.UnitId" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Pause the daily penalty? Accrual will stop until resumed.')">
+                                        <i class="bi bi-pause-fill me-1"></i>Pause
+                                    </button>
+                                </form>
+                            }
+                            else if (Model.DailyPenaltyAmount.HasValue && Model.DailyPenaltyAmount.Value > 0)
+                            {
+                                <form asp-action="ResumePenalty" asp-route-id="@Model.UnitId" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Resume the daily penalty?')">
+                                        <i class="bi bi-play-fill me-1"></i>Resume
+                                    </button>
+                                </form>
+                            }
+                            <a href="@Url.Action("SetDailyPenalty", "Units", new { id = Model.UnitId })" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-pencil me-1"></i>Change Rate
+                            </a>
+                        </div>
+
+                        @if (Model.PenaltyHistory.Any())
+                        {
+                            <hr />
+                            <div class="mb-2">
+                                <a class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" href="#penaltyHistory" role="button" aria-expanded="false">
+                                    <i class="bi bi-clock-history me-1"></i>View History (@Model.PenaltyHistory.Count records)
+                                </a>
+                            </div>
+                            <div class="collapse" id="penaltyHistory">
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-sm table-striped mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Date</th>
+                                                <th class="text-end">Daily</th>
+                                                <th class="text-end">Accumulated</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var p in Model.PenaltyHistory)
+                                            {
+                                                <tr>
+                                                    <td>@p.PenaltyDate.ToString("MMM dd, yyyy")</td>
+                                                    <td class="text-end">@p.DailyAmount.ToString("C")</td>
+                                                    <td class="text-end fw-bold">@p.AccumulatedTotal.ToString("C")</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
 
             <!-- Purchaser Card -->
             <div class="card border-0 shadow-sm mb-4">
@@ -1016,6 +1135,13 @@
                                                 </a>
                                             </td>
                                             <td class="text-end">$@Model.SOA.ScheduleBClosingFees.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                    @if (Model.SOA.LatePenalties > 0)
+                                    {
+                                        <tr class="text-danger">
+                                            <td><i class="bi bi-exclamation-triangle-fill me-1"></i>Late Closing Penalties</td>
+                                            <td class="text-end">$@Model.SOA.LatePenalties.ToString("N2")</td>
                                         </tr>
                                     }
                                     <tr class="border-top fw-bold">

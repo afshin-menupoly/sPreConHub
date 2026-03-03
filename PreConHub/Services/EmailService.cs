@@ -35,6 +35,9 @@ namespace PreConHub.Services
         Task<bool> SendPasswordResetEmailAsync(string toEmail, string userName, string resetLink);
         Task<bool> SendAdminCreatedUserEmailAsync(string toEmail, string userName, string roleName, string loginLink);
         Task<bool> SendBuyerLawyerInvitationAsync(string toEmail, string lawyerName, string unitNumber, string projectName, string invitationLink);
+        Task<bool> SendPenaltyAccruedEmailAsync(string toEmail, string recipientName, string unitNumber, string projectName, int daysLate, decimal dailyAmount, decimal totalPenalty, decimal balanceDue);
+        Task<bool> SendPenaltyPausedEmailAsync(string toEmail, string recipientName, string unitNumber, string projectName, int daysCharged, decimal totalPenalty);
+        Task<bool> SendPenaltyFinalStatementEmailAsync(string toEmail, string recipientName, string unitNumber, string projectName, int daysCharged, decimal totalPenalty, decimal balanceDue);
     }
 
     // ===== EMAIL SERVICE IMPLEMENTATION =====
@@ -251,6 +254,60 @@ namespace PreConHub.Services
             return await SendEmailAsync(toEmail, subject, htmlBody);
         }
 
+        public async Task<bool> SendPenaltyAccruedEmailAsync(
+            string toEmail, string recipientName, string unitNumber, string projectName,
+            int daysLate, decimal dailyAmount, decimal totalPenalty, decimal balanceDue)
+        {
+            var subject = $"PreConHub — Late Closing Penalty Notice: Unit {unitNumber} (Day {daysLate})";
+
+            var htmlBody = GetEmailTemplate("PenaltyAccrued")
+                .Replace("{{RecipientName}}", recipientName)
+                .Replace("{{UnitNumber}}", unitNumber)
+                .Replace("{{ProjectName}}", projectName)
+                .Replace("{{DaysLate}}", daysLate.ToString())
+                .Replace("{{DailyAmount}}", dailyAmount.ToString("C"))
+                .Replace("{{TotalPenalty}}", totalPenalty.ToString("C"))
+                .Replace("{{BalanceDue}}", balanceDue.ToString("C"))
+                .Replace("{{Year}}", DateTime.Now.Year.ToString());
+
+            return await SendEmailAsync(toEmail, subject, htmlBody);
+        }
+
+        public async Task<bool> SendPenaltyPausedEmailAsync(
+            string toEmail, string recipientName, string unitNumber, string projectName,
+            int daysCharged, decimal totalPenalty)
+        {
+            var subject = $"PreConHub — Late Closing Penalty Paused: Unit {unitNumber}";
+
+            var htmlBody = GetEmailTemplate("PenaltyPaused")
+                .Replace("{{RecipientName}}", recipientName)
+                .Replace("{{UnitNumber}}", unitNumber)
+                .Replace("{{ProjectName}}", projectName)
+                .Replace("{{DaysCharged}}", daysCharged.ToString())
+                .Replace("{{TotalPenalty}}", totalPenalty.ToString("C"))
+                .Replace("{{Year}}", DateTime.Now.Year.ToString());
+
+            return await SendEmailAsync(toEmail, subject, htmlBody);
+        }
+
+        public async Task<bool> SendPenaltyFinalStatementEmailAsync(
+            string toEmail, string recipientName, string unitNumber, string projectName,
+            int daysCharged, decimal totalPenalty, decimal balanceDue)
+        {
+            var subject = $"PreConHub — Final Closing Statement: Unit {unitNumber}";
+
+            var htmlBody = GetEmailTemplate("PenaltyFinalStatement")
+                .Replace("{{RecipientName}}", recipientName)
+                .Replace("{{UnitNumber}}", unitNumber)
+                .Replace("{{ProjectName}}", projectName)
+                .Replace("{{DaysCharged}}", daysCharged.ToString())
+                .Replace("{{TotalPenalty}}", totalPenalty.ToString("C"))
+                .Replace("{{BalanceDue}}", balanceDue.ToString("C"))
+                .Replace("{{Year}}", DateTime.Now.Year.ToString());
+
+            return await SendEmailAsync(toEmail, subject, htmlBody);
+        }
+
         // ===== GET EMAIL TEMPLATE =====
         private string GetEmailTemplate(string templateName)
         {
@@ -273,6 +330,9 @@ namespace PreConHub.Services
                 "PasswordReset" => GetPasswordResetTemplate(),
                 "AdminCreatedUser" => GetAdminCreatedUserTemplate(),
                 "BuyerLawyerInvitation" => GetBuyerLawyerInvitationTemplate(),
+                "PenaltyAccrued" => GetPenaltyAccruedTemplate(),
+                "PenaltyPaused" => GetPenaltyPausedTemplate(),
+                "PenaltyFinalStatement" => GetPenaltyFinalStatementTemplate(),
                 _ => GetDefaultTemplate()
             };
         }
@@ -633,6 +693,93 @@ namespace PreConHub.Services
             <p style='color: #888; font-size: 14px;'>If the button doesn't work, copy and paste this link:<br><a href='{{InvitationLink}}' style='color: #6f42c1; word-break: break-all;'>{{InvitationLink}}</a></p>
             <hr style='border: none; border-top: 1px solid #eee; margin: 30px 0;'>
             <p style='color: #888; font-size: 12px; text-align: center;'>This invitation link will expire in 7 days.</p>
+        </div>
+        <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>&copy; {{Year}} PreConHub. All rights reserved.</div>
+    </div>
+</body>
+</html>";
+        }
+
+        private string GetPenaltyAccruedTemplate()
+        {
+            return @"
+<!DOCTYPE html>
+<html>
+<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head>
+<body style='margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+        <div style='background: linear-gradient(135deg, #dc3545 0%, #a71d2a 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
+            <h1 style='color: white; margin: 0; font-size: 28px;'>PreConHub</h1>
+            <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Late Closing Penalty Notice</p>
+        </div>
+        <div style='background: white; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
+            <h2 style='color: #333; margin-top: 0;'>Hello, {{RecipientName}}</h2>
+            <p style='color: #555; line-height: 1.6;'>A late closing penalty has been charged for:</p>
+            <div style='background: #fff3cd; padding: 15px 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #dc3545;'>
+                <strong style='color: #333;'>Unit {{UnitNumber}} — {{ProjectName}}</strong>
+            </div>
+            <table style='width: 100%; border-collapse: collapse; margin: 20px 0;'>
+                <tr><td style='padding: 10px; border-bottom: 1px solid #eee; color: #555;'>Days Late</td><td style='padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;'>{{DaysLate}}</td></tr>
+                <tr><td style='padding: 10px; border-bottom: 1px solid #eee; color: #555;'>Daily Penalty</td><td style='padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;'>{{DailyAmount}}</td></tr>
+                <tr><td style='padding: 10px; border-bottom: 1px solid #eee; color: #555;'>Total Penalty</td><td style='padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold; color: #dc3545;'>{{TotalPenalty}}</td></tr>
+                <tr><td style='padding: 10px; color: #555;'>Balance Due on Closing</td><td style='padding: 10px; text-align: right; font-weight: bold;'>{{BalanceDue}}</td></tr>
+            </table>
+            <p style='color: #888; font-size: 14px;'>This penalty accrues daily until the closing is completed. Please contact the builder if you have questions.</p>
+        </div>
+        <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>&copy; {{Year}} PreConHub. All rights reserved.</div>
+    </div>
+</body>
+</html>";
+        }
+
+        private string GetPenaltyPausedTemplate()
+        {
+            return @"
+<!DOCTYPE html>
+<html>
+<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head>
+<body style='margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+        <div style='background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
+            <h1 style='color: white; margin: 0; font-size: 28px;'>PreConHub</h1>
+            <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Penalty Paused Confirmation</p>
+        </div>
+        <div style='background: white; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
+            <h2 style='color: #333; margin-top: 0;'>Hello, {{RecipientName}}</h2>
+            <p style='color: #555; line-height: 1.6;'>The late closing penalty for <strong>Unit {{UnitNumber}} — {{ProjectName}}</strong> has been <strong>paused</strong>.</p>
+            <div style='background: #f8f9fa; padding: 15px 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ffc107;'>
+                <p style='margin: 5px 0; color: #555;'>Days Charged: <strong>{{DaysCharged}}</strong></p>
+                <p style='margin: 5px 0; color: #555;'>Total Penalty Accumulated: <strong>{{TotalPenalty}}</strong></p>
+            </div>
+            <p style='color: #888; font-size: 14px;'>No further daily penalties will accrue until the penalty is resumed by the builder.</p>
+        </div>
+        <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>&copy; {{Year}} PreConHub. All rights reserved.</div>
+    </div>
+</body>
+</html>";
+        }
+
+        private string GetPenaltyFinalStatementTemplate()
+        {
+            return @"
+<!DOCTYPE html>
+<html>
+<head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'></head>
+<body style='margin:0; padding:0; font-family: Arial, sans-serif; background-color: #f4f4f4;'>
+    <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
+        <div style='background: linear-gradient(135deg, #212529 0%, #343a40 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
+            <h1 style='color: white; margin: 0; font-size: 28px;'>PreConHub</h1>
+            <p style='color: rgba(255,255,255,0.9); margin: 10px 0 0 0;'>Final Closing Statement</p>
+        </div>
+        <div style='background: white; padding: 40px 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);'>
+            <h2 style='color: #333; margin-top: 0;'>Hello, {{RecipientName}}</h2>
+            <p style='color: #555; line-height: 1.6;'>The closing for <strong>Unit {{UnitNumber}} — {{ProjectName}}</strong> has been finalized.</p>
+            <div style='background: #f8f9fa; padding: 15px 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #212529;'>
+                <p style='margin: 5px 0; color: #555;'>Total Days Late: <strong>{{DaysCharged}}</strong></p>
+                <p style='margin: 5px 0; color: #555;'>Total Late Closing Penalty: <strong style='color: #dc3545;'>{{TotalPenalty}}</strong></p>
+                <p style='margin: 5px 0; color: #555;'>Final Balance Due: <strong>{{BalanceDue}}</strong></p>
+            </div>
+            <p style='color: #888; font-size: 14px;'>This is your final penalty statement. The penalty has been stopped and no further charges will accrue.</p>
         </div>
         <div style='text-align: center; padding: 20px; color: #888; font-size: 12px;'>&copy; {{Year}} PreConHub. All rights reserved.</div>
     </div>

@@ -105,8 +105,13 @@ namespace PreConHub.Models.ViewModels
             Entities.BuilderDecision.MutualRelease => "Mutual Release",
             Entities.BuilderDecision.CombinationSuggestion => "Combination",
             Entities.BuilderDecision.Downsizing => "Downsizing",
+            Entities.BuilderDecision.Terminated => "Terminated",
             _ => "No Decision"
         };
+
+        // Late Closing Penalty
+        public bool IsPenaltyActive { get; set; }
+        public decimal TotalAccumulatedPenalty { get; set; }
 
         public string BuilderDecisionBadgeClass => BuilderDecision switch
         {
@@ -119,6 +124,7 @@ namespace PreConHub.Models.ViewModels
             Entities.BuilderDecision.MutualRelease => "bg-purple",
             Entities.BuilderDecision.CombinationSuggestion => "bg-combination",
             Entities.BuilderDecision.Downsizing => "bg-info",
+            Entities.BuilderDecision.Terminated => "bg-dark",
             _ => "bg-secondary"
         };
 
@@ -271,6 +277,16 @@ namespace PreConHub.Models.ViewModels
 
         // Unit Fees (upgrades, credits)
         public List<UnitFeeViewModel> UnitFees { get; set; } = new();
+
+        // Late Closing Penalty
+        public decimal? DailyPenaltyAmount { get; set; }
+        public bool IsPenaltyActive { get; set; }
+        public DateTime? PenaltyStartDate { get; set; }
+        public DateTime? PenaltyPausedAt { get; set; }
+        public decimal TotalAccumulatedPenalty { get; set; }
+        public int PenaltyDaysCount { get; set; }
+        public List<ClosingPenaltyViewModel> PenaltyHistory { get; set; } = new();
+        public bool IsClosingDatePassed => ClosingDate.HasValue && ClosingDate.Value.Date < DateTime.Today;
     }
 
     public class UnitFeeViewModel
@@ -280,6 +296,35 @@ namespace PreConHub.Models.ViewModels
         public decimal Amount { get; set; }
         public bool IsCredit { get; set; }
         public string? Description { get; set; }
+    }
+
+    public class ClosingPenaltyViewModel
+    {
+        public int Id { get; set; }
+        public DateTime PenaltyDate { get; set; }
+        public decimal DailyAmount { get; set; }
+        public decimal AccumulatedTotal { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+
+    public class SetDailyPenaltyViewModel
+    {
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+        public int ProjectId { get; set; }
+        public DateTime? ClosingDate { get; set; }
+        public UnitStatus Status { get; set; }
+
+        [Display(Name = "Daily Penalty Amount")]
+        [DataType(DataType.Currency)]
+        [Range(0, 100000, ErrorMessage = "Daily penalty must be between $0 and $100,000")]
+        public decimal? DailyPenaltyAmount { get; set; }
+
+        public decimal? CurrentDailyPenalty { get; set; }
+        public bool IsPenaltyActive { get; set; }
+        public decimal TotalAccumulatedPenalty { get; set; }
+        public int PenaltyDaysCount { get; set; }
     }
 
     public class PurchaserInfoViewModel
@@ -330,6 +375,7 @@ namespace PreConHub.Models.ViewModels
         public decimal OtherDebits { get; set; }
         public decimal ScheduleBClosingFees { get; set; }
         public List<FeeBreakdownItem> ScheduleBFeeBreakdown { get; set; } = new();
+        public decimal LatePenalties { get; set; }
         public decimal NetHSTPayable { get; set; }
         public decimal TotalDebits { get; set; }
 
@@ -486,6 +532,9 @@ namespace PreConHub.Models.ViewModels
         public DateTime? OutsideOccupancyDate { get; set; }
         public DateTime? DelayedOccupancyDate { get; set; }
         public DateTime? PurchaserTerminationDate { get; set; }
+
+        // Late Closing Penalty
+        public decimal? DailyPenaltyAmount { get; set; }
     }
 
     #endregion
@@ -797,6 +846,7 @@ namespace PreConHub.Models.ViewModels
             UnitStatus.NeedsDiscount => "primary",
             UnitStatus.NeedsVTB => "warning",
             UnitStatus.AtRisk => "danger",
+            UnitStatus.LateClosingPenalty => "danger",
             UnitStatus.Closed => "secondary",
             _ => "info"
         };

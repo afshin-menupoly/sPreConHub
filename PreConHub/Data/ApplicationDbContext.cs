@@ -35,6 +35,7 @@ namespace PreConHub.Data
         public DbSet<DepositInterestPeriod> DepositInterestPeriods { get; set; }
         public DbSet<SystemFeeConfig> SystemFeeConfigs { get; set; }
         public DbSet<SOAVersion> SOAVersions { get; set; }
+        public DbSet<ClosingPenalty> ClosingPenalties { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -429,6 +430,24 @@ namespace PreConHub.Data
                 .WithMany()
                 .HasForeignKey(p => p.MarketingAgencyUserId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // ============================================
+            // ClosingPenalty Configuration
+            // ============================================
+            builder.Entity<ClosingPenalty>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.DailyAmount).HasColumnType("decimal(18,2)");
+                entity.Property(e => e.AccumulatedTotal).HasColumnType("decimal(18,2)");
+
+                entity.HasOne(e => e.Unit)
+                    .WithMany(u => u.ClosingPenalties)
+                    .HasForeignKey(e => e.UnitId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => new { e.UnitId, e.PenaltyDate }).IsUnique();
+                entity.HasIndex(e => e.UnitId);
+            });
 
             // ============================================
             // SystemFeeConfig Configuration + Seed Data

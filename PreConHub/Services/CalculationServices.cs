@@ -326,6 +326,9 @@ namespace PreConHub.Services
                 ? soa.HSTAmount - soa.HSTRebateTotal
                 : soa.HSTAmount;
 
+            // Late Closing Penalties (contractual, no HST — not added to feeItemsBase)
+            soa.LatePenalties = unit.TotalAccumulatedPenalty;
+
             // Calculate Total Vendor Credits (Credit Vendor — amounts owed TO vendor)
             // Based on: NetSalePrice + FederalHST + ProvincialHST + adjustments
             // NOTE: LTT is informational only — excluded from balance
@@ -337,7 +340,8 @@ namespace PreConHub.Services
                 + soa.CommonExpenseAdjustment
                 + soa.OccupancyFeesChargeable
                 + soa.ReserveFundContribution
-                + soa.CommonExpensesFirstMonth;
+                + soa.CommonExpensesFirstMonth
+                + soa.LatePenalties;
 
             soa.TotalDebits = soa.TotalVendorCredits; // backward compat
 

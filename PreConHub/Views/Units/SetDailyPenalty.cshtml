@@ -1,0 +1,98 @@
+@model PreConHub.Models.ViewModels.SetDailyPenaltyViewModel
+
+@{
+    ViewData["Title"] = $"Set Daily Penalty — Unit {Model.UnitNumber}";
+}
+
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-controller="Projects" asp-action="Index">Projects</a></li>
+        <li class="breadcrumb-item"><a asp-controller="Projects" asp-action="Dashboard" asp-route-id="@Model.ProjectId">@Model.ProjectName</a></li>
+        <li class="breadcrumb-item"><a asp-controller="Units" asp-action="Details" asp-route-id="@Model.UnitId">Unit @Model.UnitNumber</a></li>
+        <li class="breadcrumb-item active">Set Daily Penalty</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle-fill me-2"></i>Late Closing Penalty — Unit @Model.UnitNumber</h5>
+            </div>
+            <div class="card-body">
+                @if (Model.ClosingDate.HasValue)
+                {
+                    var daysUntil = (Model.ClosingDate.Value.Date - DateTime.Today).Days;
+                    <div class="alert @(daysUntil < 0 ? "alert-danger" : "alert-info") mb-3">
+                        <i class="bi @(daysUntil < 0 ? "bi-exclamation-circle" : "bi-calendar") me-1"></i>
+                        <strong>Closing Date:</strong> @Model.ClosingDate.Value.ToString("MMM dd, yyyy")
+                        @if (daysUntil < 0)
+                        {
+                            <span class="ms-2 badge bg-danger">@Math.Abs(daysUntil) days overdue</span>
+                        }
+                        else
+                        {
+                            <span class="ms-2 badge bg-info">@daysUntil days remaining</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-exclamation-triangle me-1"></i>No closing date set. Penalty will auto-activate when closing date passes.
+                    </div>
+                }
+
+                @if (Model.IsPenaltyActive)
+                {
+                    <div class="alert alert-danger mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i><strong>Penalty is ACTIVE</strong> —
+                        @Model.PenaltyDaysCount days charged, @Model.TotalAccumulatedPenalty.ToString("C") accumulated.
+                    </div>
+                }
+                else if (Model.TotalAccumulatedPenalty > 0)
+                {
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-pause-circle me-1"></i><strong>Penalty is PAUSED</strong> —
+                        @Model.PenaltyDaysCount days charged, @Model.TotalAccumulatedPenalty.ToString("C") accumulated.
+                    </div>
+                }
+
+                <form asp-action="SetDailyPenalty" asp-route-id="@Model.UnitId" method="post">
+                    <input type="hidden" asp-for="UnitId" />
+                    <input type="hidden" asp-for="ProjectId" />
+
+                    <div class="mb-3">
+                        <label asp-for="DailyPenaltyAmount" class="form-label fw-bold">Daily Penalty Amount</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input asp-for="DailyPenaltyAmount" type="number" step="0.01" min="0" class="form-control form-control-lg" placeholder="e.g. 150.00" />
+                            <span class="input-group-text">/day</span>
+                        </div>
+                        <span asp-validation-for="DailyPenaltyAmount" class="text-danger"></span>
+                        <div class="form-text">
+                            Set to $0 or leave empty to disable the penalty. Existing accrued amounts are preserved.
+                        </div>
+                    </div>
+
+                    @if (Model.CurrentDailyPenalty.HasValue && Model.CurrentDailyPenalty.Value > 0)
+                    {
+                        <div class="mb-3 text-muted small">
+                            <i class="bi bi-info-circle me-1"></i>Current rate: <strong>@Model.CurrentDailyPenalty.Value.ToString("C")/day</strong>.
+                            Changing the rate only affects future accruals — past records are immutable.
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-between">
+                        <a asp-action="Details" asp-route-id="@Model.UnitId" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-1"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-check-lg me-1"></i>Save Penalty Rate
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
