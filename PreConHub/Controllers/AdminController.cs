@@ -93,15 +93,20 @@ namespace PreConHub.Controllers
         }
 
         // GET: /Admin/Users
-        public async Task<IActionResult> Users(string? search, string? userType, string? status, int page = 1)
+        public async Task<IActionResult> Users(string? search, string? userType, string? status,
+            string? builder, int? project, string? sortBy, string? sortDir, int pageSize = 20, int page = 1)
         {
+            // Validate page size
+            int[] allowedSizes = { 20, 50, 100, 250, 500 };
+            if (!allowedSizes.Contains(pageSize)) pageSize = 20;
+
             var query = _context.Users.AsQueryable();
 
             // Search filter (without Company since it doesn't exist)
             if (!string.IsNullOrWhiteSpace(search))
             {
                 search = search.ToLower();
-                query = query.Where(u => 
+                query = query.Where(u =>
                     (u.Email != null && u.Email.ToLower().Contains(search)) ||
                     (u.FirstName != null && u.FirstName.ToLower().Contains(search)) ||
                     (u.LastName != null && u.LastName.ToLower().Contains(search)));
@@ -122,12 +127,44 @@ namespace PreConHub.Controllers
                     query = query.Where(u => !u.IsActive);
             }
 
+            // Builder + Project filter
+            if (!string.IsNullOrWhiteSpace(builder))
+            {
+                var projectQuery = _context.Projects.Where(p => p.BuilderId == builder);
+                if (project.HasValue)
+                    projectQuery = projectQuery.Where(p => p.Id == project.Value);
+                var projectIds = await projectQuery.Select(p => p.Id).ToListAsync();
+
+                var purchaserIds = await _context.Set<UnitPurchaser>()
+                    .Where(up => _context.Units.Any(u => projectIds.Contains(u.ProjectId) && u.Id == up.UnitId))
+                    .Select(up => up.PurchaserId).Distinct().ToListAsync();
+
+                var lawyerIds = await _context.LawyerAssignments
+                    .Where(la => projectIds.Contains(la.ProjectId))
+                    .Select(la => la.LawyerId).Distinct().ToListAsync();
+
+                var maIds = await _context.Projects
+                    .Where(p => projectIds.Contains(p.Id) && p.MarketingAgencyUserId != null)
+                    .Select(p => p.MarketingAgencyUserId!).Distinct().ToListAsync();
+
+                var allLinkedIds = purchaserIds.Union(lawyerIds).Union(maIds).ToHashSet();
+                query = query.Where(u => allLinkedIds.Contains(u.Id));
+            }
+
             var totalCount = await query.CountAsync();
-            var pageSize = 20;
             var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
-            var users = await query
-                .OrderByDescending(u => u.CreatedAt)
+            // Sorting
+            IOrderedQueryable<ApplicationUser> orderedQuery = (sortBy, sortDir) switch
+            {
+                ("name", "asc") => query.OrderBy(u => u.FirstName).ThenBy(u => u.LastName),
+                ("name", "desc") => query.OrderByDescending(u => u.FirstName).ThenByDescending(u => u.LastName),
+                ("type", "asc") => query.OrderBy(u => u.UserType).ThenBy(u => u.FirstName),
+                ("type", "desc") => query.OrderByDescending(u => u.UserType).ThenBy(u => u.FirstName),
+                _ => query.OrderByDescending(u => u.CreatedAt)
+            };
+
+            var users = await orderedQuery
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(u => new UserListItemViewModel
@@ -159,12 +196,41 @@ namespace PreConHub.Controllers
                 Search = search,
                 UserTypeFilter = userType,
                 StatusFilter = status,
+                BuilderFilter = builder,
+                ProjectFilter = project,
+                SortBy = sortBy,
+                SortDir = sortDir,
+                PageSize = pageSize,
                 CurrentPage = page,
                 TotalPages = totalPages,
-                TotalCount = totalCount
+                TotalCount = totalCount,
+                Builders = await _context.Users
+                    .Where(u => u.UserType == UserType.Builder)
+                    .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+                    .Select(u => new BuilderDropdownItem { Id = u.Id, Name = u.FirstName + " " + u.LastName })
+                    .ToListAsync(),
+                Projects = !string.IsNullOrWhiteSpace(builder)
+                    ? await _context.Projects
+                        .Where(p => p.BuilderId == builder)
+                        .OrderBy(p => p.Name)
+                        .Select(p => new ProjectDropdownItem { Id = p.Id, Name = p.Name })
+                        .ToListAsync()
+                    : new()
             };
 
             return View(viewModel);
+        }
+
+        // GET: /Admin/GetProjectsByBuilder?builderId=xxx (AJAX)
+        [HttpGet]
+        public async Task<IActionResult> GetProjectsByBuilder(string builderId)
+        {
+            var projects = await _context.Projects
+                .Where(p => p.BuilderId == builderId)
+                .OrderBy(p => p.Name)
+                .Select(p => new { p.Id, p.Name })
+                .ToListAsync();
+            return Json(projects);
         }
 
         // GET: /Admin/UserDetail/userId

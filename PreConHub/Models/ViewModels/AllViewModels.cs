@@ -1682,9 +1682,22 @@ namespace PreConHub.Models.ViewModels
         public string? Search { get; set; }
         public string? UserTypeFilter { get; set; }
         public string? StatusFilter { get; set; }
+        public string? BuilderFilter { get; set; }
+        public int? ProjectFilter { get; set; }
+        public string? SortBy { get; set; }
+        public string? SortDir { get; set; }
+        public int PageSize { get; set; } = 20;
         public int CurrentPage { get; set; } = 1;
         public int TotalPages { get; set; }
         public int TotalCount { get; set; }
+        public List<BuilderDropdownItem> Builders { get; set; } = new();
+        public List<ProjectDropdownItem> Projects { get; set; } = new();
+    }
+
+    public class BuilderDropdownItem
+    {
+        public string Id { get; set; } = "";
+        public string Name { get; set; } = "";
     }
 
     /// <summary>
