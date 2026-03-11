@@ -606,8 +606,8 @@ namespace PreConHub.Controllers
                 return NotFound();
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token, email = user.Email }, Request.Scheme);
-            await _emailService.SendPasswordResetEmailAsync(user.Email ?? "", $"{user.FirstName} {user.LastName}", resetLink ?? "");
+            var resetLink = GenerateInvitationLink(user, token);
+            await _emailService.SendPasswordResetEmailAsync(user.Email ?? "", $"{user.FirstName} {user.LastName}", resetLink);
 
             TempData["Success"] = $"Invitation re-sent to {user.Email}.";
             return RedirectToAction(nameof(UserDetail), new { id = userId });
@@ -623,14 +623,28 @@ namespace PreConHub.Controllers
                 return NotFound();
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token, email = user.Email }, Request.Scheme);
-            await _emailService.SendPasswordResetEmailAsync(user.Email ?? "", $"{user.FirstName} {user.LastName}", resetLink ?? "");
+            var resetLink = GenerateInvitationLink(user, token);
+            await _emailService.SendPasswordResetEmailAsync(user.Email ?? "", $"{user.FirstName} {user.LastName}", resetLink);
 
             _logger.LogInformation("Admin {AdminId} sent password reset email to {UserId} ({Email})",
                 _userManager.GetUserId(User), userId, user.Email);
 
             TempData["Success"] = $"Password reset email sent to {user.Email}.";
             return RedirectToAction(nameof(UserDetail), new { id = userId });
+        }
+
+        private string GenerateInvitationLink(ApplicationUser user, string token)
+        {
+            var encodedToken = System.Net.WebUtility.UrlEncode(token);
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var encodedEmail = System.Net.WebUtility.UrlEncode(user.Email!);
+            return user.UserType switch
+            {
+                UserType.Purchaser => $"{baseUrl}/Purchaser/AcceptInvitation?email={encodedEmail}&code={encodedToken}",
+                UserType.Lawyer => $"{baseUrl}/Lawyer/AcceptInvitation?email={encodedEmail}&code={encodedToken}",
+                UserType.MarketingAgency => $"{baseUrl}/MarketingAgency/AcceptInvitation?email={encodedEmail}&code={encodedToken}",
+                _ => $"{baseUrl}/Purchaser/AcceptInvitation?email={encodedEmail}&code={encodedToken}"
+            };
         }
 
         // GET: /Admin/ActivityLog

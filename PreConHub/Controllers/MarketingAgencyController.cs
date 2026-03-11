@@ -14,19 +14,89 @@ namespace PreConHub.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<MarketingAgencyController> _logger;
         private readonly INotificationService _notificationService;
 
         public MarketingAgencyController(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signInManager,
             INotificationService notificationService,
             ILogger<MarketingAgencyController> logger)
         {
             _context = context;
             _userManager = userManager;
+            _signInManager = signInManager;
             _notificationService = notificationService;
             _logger = logger;
+        }
+
+        // GET: /MarketingAgency/AcceptInvitation
+        [AllowAnonymous]
+        public async Task<IActionResult> AcceptInvitation(string email, string code)
+        {
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(code))
+                return View("InvalidInvitation");
+
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+                return View("InvalidInvitation");
+
+            if (user.EmailConfirmed)
+            {
+                TempData["Info"] = "Your account is already activated. Please log in.";
+                return RedirectToAction("Login", "Account", new { area = "Identity" });
+            }
+
+            var viewModel = new AcceptInvitationViewModel
+            {
+                Email = email,
+                Code = code,
+                FirstName = user.FirstName,
+                LastName = user.LastName
+            };
+
+            return View(viewModel);
+        }
+
+        // POST: /MarketingAgency/AcceptInvitation
+        [HttpPost]
+        [AllowAnonymous]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AcceptInvitation(AcceptInvitationViewModel model)
+        {
+            if (!ModelState.IsValid)
+                return View(model);
+
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null)
+            {
+                ModelState.AddModelError("", "Invalid invitation link.");
+                return View(model);
+            }
+
+            var result = await _userManager.ResetPasswordAsync(user, model.Code, model.Password);
+            if (!result.Succeeded)
+            {
+                foreach (var error in result.Errors)
+                {
+                    if (error.Code == "InvalidToken")
+                        ModelState.AddModelError("", "This invitation link has expired or is invalid. Please contact the builder for a new invitation.");
+                    else
+                        ModelState.AddModelError("", error.Description);
+                }
+                return View(model);
+            }
+
+            user.EmailConfirmed = true;
+            await _userManager.UpdateAsync(user);
+            await _signInManager.SignInAsync(user, isPersistent: false);
+
+            _logger.LogInformation("Marketing Agency {Email} accepted invitation and activated account", model.Email);
+
+            TempData["Success"] = "Welcome! Your account has been activated successfully.";
+            return RedirectToAction(nameof(Dashboard));
         }
 
         // GET: /MarketingAgency/Dashboard

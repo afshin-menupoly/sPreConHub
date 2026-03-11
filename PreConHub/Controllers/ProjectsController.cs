@@ -1526,7 +1526,9 @@ namespace PreConHub.Controllers
 
             // Generate password reset link for invitation
             var token = await _userManager.GeneratePasswordResetTokenAsync(maUser);
-            var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token }, Request.Scheme);
+            var encodedToken = System.Net.WebUtility.UrlEncode(token);
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var resetLink = $"{baseUrl}/MarketingAgency/AcceptInvitation?email={System.Net.WebUtility.UrlEncode(maUser.Email!)}&code={encodedToken}";
 
             TempData["Success"] = $"Marketing Agency user {maFirstName} {maLastName} created successfully. Select them from the dropdown below.";
             TempData["InvitationLink"] = resetLink;
@@ -2243,9 +2245,18 @@ namespace PreConHub.Controllers
             }
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(targetUser);
-            var resetLink = Url.Action("ResetPassword", "Account", new { area = "Identity", code = token }, Request.Scheme);
+            var encodedToken = System.Net.WebUtility.UrlEncode(token);
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var encodedEmail = System.Net.WebUtility.UrlEncode(targetUser.Email!);
+            var invitationLink = targetUser.UserType switch
+            {
+                UserType.Purchaser => $"{baseUrl}/Purchaser/AcceptInvitation?email={encodedEmail}&code={encodedToken}",
+                UserType.Lawyer => $"{baseUrl}/Lawyer/AcceptInvitation?email={encodedEmail}&code={encodedToken}",
+                UserType.MarketingAgency => $"{baseUrl}/MarketingAgency/AcceptInvitation?email={encodedEmail}&code={encodedToken}",
+                _ => $"{baseUrl}/Purchaser/AcceptInvitation?email={encodedEmail}&code={encodedToken}"
+            };
 
-            TempData["Success"] = $"Invitation link for {targetUser.Email}: {resetLink}";
+            TempData["Success"] = $"Invitation link for {targetUser.Email}: {invitationLink}";
             return RedirectToAction(nameof(MyUsers), MyUsersRouteValues(page, pageSize, sortBy, sortDir, roleFilter, projectFilter, search));
         }
 
