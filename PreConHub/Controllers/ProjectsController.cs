@@ -2256,7 +2256,8 @@ namespace PreConHub.Controllers
                 _ => $"{baseUrl}/Purchaser/AcceptInvitation?email={encodedEmail}&code={encodedToken}"
             };
 
-            TempData["Success"] = $"Invitation link for {targetUser.Email}: {invitationLink}";
+            TempData["Success"] = $"Invitation link generated for {targetUser.Email}";
+            TempData["InvitationLink"] = invitationLink;
             return RedirectToAction(nameof(MyUsers), MyUsersRouteValues(page, pageSize, sortBy, sortDir, roleFilter, projectFilter, search));
         }
 

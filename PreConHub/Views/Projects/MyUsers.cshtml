@@ -23,6 +23,30 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     }
+    @if (TempData["InvitationLink"] != null)
+    {
+        var invLink = TempData["InvitationLink"]!.ToString()!;
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <div class="d-flex align-items-center mb-2">
+                <i class="bi bi-link-45deg me-2"></i>
+                <strong>Invitation Link</strong>
+                <button type="button" class="btn btn-sm btn-outline-primary ms-2" onclick="copyInvitationLink()" title="Copy to clipboard">
+                    <i class="bi bi-clipboard me-1"></i>Copy
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary ms-1" onclick="toggleLinkExpand()" title="Show/hide full link">
+                    <i class="bi bi-chevron-down" id="expandIcon"></i>
+                </button>
+                <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+            </div>
+            <div id="linkTruncated" class="text-break">
+                <code style="font-size: 0.8rem;">@(invLink.Length > 80 ? invLink.Substring(0, 80) + "..." : invLink)</code>
+            </div>
+            <div id="linkFull" class="text-break" style="display: none;">
+                <code style="font-size: 0.8rem; word-break: break-all;">@invLink</code>
+            </div>
+            <input type="hidden" id="invitationLinkValue" value="@invLink" />
+        </div>
+    }
     @if (TempData["Error"] != null)
     {
         <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -373,5 +397,39 @@
                 });
             }
         })();
+
+        function copyInvitationLink() {
+            var link = document.getElementById('invitationLinkValue');
+            if (!link) return;
+            navigator.clipboard.writeText(link.value).then(function () {
+                var btn = event.currentTarget;
+                var origHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check me-1"></i>Copied!';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+                setTimeout(function () {
+                    btn.innerHTML = origHtml;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                }, 2000);
+            });
+        }
+
+        function toggleLinkExpand() {
+            var truncated = document.getElementById('linkTruncated');
+            var full = document.getElementById('linkFull');
+            var icon = document.getElementById('expandIcon');
+            if (full.style.display === 'none') {
+                full.style.display = 'block';
+                truncated.style.display = 'none';
+                icon.classList.remove('bi-chevron-down');
+                icon.classList.add('bi-chevron-up');
+            } else {
+                full.style.display = 'none';
+                truncated.style.display = 'block';
+                icon.classList.remove('bi-chevron-up');
+                icon.classList.add('bi-chevron-down');
+            }
+        }
     </script>
 }
