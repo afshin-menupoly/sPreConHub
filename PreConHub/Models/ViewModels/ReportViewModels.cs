@@ -8,6 +8,8 @@ namespace PreConHub.Models.ViewModels
 
     public class ReportsHubViewModel
     {
+        public bool IsAdmin { get; set; }
+
         // Quick Stats
         public int TotalProjects { get; set; }
         public int TotalUnits { get; set; }
@@ -766,5 +768,72 @@ namespace PreConHub.Models.ViewModels
             ClosingRecommendation.CombinationSuggestion => "Combination",
             _ => "Pending"
         };
+    }
+
+    // ============================================================
+    // BUILDER OVERVIEW (Admin-only)
+    // ============================================================
+
+    public class BuilderOverviewViewModel
+    {
+        public int TotalBuilders { get; set; }
+        public int TotalProjects { get; set; }
+        public int TotalUnits { get; set; }
+        public decimal TotalSalesValue { get; set; }
+        public decimal TotalExposure { get; set; }
+        public List<BuilderOverviewItem> Builders { get; set; } = new();
+    }
+
+    public class BuilderOverviewItem
+    {
+        public string BuilderId { get; set; } = "";
+        public string BuilderName { get; set; } = "";
+        public string? CompanyName { get; set; }
+        public string Email { get; set; } = "";
+        public int ProjectCount { get; set; }
+        public int TotalUnits { get; set; }
+        public decimal TotalSalesValue { get; set; }
+        public decimal TotalExposure { get; set; }
+        public int UnitsAtRisk { get; set; }
+        public int UnitsClosingClean { get; set; }
+        public DateTime? LastLoginAt { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    // ============================================================
+    // CLOSING READINESS (Admin-only)
+    // ============================================================
+
+    public class ClosingReadinessViewModel
+    {
+        public int TotalClosingThisWeek { get; set; }
+        public int TotalClosingThisMonth { get; set; }
+        public int TotalClosingNext3Months { get; set; }
+        public int TotalReady { get; set; }
+        public int TotalBlocked { get; set; }
+        public int TotalAtRisk { get; set; }
+        public List<ClosingReadinessBuilderGroup> BuilderGroups { get; set; } = new();
+    }
+
+    public class ClosingReadinessBuilderGroup
+    {
+        public string BuilderName { get; set; } = "";
+        public string? CompanyName { get; set; }
+        public List<ClosingReadinessUnitItem> Units { get; set; } = new();
+    }
+
+    public class ClosingReadinessUnitItem
+    {
+        public int UnitId { get; set; }
+        public string UnitNumber { get; set; } = "";
+        public string ProjectName { get; set; } = "";
+        public decimal PurchasePrice { get; set; }
+        public DateTime ClosingDate { get; set; }
+        public int DaysUntilClosing { get; set; }
+        public string ReadinessStatus { get; set; } = "";
+        public string? PurchaserName { get; set; }
+        public bool HasMortgage { get; set; }
+        public decimal ShortfallAmount { get; set; }
+        public ClosingRecommendation? Recommendation { get; set; }
     }
 }

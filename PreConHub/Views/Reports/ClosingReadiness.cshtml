@@ -1,0 +1,174 @@
+@model PreConHub.Models.ViewModels.ClosingReadinessViewModel
+@{
+    ViewData["Title"] = "Closing Readiness";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a asp-action="Index">Reports</a></li>
+                    <li class="breadcrumb-item active">Closing Readiness</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0"><i class="bi bi-clipboard-check me-2"></i>Closing Readiness</h1>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-2 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0 text-danger">@Model.TotalClosingThisWeek</div>
+                <small class="text-muted">This Week</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0 text-warning">@Model.TotalClosingThisMonth</div>
+                <small class="text-muted">This Month</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0">@Model.TotalClosingNext3Months</div>
+                <small class="text-muted">Next 3 Months</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0 text-success">@Model.TotalReady</div>
+                <small class="text-muted">Ready</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0 text-secondary">@Model.TotalBlocked</div>
+                <small class="text-muted">Blocked</small>
+            </div>
+        </div>
+        <div class="col-md-2 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0 text-danger">@Model.TotalAtRisk</div>
+                <small class="text-muted">At Risk</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Builder Groups -->
+    @if (Model.BuilderGroups.Any())
+    {
+        @foreach (var group in Model.BuilderGroups)
+        {
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-building me-2"></i>@group.BuilderName
+                        @if (!string.IsNullOrEmpty(group.CompanyName))
+                        {
+                            <small class="text-muted ms-2">@group.CompanyName</small>
+                        }
+                        <span class="badge bg-secondary ms-2">@group.Units.Count units</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Unit</th>
+                                    <th>Project</th>
+                                    <th>Purchaser</th>
+                                    <th class="text-end">Price</th>
+                                    <th>Closing Date</th>
+                                    <th class="text-center">Days</th>
+                                    <th class="text-center">Mortgage</th>
+                                    <th class="text-end">Shortfall</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var unit in group.Units)
+                                {
+                                    var rowClass = unit.ReadinessStatus switch
+                                    {
+                                        "AtRisk" => "table-danger",
+                                        "Blocked" => "table-warning",
+                                        _ => ""
+                                    };
+                                    <tr class="@rowClass">
+                                        <td>
+                                            <a asp-controller="Units" asp-action="Details" asp-route-id="@unit.UnitId"
+                                               class="text-decoration-none fw-bold">@unit.UnitNumber</a>
+                                        </td>
+                                        <td>@unit.ProjectName</td>
+                                        <td>@(unit.PurchaserName ?? "—")</td>
+                                        <td class="text-end">@unit.PurchasePrice.ToString("C0")</td>
+                                        <td>
+                                            <small>@unit.ClosingDate.ToString("MMM dd, yyyy")</small>
+                                        </td>
+                                        <td class="text-center">
+                                            @if (unit.DaysUntilClosing < 0)
+                                            {
+                                                <span class="badge bg-danger">@Math.Abs(unit.DaysUntilClosing)d overdue</span>
+                                            }
+                                            else if (unit.DaysUntilClosing <= 7)
+                                            {
+                                                <span class="badge bg-warning text-dark">@unit.DaysUntilClosing days</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@unit.DaysUntilClosing days</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            @if (unit.HasMortgage)
+                                            {
+                                                <i class="bi bi-check-circle-fill text-success"></i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-x-circle text-danger"></i>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            @if (unit.ShortfallAmount > 0)
+                                            {
+                                                <span class="text-danger fw-bold">@unit.ShortfallAmount.ToString("C0")</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">$0</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            @{
+                                                var (badgeClass, label) = unit.ReadinessStatus switch
+                                                {
+                                                    "Ready" => ("bg-success", "Ready"),
+                                                    "AtRisk" => ("bg-danger", "At Risk"),
+                                                    _ => ("bg-warning text-dark", "Blocked")
+                                                };
+                                            }
+                                            <span class="badge @badgeClass">@label</span>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-clipboard-check display-4 text-muted"></i>
+                <p class="text-muted mt-2">No units with closing dates in the next 3 months.</p>
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,154 @@
+@model PreConHub.Models.ViewModels.BuilderOverviewViewModel
+@{
+    ViewData["Title"] = "Builder Overview";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a asp-action="Index">Reports</a></li>
+                    <li class="breadcrumb-item active">Builder Overview</li>
+                </ol>
+            </nav>
+            <h1 class="h3 mb-0"><i class="bi bi-people-fill me-2"></i>Builder Overview</h1>
+        </div>
+        <span class="badge bg-secondary fs-6">@Model.TotalBuilders builders</span>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0 text-primary">@Model.TotalProjects</div>
+                <small class="text-muted">Total Projects</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0">@Model.TotalUnits</div>
+                <small class="text-muted">Total Units</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0 text-success">@Model.TotalSalesValue.ToString("C0")</div>
+                <small class="text-muted">Total Sales</small>
+            </div>
+        </div>
+        <div class="col-md-3 col-6">
+            <div class="card border-0 shadow-sm text-center py-3">
+                <div class="h4 mb-0 text-danger">@Model.TotalExposure.ToString("C0")</div>
+                <small class="text-muted">Total Exposure</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Builders Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            @if (Model.Builders.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Builder</th>
+                                <th class="text-center">Projects</th>
+                                <th class="text-center">Units</th>
+                                <th class="text-end">Total Sales</th>
+                                <th class="text-end">Exposure</th>
+                                <th class="text-center">Clean</th>
+                                <th class="text-center">At Risk</th>
+                                <th>Last Login</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in Model.Builders)
+                            {
+                                <tr>
+                                    <td>
+                                        <a asp-controller="Admin" asp-action="UserDetail" asp-route-id="@b.BuilderId" class="text-decoration-none">
+                                            <strong>@b.BuilderName</strong>
+                                        </a>
+                                        @if (!string.IsNullOrEmpty(b.CompanyName))
+                                        {
+                                            <br><small class="text-muted">@b.CompanyName</small>
+                                        }
+                                        <br><small class="text-muted">@b.Email</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <a asp-controller="Admin" asp-action="Users" asp-route-builder="@b.BuilderId" class="text-decoration-none fw-bold">
+                                            @b.ProjectCount
+                                        </a>
+                                    </td>
+                                    <td class="text-center">@b.TotalUnits</td>
+                                    <td class="text-end">@b.TotalSalesValue.ToString("C0")</td>
+                                    <td class="text-end">
+                                        @if (b.TotalExposure > 0)
+                                        {
+                                            <span class="text-danger fw-bold">@b.TotalExposure.ToString("C0")</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">$0</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (b.UnitsClosingClean > 0)
+                                        {
+                                            <span class="badge bg-success">@b.UnitsClosingClean</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">0</span>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        @if (b.UnitsAtRisk > 0)
+                                        {
+                                            <span class="badge bg-danger">@b.UnitsAtRisk</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">0</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (b.LastLoginAt.HasValue)
+                                        {
+                                            <small>@b.LastLoginAt.Value.ToString("MMM dd, yyyy")</small>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-muted">Never</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (b.IsActive)
+                                        {
+                                            <span class="badge bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-people display-4 text-muted"></i>
+                    <p class="text-muted mt-2">No builders registered yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

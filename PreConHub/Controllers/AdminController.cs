@@ -633,6 +633,75 @@ namespace PreConHub.Controllers
             return RedirectToAction(nameof(UserDetail), new { id = userId });
         }
 
+        // GET: /Admin/ActivityLog
+        public async Task<IActionResult> ActivityLog(string? searchUser, string? action,
+            string? entity, string? dateFrom, string? dateTo, int page = 1)
+        {
+            const int pageSize = 50;
+
+            var query = _context.AuditLogs.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(searchUser))
+            {
+                var search = searchUser.ToLower();
+                query = query.Where(a => a.UserName != null && a.UserName.ToLower().Contains(search));
+            }
+
+            if (!string.IsNullOrWhiteSpace(action))
+                query = query.Where(a => a.Action == action);
+
+            if (!string.IsNullOrWhiteSpace(entity))
+                query = query.Where(a => a.EntityType == entity);
+
+            if (!string.IsNullOrWhiteSpace(dateFrom) && DateTime.TryParse(dateFrom, out var from))
+                query = query.Where(a => a.Timestamp >= from);
+
+            if (!string.IsNullOrWhiteSpace(dateTo) && DateTime.TryParse(dateTo, out var to))
+                query = query.Where(a => a.Timestamp < to.AddDays(1));
+
+            var totalCount = await query.CountAsync();
+            var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+            var entries = await query
+                .OrderByDescending(a => a.Timestamp)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(a => new ActivityLogItemViewModel
+                {
+                    Id = a.Id,
+                    EntityType = a.EntityType,
+                    EntityId = a.EntityId,
+                    Action = a.Action,
+                    UserName = a.UserName,
+                    UserRole = a.UserRole,
+                    IpAddress = a.IpAddress,
+                    Timestamp = a.Timestamp
+                }).ToListAsync();
+
+            var availableActions = await _context.AuditLogs
+                .Select(a => a.Action).Distinct().OrderBy(a => a).ToListAsync();
+            var availableEntities = await _context.AuditLogs
+                .Select(a => a.EntityType).Distinct().OrderBy(a => a).ToListAsync();
+
+            var viewModel = new ActivityLogViewModel
+            {
+                Entries = entries,
+                SearchUser = searchUser,
+                ActionFilter = action,
+                EntityFilter = entity,
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                CurrentPage = page,
+                TotalPages = totalPages,
+                TotalCount = totalCount,
+                PageSize = pageSize,
+                AvailableActions = availableActions,
+                AvailableEntities = availableEntities
+            };
+
+            return View(viewModel);
+        }
+
         // GET: /Admin/FeeSchedule
         public async Task<IActionResult> FeeSchedule()
         {

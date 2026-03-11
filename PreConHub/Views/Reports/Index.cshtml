@@ -84,23 +84,83 @@
 <div class="row g-4 mb-4">
     @{
         var firstProjectId = Model.Projects.FirstOrDefault()?.Id ?? 0;
-        var reports = new[]
+        var isAdmin = Model.IsAdmin;
+
+        // Shared reports (visible to both Admin and Builder)
+        var sharedReports = new[]
         {
-            new { Title = "Project Dashboard", Desc = "Comprehensive project overview with charts, metrics, and full unit table.", Icon = "bi-bar-chart-fill", Color = "#0f3460", Action = "ProjectReport", HasExport = true },
-            new { Title = "Financial Exposure", Desc = "Risk analysis with scenario modeling, exposure brackets, and category breakdown.", Icon = "bi-shield-exclamation", Color = "#dc3545", Action = "FinancialExposure", HasExport = false },
-            new { Title = "Closing Timeline", Desc = "Units grouped by closing urgency with countdown tracking and alerts.", Icon = "bi-calendar-event", Color = "#f97316", Action = "ClosingTimeline", HasExport = false },
-            new { Title = "Mortgage Tracking", Desc = "Approval status, lender breakdown, and urgent attention identification.", Icon = "bi-bank", Color = "#198754", Action = "MortgageTracking", HasExport = false },
-            new { Title = "Deposit Tracking", Desc = "Monitor deposit collection status, overdue payments, interest earned, and holder breakdown.", Icon = "bi-cash-stack", Color = "#20c997", Action = "DepositTracking", HasExport = false },
-            new { Title = "Purchaser Directory", Desc = "Complete purchaser list with contact info, mortgage readiness, and financial status.", Icon = "bi-person-lines-fill", Color = "#e83e8c", Action = "PurchaserDirectory", HasExport = false },
-            new { Title = "Unit Cards", Desc = "Visual card view of all units with status indicators and quick filters.", Icon = "bi-grid-3x3-gap-fill", Color = "#6f42c1", Action = "UnitCards", HasExport = false },
-            new { Title = "All Projects", Desc = "Cross-project comparison with aggregate metrics and health indicators.", Icon = "bi-building", Color = "#0d6efd", Action = "AllProjects", HasExport = false },
-            new { Title = "Credit Score Distribution", Desc = "Purchaser credit score breakdown by band with mortgage approval correlation.", Icon = "bi-speedometer2", Color = "#0dcaf0", Action = "CreditScoreDistribution", HasExport = false },
-            new { Title = "Extension Requests", Desc = "Closing date extension timeline, approval rates, and average extension days.", Icon = "bi-calendar-range", Color = "#fd7e14", Action = "ExtensionRequestReport", HasExport = false },
-            new { Title = "Project Investment", Desc = "Builder-only investment data: revenue, profit, VTB capital, and per-unit allocation.", Icon = "bi-piggy-bank", Color = "#6610f2", Action = "ProjectInvestmentReport", HasExport = false },
+            new { Title = "Project Dashboard", Desc = "Comprehensive project overview with charts, metrics, and full unit table.", Icon = "bi-bar-chart-fill", Color = "#0f3460", Action = "ProjectReport", HasExport = true, UseProjectId = true },
+            new { Title = "Financial Exposure", Desc = "Risk analysis with scenario modeling, exposure brackets, and category breakdown.", Icon = "bi-shield-exclamation", Color = "#dc3545", Action = "FinancialExposure", HasExport = false, UseProjectId = true },
+            new { Title = "Closing Timeline", Desc = "Units grouped by closing urgency with countdown tracking and alerts.", Icon = "bi-calendar-event", Color = "#f97316", Action = "ClosingTimeline", HasExport = false, UseProjectId = true },
+            new { Title = "Mortgage Tracking", Desc = "Approval status, lender breakdown, and urgent attention identification.", Icon = "bi-bank", Color = "#198754", Action = "MortgageTracking", HasExport = false, UseProjectId = true },
+            new { Title = "Deposit Tracking", Desc = "Monitor deposit collection status, overdue payments, interest earned, and holder breakdown.", Icon = "bi-cash-stack", Color = "#20c997", Action = "DepositTracking", HasExport = false, UseProjectId = true },
+            new { Title = "Purchaser Directory", Desc = "Complete purchaser list with contact info, mortgage readiness, and financial status.", Icon = "bi-person-lines-fill", Color = "#e83e8c", Action = "PurchaserDirectory", HasExport = false, UseProjectId = true },
+            new { Title = "All Projects", Desc = "Cross-project comparison with aggregate metrics and health indicators.", Icon = "bi-building", Color = "#0d6efd", Action = "AllProjects", HasExport = false, UseProjectId = false },
+        };
+
+        // Builder-only reports (hidden from Admin)
+        var builderOnlyReports = new[]
+        {
+            new { Title = "Unit Cards", Desc = "Visual card view of all units with status indicators and quick filters.", Icon = "bi-grid-3x3-gap-fill", Color = "#6f42c1", Action = "UnitCards", HasExport = false, UseProjectId = true },
+            new { Title = "Credit Score Distribution", Desc = "Purchaser credit score breakdown by band with mortgage approval correlation.", Icon = "bi-speedometer2", Color = "#0dcaf0", Action = "CreditScoreDistribution", HasExport = false, UseProjectId = true },
+            new { Title = "Extension Requests", Desc = "Closing date extension timeline, approval rates, and average extension days.", Icon = "bi-calendar-range", Color = "#fd7e14", Action = "ExtensionRequestReport", HasExport = false, UseProjectId = true },
+            new { Title = "Project Investment", Desc = "Builder-only investment data: revenue, profit, VTB capital, and per-unit allocation.", Icon = "bi-piggy-bank", Color = "#6610f2", Action = "ProjectInvestmentReport", HasExport = false, UseProjectId = true },
         };
     }
 
-    @foreach (var report in reports)
+    @* === Admin-Only Reports (shown first for admins) === *@
+    @if (isAdmin)
+    {
+        <div class="col-12">
+            <h5 class="text-muted mb-0"><i class="bi bi-shield-lock me-2"></i>Admin Reports</h5>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="report-card">
+                <div class="icon" style="background: #1a1a2e;">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <h5 class="mb-2">Builder Overview</h5>
+                <p class="text-muted small mb-3">All builders with project counts, total units, sales value, exposure, and risk summary.</p>
+                <a href="@Url.Action("BuilderOverview")" class="btn btn-sm btn-primary">
+                    <i class="bi bi-eye me-1"></i>View Report
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="report-card">
+                <div class="icon" style="background: #6c757d;">
+                    <i class="bi bi-journal-text"></i>
+                </div>
+                <h5 class="mb-2">Activity Log</h5>
+                <p class="text-muted small mb-3">Searchable audit trail of all platform actions with user, action type, and date filters.</p>
+                <a href="@Url.Action("ActivityLog", "Admin")" class="btn btn-sm btn-primary">
+                    <i class="bi bi-eye me-1"></i>View Report
+                </a>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-4">
+            <div class="report-card">
+                <div class="icon" style="background: #e65100;">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+                <h5 class="mb-2">Closing Readiness</h5>
+                <p class="text-muted small mb-3">Cross-project view of upcoming closings with readiness status, grouped by builder.</p>
+                <a href="@Url.Action("ClosingReadiness")" class="btn btn-sm btn-primary">
+                    <i class="bi bi-eye me-1"></i>View Report
+                </a>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <h5 class="text-muted mb-0 mt-2"><i class="bi bi-bar-chart me-2"></i>Project Reports</h5>
+        </div>
+    }
+
+    @* === Shared Reports === *@
+    @foreach (var report in sharedReports)
     {
         <div class="col-md-6 col-lg-4">
             <div class="report-card">
@@ -110,9 +170,18 @@
                 <h5 class="mb-2">@report.Title</h5>
                 <p class="text-muted small mb-3">@report.Desc</p>
                 <div class="d-flex flex-wrap gap-2">
-                    <a href="@Url.Action(report.Action, new { projectId = firstProjectId })" class="btn btn-sm btn-primary project-link" data-action="@report.Action">
-                        <i class="bi bi-eye me-1"></i>View Report
-                    </a>
+                    @if (report.UseProjectId)
+                    {
+                        <a href="@Url.Action(report.Action, new { projectId = firstProjectId })" class="btn btn-sm btn-primary project-link" data-action="@report.Action">
+                            <i class="bi bi-eye me-1"></i>View Report
+                        </a>
+                    }
+                    else
+                    {
+                        <a href="@Url.Action(report.Action)" class="btn btn-sm btn-primary">
+                            <i class="bi bi-eye me-1"></i>View Report
+                        </a>
+                    }
                     @if (report.HasExport)
                     {
                         <a href="@Url.Action("ExportPDF", new { projectId = firstProjectId })" class="btn btn-sm btn-outline-danger export-link" data-action="ExportPDF"><i class="bi bi-filetype-pdf"></i></a>
@@ -123,6 +192,37 @@
             </div>
         </div>
     }
+
+    @* === Builder-Only Reports (hidden from Admin) === *@
+    @if (!isAdmin)
+    {
+        @foreach (var report in builderOnlyReports)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="report-card">
+                    <div class="icon" style="background: @report.Color;">
+                        <i class="bi @report.Icon"></i>
+                    </div>
+                    <h5 class="mb-2">@report.Title</h5>
+                    <p class="text-muted small mb-3">@report.Desc</p>
+                    <div class="d-flex flex-wrap gap-2">
+                        @if (report.UseProjectId)
+                        {
+                            <a href="@Url.Action(report.Action, new { projectId = firstProjectId })" class="btn btn-sm btn-primary project-link" data-action="@report.Action">
+                                <i class="bi bi-eye me-1"></i>View Report
+                            </a>
+                        }
+                        else
+                        {
+                            <a href="@Url.Action(report.Action)" class="btn btn-sm btn-primary">
+                                <i class="bi bi-eye me-1"></i>View Report
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
 </div>
 
 @section Scripts {
@@ -131,11 +231,11 @@
             const pid = this.value;
             document.querySelectorAll('.project-link').forEach(link => {
                 const action = link.dataset.action;
-                link.href = `@Url.Action("Index")`.replace('Index', action) + '?projectId=' + pid;
+                link.href = '@Url.Action("Index")'.replace('Index', action) + '?projectId=' + pid;
             });
             document.querySelectorAll('.export-link').forEach(link => {
                 const action = link.dataset.action;
-                link.href = `@Url.Action("Index")`.replace('Index', action) + '?projectId=' + pid;
+                link.href = '@Url.Action("Index")'.replace('Index', action) + '?projectId=' + pid;
             });
         });
     </script>

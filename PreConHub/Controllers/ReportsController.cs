@@ -40,6 +40,7 @@ namespace PreConHub.Controllers
 
             var model = new ReportsHubViewModel
             {
+                IsAdmin = User.IsInRole("Admin") || User.IsInRole("SuperAdmin"),
                 TotalProjects = projects.Count,
                 TotalUnits = allUnits.Count,
                 UnitsClosingClean = allUnits.Count(u =>
@@ -621,6 +622,150 @@ namespace PreConHub.Controllers
                             .Sum(u => u.ShortfallAnalysis!.ShortfallAmount)
                     };
                 }).OrderByDescending(p => p.TotalUnits).ToList()
+            };
+
+            return View(model);
+        }
+
+        // ================================================================
+        // GET: /Reports/BuilderOverview  (Admin-only)
+        // ================================================================
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> BuilderOverview()
+        {
+            var builders = await _context.Users
+                .Where(u => u.UserType == UserType.Builder)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var projects = await _context.Projects
+                .Include(p => p.Units).ThenInclude(u => u.ShortfallAnalysis)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var projectsByBuilder = projects.GroupBy(p => p.BuilderId).ToDictionary(g => g.Key, g => g.ToList());
+
+            var items = builders.Select(b =>
+            {
+                var bProjects = projectsByBuilder.GetValueOrDefault(b.Id, new List<Project>());
+                var bUnits = bProjects.SelectMany(p => p.Units).ToList();
+                return new BuilderOverviewItem
+                {
+                    BuilderId = b.Id,
+                    BuilderName = $"{b.FirstName} {b.LastName}",
+                    CompanyName = b.CompanyName,
+                    Email = b.Email ?? "",
+                    ProjectCount = bProjects.Count,
+                    TotalUnits = bUnits.Count,
+                    TotalSalesValue = bUnits.Sum(u => u.PurchasePrice),
+                    TotalExposure = bUnits.Where(u => u.ShortfallAnalysis != null && u.ShortfallAnalysis.ShortfallAmount > 0)
+                        .Sum(u => u.ShortfallAnalysis!.ShortfallAmount),
+                    UnitsAtRisk = bUnits.Count(u =>
+                        u.Recommendation == ClosingRecommendation.HighRiskDefault ||
+                        u.Recommendation == ClosingRecommendation.PotentialDefault),
+                    UnitsClosingClean = bUnits.Count(u =>
+                        u.Recommendation == ClosingRecommendation.ProceedToClose),
+                    LastLoginAt = b.LastLoginAt,
+                    IsActive = b.IsActive
+                };
+            }).OrderByDescending(b => b.TotalSalesValue).ToList();
+
+            var model = new BuilderOverviewViewModel
+            {
+                TotalBuilders = items.Count,
+                TotalProjects = projects.Count,
+                TotalUnits = projects.Sum(p => p.Units.Count),
+                TotalSalesValue = items.Sum(b => b.TotalSalesValue),
+                TotalExposure = items.Sum(b => b.TotalExposure),
+                Builders = items
+            };
+
+            return View(model);
+        }
+
+        // ================================================================
+        // GET: /Reports/ClosingReadiness  (Admin-only)
+        // ================================================================
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        public async Task<IActionResult> ClosingReadiness()
+        {
+            var today = DateTime.Today;
+            var endOfWeek = today.AddDays(7);
+            var endOfMonth = today.AddMonths(1);
+            var endOf3Months = today.AddMonths(3);
+
+            var projects = await _context.Projects
+                .Include(p => p.Builder)
+                .Include(p => p.Units).ThenInclude(u => u.ShortfallAnalysis)
+                .Include(p => p.Units).ThenInclude(u => u.Purchasers).ThenInclude(up => up.Purchaser)
+                .Include(p => p.Units).ThenInclude(u => u.Purchasers).ThenInclude(up => up.MortgageInfo)
+                .AsNoTracking()
+                .ToListAsync();
+
+            // All units with a closing date within 3 months (or overdue)
+            var relevantUnits = projects.SelectMany(p => p.Units
+                .Where(u => (u.ClosingDate ?? u.FirmClosingDate) != null
+                    && (u.ClosingDate ?? u.FirmClosingDate)!.Value <= endOf3Months)
+                .Select(u =>
+                {
+                    var closingDate = (u.ClosingDate ?? u.FirmClosingDate)!.Value;
+                    var days = (int)(closingDate - today).TotalDays;
+                    var mortgage = GetPrimaryMortgage(u);
+                    var hasMortgage = mortgage?.HasMortgageApproval ?? false;
+                    var shortfall = u.ShortfallAnalysis?.ShortfallAmount ?? 0;
+
+                    string status;
+                    if (u.Recommendation == ClosingRecommendation.ProceedToClose && hasMortgage)
+                        status = "Ready";
+                    else if (u.Recommendation == ClosingRecommendation.HighRiskDefault ||
+                             u.Recommendation == ClosingRecommendation.PotentialDefault)
+                        status = "AtRisk";
+                    else
+                        status = "Blocked";
+
+                    return new
+                    {
+                        BuilderName = p.Builder != null ? $"{p.Builder.FirstName} {p.Builder.LastName}" : "Unknown",
+                        CompanyName = p.Builder?.CompanyName,
+                        Item = new ClosingReadinessUnitItem
+                        {
+                            UnitId = u.Id,
+                            UnitNumber = u.UnitNumber,
+                            ProjectName = p.Name,
+                            PurchasePrice = u.PurchasePrice,
+                            ClosingDate = closingDate,
+                            DaysUntilClosing = days,
+                            ReadinessStatus = status,
+                            PurchaserName = GetPrimaryPurchaserName(u),
+                            HasMortgage = hasMortgage,
+                            ShortfallAmount = shortfall,
+                            Recommendation = u.Recommendation
+                        }
+                    };
+                })).ToList();
+
+            var groups = relevantUnits
+                .GroupBy(x => new { x.BuilderName, x.CompanyName })
+                .Select(g => new ClosingReadinessBuilderGroup
+                {
+                    BuilderName = g.Key.BuilderName,
+                    CompanyName = g.Key.CompanyName,
+                    Units = g.Select(x => x.Item).OrderBy(u => u.ClosingDate).ToList()
+                })
+                .OrderBy(g => g.Units.Min(u => u.ClosingDate))
+                .ToList();
+
+            var allItems = relevantUnits.Select(x => x.Item).ToList();
+
+            var model = new ClosingReadinessViewModel
+            {
+                TotalClosingThisWeek = allItems.Count(u => u.ClosingDate <= endOfWeek),
+                TotalClosingThisMonth = allItems.Count(u => u.ClosingDate <= endOfMonth),
+                TotalClosingNext3Months = allItems.Count,
+                TotalReady = allItems.Count(u => u.ReadinessStatus == "Ready"),
+                TotalBlocked = allItems.Count(u => u.ReadinessStatus == "Blocked"),
+                TotalAtRisk = allItems.Count(u => u.ReadinessStatus == "AtRisk"),
+                BuilderGroups = groups
             };
 
             return View(model);

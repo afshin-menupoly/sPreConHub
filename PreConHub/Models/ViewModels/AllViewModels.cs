@@ -2003,6 +2003,34 @@ namespace PreConHub.Models.ViewModels
         public string ConfirmPassword { get; set; } = "";
     }
 
+    public class ActivityLogViewModel
+    {
+        public List<ActivityLogItemViewModel> Entries { get; set; } = new();
+        public string? SearchUser { get; set; }
+        public string? ActionFilter { get; set; }
+        public string? EntityFilter { get; set; }
+        public string? DateFrom { get; set; }
+        public string? DateTo { get; set; }
+        public int CurrentPage { get; set; } = 1;
+        public int TotalPages { get; set; }
+        public int TotalCount { get; set; }
+        public int PageSize { get; set; } = 50;
+        public List<string> AvailableActions { get; set; } = new();
+        public List<string> AvailableEntities { get; set; } = new();
+    }
+
+    public class ActivityLogItemViewModel
+    {
+        public int Id { get; set; }
+        public string EntityType { get; set; } = "";
+        public int EntityId { get; set; }
+        public string Action { get; set; } = "";
+        public string? UserName { get; set; }
+        public string? UserRole { get; set; }
+        public string? IpAddress { get; set; }
+        public DateTime Timestamp { get; set; }
+    }
+
     #endregion
 
     #region User Profile
