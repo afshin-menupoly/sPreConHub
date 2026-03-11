@@ -511,7 +511,7 @@ namespace PreConHub.Controllers
         }
 
         // POST: /Admin/StopImpersonation
-        [Authorize(Roles = "Admin,SuperAdmin")]
+        [AllowAnonymous]
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> StopImpersonation()
