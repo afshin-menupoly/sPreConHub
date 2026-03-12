@@ -413,6 +413,8 @@ namespace PreConHub.Controllers
             var assignment = await _context.LawyerAssignments
                 .Include(la => la.Unit)
                     .ThenInclude(u => u.SOA)
+                .Include(la => la.Unit)
+                    .ThenInclude(u => u.Project)
                 .FirstOrDefaultAsync(la => la.Id == id && la.LawyerId == userId);
 
             if (assignment == null)
@@ -484,7 +486,7 @@ namespace PreConHub.Controllers
             var lawyerName = $"{lawyer?.FirstName} {lawyer?.LastName}".Trim();
 
             await _notificationService.NotifyLawyerApprovedAsync(
-                unitId: assignment.Id,
+                unitId: assignment.UnitId ?? 0,
                 lawyerName: lawyerName,
                 builderId: assignment.Unit.Project.BuilderId
             );
