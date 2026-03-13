@@ -185,6 +185,53 @@ namespace PreConHub.Services
         }
 
         /// <summary>
+        /// Send HTTP request with retry on 429 (rate limit) and 529 (overloaded).
+        /// Uses exponential backoff with Retry-After header support.
+        /// </summary>
+        private async Task<HttpResponseMessage> SendWithRetryAsync(
+            Func<HttpRequestMessage> requestFactory,
+            int maxRetries = 3)
+        {
+            for (int attempt = 0; attempt <= maxRetries; attempt++)
+            {
+                using var request = requestFactory();
+                var response = await _httpClient.SendAsync(request);
+
+                if (response.IsSuccessStatusCode)
+                    return response;
+
+                var statusCode = (int)response.StatusCode;
+
+                // Only retry on rate limit (429) or overloaded (529)
+                if (statusCode != 429 && statusCode != 529)
+                    return response;
+
+                if (attempt == maxRetries)
+                {
+                    _logger.LogWarning("Claude API rate limit — exhausted {MaxRetries} retries", maxRetries);
+                    return response;
+                }
+
+                // Use Retry-After header if present, otherwise exponential backoff
+                var waitSeconds = 15 * (attempt + 1); // 15s, 30s, 45s
+                if (response.Headers.TryGetValues("retry-after", out var retryValues))
+                {
+                    var retryAfter = retryValues.FirstOrDefault();
+                    if (int.TryParse(retryAfter, out var parsed))
+                        waitSeconds = parsed;
+                }
+
+                _logger.LogWarning(
+                    "Claude API rate limited ({StatusCode}). Retry {Attempt}/{Max} in {Wait}s",
+                    statusCode, attempt + 1, maxRetries, waitSeconds);
+
+                await Task.Delay(TimeSpan.FromSeconds(waitSeconds));
+            }
+
+            throw new InvalidOperationException("Unreachable");
+        }
+
+        /// <summary>
         /// Extract text from PDF using iText7
         /// </summary>
         public async Task<string> ExtractTextFromPdfAsync(Stream pdfStream)
@@ -310,13 +357,15 @@ namespace PreConHub.Services
                     }
                 };
 
-                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
-                httpRequest.Headers.Add("x-api-key", apiKey);
-                httpRequest.Headers.Add("anthropic-version", "2023-06-01");
-                httpRequest.Headers.Add("anthropic-beta", "prompt-caching-2024-07-31");
-                httpRequest.Content = JsonContent.Create(requestBody);
-
-                var response = await _httpClient.SendAsync(httpRequest);
+                var response = await SendWithRetryAsync(() =>
+                {
+                    var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+                    req.Headers.Add("x-api-key", apiKey);
+                    req.Headers.Add("anthropic-version", "2023-06-01");
+                    req.Headers.Add("anthropic-beta", "prompt-caching-2024-07-31");
+                    req.Content = JsonContent.Create(requestBody);
+                    return req;
+                });
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -458,12 +507,14 @@ namespace PreConHub.Services
                     }
                 };
 
-                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
-                httpRequest.Headers.Add("x-api-key", apiKey);
-                httpRequest.Headers.Add("anthropic-version", "2023-06-01");
-                httpRequest.Content = JsonContent.Create(request);
-
-                var response = await _httpClient.SendAsync(httpRequest);
+                var response = await SendWithRetryAsync(() =>
+                {
+                    var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+                    req.Headers.Add("x-api-key", apiKey);
+                    req.Headers.Add("anthropic-version", "2023-06-01");
+                    req.Content = JsonContent.Create(request);
+                    return req;
+                });
 
                 if (!response.IsSuccessStatusCode)
                 {
