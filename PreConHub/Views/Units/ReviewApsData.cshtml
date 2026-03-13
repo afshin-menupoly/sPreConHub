@@ -75,7 +75,7 @@
                                 <label class="form-label">Unit Number <span class="text-danger">*</span></label>
                                 @if (Model.UnitId.HasValue)
                                 {
-                                    <input type="text" name="UnitNumber" class="form-control" value="@data?.UnitNumber" readonly />
+                                    <input type="text" class="form-control bg-light" value="Unit @data?.UnitNumber (APS)" disabled title="Unit number is not changed during update" />
                                 }
                                 else
                                 {

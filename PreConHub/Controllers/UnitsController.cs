@@ -3523,8 +3523,8 @@ namespace PreConHub.Controllers
                     if (unit == null)
                         return NotFound();
 
-                    // Only overwrite if APS has data
-                    if (!string.IsNullOrWhiteSpace(model.UnitNumber)) unit.UnitNumber = model.UnitNumber;
+                    // Don't overwrite UnitNumber on update — keep existing unit number
+                    // AI extracts unit number from APS which may differ from this unit
                     if (!string.IsNullOrWhiteSpace(model.FloorNumber)) unit.FloorNumber = model.FloorNumber;
                     if (!string.IsNullOrWhiteSpace(model.UnitType) && Enum.TryParse<UnitType>(model.UnitType, out var ut)) unit.UnitType = ut;
                     if (model.Bedrooms.HasValue) unit.Bedrooms = model.Bedrooms.Value;
@@ -3594,6 +3594,7 @@ namespace PreConHub.Controllers
                     };
 
                     _context.Units.Add(unit);
+                    await _context.SaveChangesAsync(); // Save unit first to get unit.Id for FK references
                 }
 
                 // Update project-level fields if not already set
@@ -3647,16 +3648,19 @@ namespace PreConHub.Controllers
 
                     if (purchaserUser != null)
                     {
-                        var unitPurchaser = new UnitPurchaser
+                        var alreadyLinked = await _context.UnitPurchasers
+                            .AnyAsync(up => up.UnitId == unit.Id && up.PurchaserId == purchaserUser.Id);
+                        if (!alreadyLinked)
                         {
-                            UnitId = unit.Id,
-                            PurchaserId = purchaserUser.Id,
-                            IsPrimaryPurchaser = true,
-                            OwnershipPercentage = 100,
-                            CreatedAt = DateTime.UtcNow
-                        };
-
-                        _context.UnitPurchasers.Add(unitPurchaser);
+                            _context.UnitPurchasers.Add(new UnitPurchaser
+                            {
+                                UnitId = unit.Id,
+                                PurchaserId = purchaserUser.Id,
+                                IsPrimaryPurchaser = true,
+                                OwnershipPercentage = 100,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
                     }
                 }
 
@@ -3691,16 +3695,19 @@ namespace PreConHub.Controllers
 
                     if (coPurchaserUser != null)
                     {
-                        var coUnitPurchaser = new UnitPurchaser
+                        var coAlreadyLinked = await _context.UnitPurchasers
+                            .AnyAsync(up => up.UnitId == unit.Id && up.PurchaserId == coPurchaserUser.Id);
+                        if (!coAlreadyLinked)
                         {
-                            UnitId = unit.Id,
-                            PurchaserId = coPurchaserUser.Id,
-                            IsPrimaryPurchaser = false,
-                            OwnershipPercentage = 50, // Adjust as needed
-                            CreatedAt = DateTime.UtcNow
-                        };
-
-                        _context.UnitPurchasers.Add(coUnitPurchaser);
+                            _context.UnitPurchasers.Add(new UnitPurchaser
+                            {
+                                UnitId = unit.Id,
+                                PurchaserId = coPurchaserUser.Id,
+                                IsPrimaryPurchaser = false,
+                                OwnershipPercentage = 50,
+                                CreatedAt = DateTime.UtcNow
+                            });
+                        }
                     }
                 }
 
