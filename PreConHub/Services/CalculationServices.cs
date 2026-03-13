@@ -260,7 +260,11 @@ namespace PreConHub.Services
                          || f.FeeType == FeeType.WireTransferFee
                          || f.FeeType == FeeType.PDFScanFee
                          || f.FeeType == FeeType.ClosingDocChangesFee
-                         || f.FeeType == FeeType.AssignmentFee)
+                         || f.FeeType == FeeType.AssignmentFee
+                         || f.FeeType == FeeType.MissedAppointmentFee
+                         || f.FeeType == FeeType.VendorLienFee
+                         || f.FeeType == FeeType.EFTSFee
+                         || f.FeeType == FeeType.UtilityDepositFee)
                 .Sum(f => f.Amount);
 
             // 18. System Fees (loaded from SystemFeeConfig, with HST applied)

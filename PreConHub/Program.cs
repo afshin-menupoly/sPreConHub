@@ -7,6 +7,7 @@ using System.Security.Claims;
 using PreConHub.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // ============================================
 // DATABASE CONFIGURATION

@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(dir:*)",
+      "Bash(pandoc:*)",
+      "Bash(python3:*)",
+      "Bash(\"C:/Users/afshi/AppData/Local/Programs/Python/Python310/Scripts/pip.exe\" install:*)",
+      "Bash(\"C:/Users/afshi/AppData/Local/Programs/Python/Python310/python.exe\":*)",
+      "Bash(cmd /c:*)",
+      "Bash(dotnet build:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git push:*)",
+      "WebSearch",
+      "WebFetch(domain:www.teraview.ca)",
+      "WebFetch(domain:www.hcraontario.ca)",
+      "WebFetch(domain:www.ontario.ca)",
+      "WebFetch(domain:www.toronto.ca)",
+      "WebFetch(domain:lso.ca)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(dotnet ef migrations add:*)",
+      "Bash(dotnet ef database update:*)",
+      "Bash(dotnet ef migrations remove:*)",
+      "Bash(git status:*)",
+      "WebFetch(domain:levyzavet.com)",
+      "WebFetch(domain:www.airdberlis.com)",
+      "WebFetch(domain:wearelaw.ca)",
+      "WebFetch(domain:www.lashcondolaw.com)",
+      "WebFetch(domain:www.robinsappleby.com)",
+      "WebFetch(domain:www.rmscocanada.ca)",
+      "WebFetch(domain:www.ensorealty.ca)",
+      "WebFetch(domain:ontariorealestatesource.com)",
+      "Bash(sqlcmd:*)",
+      "Bash(grep:*)",
+      "Bash(find C:\\\\My Projects\\\\PreConHub\\\\PreConHub:*)",
+      "Read(//tmp/**)",
+      "Bash(dotnet run:*)",
+      "Bash(cat /tmp/aps3_full.txt | awk '/=== PAGE 11/,/=== PAGE 12/' | head -40)",
+      "Bash(cat /tmp/aps3_full.txt | awk '/=== PAGE 7/,/=== PAGE 9/')"
+    ]
+  }
+}

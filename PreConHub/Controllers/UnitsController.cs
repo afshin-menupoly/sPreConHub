@@ -3322,7 +3322,7 @@ namespace PreConHub.Controllers
         // POST: /Units/UploadUnitAps/5 (unitId) — AI extraction for existing unit
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [RequestSizeLimit(10_000_000)]
+        [RequestSizeLimit(32_000_000)]
         public async Task<IActionResult> UploadUnitAps(int id, IFormFile apsFile)
         {
             var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == id);

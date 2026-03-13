@@ -190,6 +190,7 @@ namespace PreConHub.Services
         public async Task<string> ExtractTextFromPdfAsync(Stream pdfStream)
         {
             var text = new StringBuilder();
+            var skippedPages = new List<int>();
 
             try
             {
@@ -201,12 +202,22 @@ namespace PreConHub.Services
                     var page = pdfDocument.GetPage(i);
                     var strategy = new iText.Kernel.Pdf.Canvas.Parser.Listener.SimpleTextExtractionStrategy();
                     var pageText = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(page, strategy);
-                    text.AppendLine(pageText);
-                    text.AppendLine($"\n--- Page {i} End ---\n");
+
+                    if (IsRelevantPage(pageText, i, pdfDocument.GetNumberOfPages()))
+                    {
+                        text.AppendLine(pageText);
+                        text.AppendLine($"\n--- Page {i} End ---\n");
+                    }
+                    else
+                    {
+                        skippedPages.Add(i);
+                    }
                 }
 
-                _logger.LogInformation("Extracted {CharCount} characters from PDF with {PageCount} pages",
-                    text.Length, pdfDocument.GetNumberOfPages());
+                _logger.LogInformation(
+                    "Extracted {CharCount} characters from PDF. Pages: {Total} total, {Skipped} skipped (irrelevant). Skipped: [{SkippedList}]",
+                    text.Length, pdfDocument.GetNumberOfPages(), skippedPages.Count,
+                    skippedPages.Count > 0 ? string.Join(", ", skippedPages) : "none");
             }
             catch (Exception ex)
             {
@@ -215,6 +226,56 @@ namespace PreConHub.Services
             }
 
             return text.ToString();
+        }
+
+        /// <summary>
+        /// Determines if a PDF page contains data relevant to APS extraction.
+        /// Skips pages that are purely boilerplate, marketing, floor plans, or warranty text.
+        /// First 3 and last 2 pages are always included (cover, signatures, amendments).
+        /// </summary>
+        private static bool IsRelevantPage(string pageText, int pageNumber, int totalPages)
+        {
+            // Always include first 3 pages (cover page, agreement summary, unit details)
+            if (pageNumber <= 3) return true;
+            // Always include last 2 pages (signatures, amendments, schedules)
+            if (pageNumber > totalPages - 2) return true;
+
+            // Skip nearly-empty pages (floor plans, images rendered as blank text)
+            if (pageText.Trim().Length < 50) return false;
+
+            // Keywords that indicate a page has extractable APS data
+            var relevantKeywords = new[]
+            {
+                // Core agreement terms
+                "purchase price", "purchaser", "vendor", "buyer",
+                // Schedules
+                "schedule a", "schedule b", "schedule c", "schedule d",
+                // Financial
+                "deposit", "balance due", "closing cost", "adjustment",
+                "development charge", "levy", "education", "hst",
+                "cheque admin", "wire transfer", "pdi", "partial discharge",
+                "engineering report", "internet delivery", "carbon monoxide",
+                // Parking & Locker
+                "parking", "locker", "storage",
+                // Dates & Tarion
+                "tarion", "occupancy", "closing date", "firm date",
+                "tentative", "termination", "commencement",
+                "enrolment", "registration number",
+                // Legal
+                "solicitor", "legal description", "lot", "plan",
+                // Upgrades & Credits
+                "upgrade", "credit", "incentive", "discount",
+                // Assignment
+                "assignment", "consent fee",
+                // Document sections (addendums, amendments, schedules)
+                "addendum", "amendment", "schedule",
+                // Signatures & DocuSign (contain signing dates, purchaser names/emails)
+                "docusign", "witness", "sealed and delivered", "agency disclosure",
+                "envelope id", "signed:", "purchaser:",
+            };
+
+            var lowerText = pageText.ToLowerInvariant();
+            return relevantKeywords.Any(kw => lowerText.Contains(kw));
         }
 
         /// <summary>
@@ -229,23 +290,30 @@ namespace PreConHub.Services
                 return MockExtractData(documentText);
             }
 
-            var prompt = BuildExtractionPrompt(documentText);
+            var systemPrompt = BuildSystemPrompt();
+            var userPrompt = $"APS DOCUMENT TEXT:\n{documentText}\n\nReturn ONLY the JSON object, no other text or explanation.";
+            var model = _configuration["ClaudeApi:Model"] ?? "claude-sonnet-4-6";
 
             try
             {
                 var request = new
                 {
-                    model = "claude-sonnet-4-20250514",
+                    model = model,
                     max_tokens = 4096,
+                    system = new[]
+                    {
+                        new { type = "text", text = systemPrompt, cache_control = new { type = "ephemeral" } }
+                    },
                     messages = new[]
                     {
-                        new { role = "user", content = prompt }
+                        new { role = "user", content = userPrompt }
                     }
                 };
 
                 _httpClient.DefaultRequestHeaders.Clear();
                 _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
                 _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+                _httpClient.DefaultRequestHeaders.Add("anthropic-beta", "prompt-caching-2024-07-31");
 
                 var response = await _httpClient.PostAsJsonAsync(
                     "https://api.anthropic.com/v1/messages",
@@ -261,9 +329,9 @@ namespace PreConHub.Services
                 var result = await response.Content.ReadFromJsonAsync<ClaudeResponse>();
                 var jsonContent = result?.Content?.FirstOrDefault()?.Text ?? "";
 
-                // Parse JSON response
+                // Parse JSON response and post-process relative dates
                 var extractedData = ParseAiResponse(jsonContent);
-                extractedData.RawExtractedText = documentText.Substring(0, Math.Min(5000, documentText.Length));
+                PostProcessExtractedData(extractedData);
 
                 return extractedData;
             }
@@ -280,18 +348,207 @@ namespace PreConHub.Services
         /// </summary>
         public async Task<ApsExtractedData> ProcessApsUploadAsync(Stream pdfStream)
         {
-            var text = await ExtractTextFromPdfAsync(pdfStream);
-            return await AnalyzeApsDocumentAsync(text);
+            // Try text extraction first (cheapest path)
+            string text;
+            try
+            {
+                text = await ExtractTextFromPdfAsync(pdfStream);
+            }
+            catch (Exception ex)
+            {
+                // iText7 failed to read PDF (corrupted, encrypted, or pure image-based)
+                _logger.LogWarning(ex, "iText7 text extraction failed. Falling back to PDF document API.");
+                pdfStream.Position = 0;
+                return await AnalyzeScannedApsAsync(pdfStream);
+            }
+
+            // Check if PDF is scanned (minimal extractable text)
+            var meaningfulText = text.Replace("\n", "").Replace("-", "").Replace(" ", "").Trim();
+            if (meaningfulText.Length > 500)
+            {
+                // Text-based PDF — use text extraction (cheaper)
+                return await AnalyzeApsDocumentAsync(text);
+            }
+
+            // Scanned PDF — send PDF directly to Claude's document API
+            _logger.LogInformation(
+                "Scanned PDF detected (only {Chars} extractable chars). Using PDF document API.",
+                meaningfulText.Length);
+            pdfStream.Position = 0;
+            return await AnalyzeScannedApsAsync(pdfStream);
         }
 
-        private string BuildExtractionPrompt(string documentText)
+        /// <summary>
+        /// Analyze a scanned PDF by sending it directly to Claude's document API.
+        /// Uses iText7 to create a subset PDF with only relevant pages to reduce token cost.
+        /// </summary>
+        private async Task<ApsExtractedData> AnalyzeScannedApsAsync(Stream pdfStream)
         {
-            return $@"You are an expert at analyzing Ontario pre-construction real estate Agreement of Purchase and Sale (APS) documents.
+            var apiKey = _configuration["ClaudeApi:ApiKey"];
+            if (string.IsNullOrEmpty(apiKey))
+            {
+                _logger.LogWarning("Claude API key not configured — cannot process scanned PDFs");
+                return new ApsExtractedData
+                {
+                    ConfidenceScore = 0,
+                    Warnings = new List<string> { "Claude API not configured — scanned PDFs require AI vision processing" }
+                };
+            }
 
-Extract the following information from this APS document and return it as valid JSON. If a field is not found, use null. For boolean fields, use true/false.
+            // Create a subset PDF with relevant pages to reduce token cost
+            byte[] pdfBytes;
+            try
+            {
+                pdfBytes = CreateRelevantPageSubset(pdfStream);
+            }
+            catch (Exception ex)
+            {
+                // iText7 can't manipulate this PDF — send raw bytes instead
+                _logger.LogWarning(ex, "Could not create page subset. Sending full PDF.");
+                pdfStream.Position = 0;
+                using var ms = new MemoryStream();
+                await pdfStream.CopyToAsync(ms);
+                pdfBytes = ms.ToArray();
+            }
+            var base64Pdf = Convert.ToBase64String(pdfBytes);
+            var systemPrompt = BuildSystemPrompt();
+            var model = _configuration["ClaudeApi:Model"] ?? "claude-sonnet-4-6";
+
+            _logger.LogInformation("Sending scanned PDF to Claude document API. PDF size: {Size} KB",
+                pdfBytes.Length / 1024);
+
+            try
+            {
+                // Build request with document content block (Claude's native PDF support)
+                var request = new Dictionary<string, object>
+                {
+                    ["model"] = model,
+                    ["max_tokens"] = 4096,
+                    ["system"] = new object[]
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["type"] = "text",
+                            ["text"] = systemPrompt,
+                            ["cache_control"] = new Dictionary<string, string> { ["type"] = "ephemeral" }
+                        }
+                    },
+                    ["messages"] = new object[]
+                    {
+                        new Dictionary<string, object>
+                        {
+                            ["role"] = "user",
+                            ["content"] = new object[]
+                            {
+                                new Dictionary<string, object>
+                                {
+                                    ["type"] = "document",
+                                    ["source"] = new Dictionary<string, string>
+                                    {
+                                        ["type"] = "base64",
+                                        ["media_type"] = "application/pdf",
+                                        ["data"] = base64Pdf
+                                    }
+                                },
+                                new Dictionary<string, object>
+                                {
+                                    ["type"] = "text",
+                                    ["text"] = "Extract all data from this APS document. Return ONLY the JSON object, no other text or explanation."
+                                }
+                            }
+                        }
+                    }
+                };
+
+                _httpClient.DefaultRequestHeaders.Clear();
+                _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
+                _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+
+                var response = await _httpClient.PostAsJsonAsync(
+                    "https://api.anthropic.com/v1/messages",
+                    request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Claude API error (scanned PDF): {Error}", error);
+                    throw new Exception($"AI analysis failed: {response.StatusCode}");
+                }
+
+                var result = await response.Content.ReadFromJsonAsync<ClaudeResponse>();
+                var jsonContent = result?.Content?.FirstOrDefault()?.Text ?? "";
+
+                var extractedData = ParseAiResponse(jsonContent);
+                PostProcessExtractedData(extractedData);
+
+                return extractedData;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error calling Claude API for scanned PDF analysis");
+                return new ApsExtractedData
+                {
+                    ConfidenceScore = 0,
+                    Warnings = new List<string> { $"Failed to analyze scanned PDF: {ex.Message}" }
+                };
+            }
+        }
+
+        /// <summary>
+        /// Creates a subset PDF containing only likely-relevant pages to reduce token cost.
+        /// For PDFs with 30 or fewer pages, returns the full document.
+        /// For larger PDFs, skips the middle section (typically boilerplate legal clauses).
+        /// APS structure: first ~35% = agreement terms, middle = boilerplate, last ~45% = schedules + Tarion.
+        /// </summary>
+        private byte[] CreateRelevantPageSubset(Stream pdfStream)
+        {
+            using var reader = new iText.Kernel.Pdf.PdfReader(pdfStream);
+            using var srcDoc = new iText.Kernel.Pdf.PdfDocument(reader);
+            var totalPages = srcDoc.GetNumberOfPages();
+
+            // For small docs, keep all pages
+            if (totalPages <= 30)
+            {
+                _logger.LogInformation("PDF has {Pages} pages — sending all pages", totalPages);
+                var outputAll = new MemoryStream();
+                using var writerAll = new iText.Kernel.Pdf.PdfWriter(outputAll);
+                using var destAll = new iText.Kernel.Pdf.PdfDocument(writerAll);
+                srcDoc.CopyPagesTo(Enumerable.Range(1, totalPages).ToList(), destAll);
+                destAll.Close();
+                return outputAll.ToArray();
+            }
+
+            // For larger docs, keep first 30% + last 45%, skip middle boilerplate legal clauses
+            // APS structure: first pages = agreement terms/deposits, middle = standard clauses, last = schedules + Tarion
+            var keepPages = new List<int>();
+            var firstSectionEnd = (int)Math.Ceiling(totalPages * 0.30);
+            var lastSectionStart = (int)Math.Floor(totalPages * 0.55) + 1;
+
+            for (int i = 1; i <= firstSectionEnd; i++)
+                keepPages.Add(i);
+            for (int i = lastSectionStart; i <= totalPages; i++)
+                keepPages.Add(i);
+
+            _logger.LogInformation(
+                "Created subset PDF: {Kept}/{Total} pages (skipped pages {SkipStart}-{SkipEnd})",
+                keepPages.Count, totalPages, firstSectionEnd + 1, lastSectionStart - 1);
+
+            var outputStream = new MemoryStream();
+            using var writer = new iText.Kernel.Pdf.PdfWriter(outputStream);
+            using var destDoc = new iText.Kernel.Pdf.PdfDocument(writer);
+            srcDoc.CopyPagesTo(keepPages, destDoc);
+            destDoc.Close();
+            return outputStream.ToArray();
+        }
+
+        private static string BuildSystemPrompt()
+        {
+            return @"You are an expert at analyzing Ontario pre-construction real estate Agreement of Purchase and Sale (APS) documents.
+
+Extract the following information from the provided APS document and return it as valid JSON. If a field is not found, use null. For boolean fields, use true/false.
 
 Required JSON structure:
-{{
+{
     ""projectName"": ""string or null"",
     ""projectAddress"": ""string or null"",
     ""unitNumber"": ""string or null"",
@@ -325,7 +582,7 @@ Required JSON structure:
     ""vendorSolicitorPhone"": ""string or null"",
     ""vendorSolicitorEmail"": ""string or null"",
     ""purchasers"": [
-        {{
+        {
             ""fullName"": ""string"",
             ""firstName"": ""string or null"",
             ""lastName"": ""string or null"",
@@ -337,16 +594,16 @@ Required JSON structure:
             ""postalCode"": ""string or null"",
             ""isPrimary"": boolean,
             ""ownershipPercentage"": number or null
-        }}
+        }
     ],
     ""deposits"": [
-        {{
+        {
             ""name"": ""string (e.g., Deposit 1, Initial Deposit)"",
             ""amount"": number,
             ""percentage"": number or null (e.g. 5.0 means 5% of purchase price),
             ""dueDate"": ""YYYY-MM-DD or null"",
             ""dueDescription"": ""string describing when due""
-        }}
+        }
     ],
     ""builderName"": ""string or null"",
     ""builderAddress"": ""string or null"",
@@ -356,35 +613,35 @@ Required JSON structure:
     ""educationLevy"": number or null,
     ""levyFees"": number or null,
     ""hasCapOnLevies"": boolean,
-    ""levyCap"": number or null,
-    ""levyCapDescription"": ""string or null — e.g. DC + EDC combined cap"",
+    ""levyCap"": number or null (if tiered by unit type, use the cap for this specific unit),
+    ""levyCapDescription"": ""string or null — e.g. DC + EDC combined cap, $12K for 1BR / $16K for 2BR+"",
     ""levyCapCoveredTypes"": [""DevelopmentCharges"", ""EducationDevelopmentCharges""],
     ""scheduleBFees"": [
-        {{
+        {
             ""name"": ""string — fee name from Schedule B Part I"",
-            ""feeType"": ""string — one of: ChequeAdministrationFee, PartialDischargeFee, PDIFee, EngineeringReportFee, InternetDeliveryFee, CarbonMonoxideDetectorFee, WireTransferFee, PDFScanFee, ClosingDocChangesFee, or Other"",
+            ""feeType"": ""string — one of: ChequeAdministrationFee, PartialDischargeFee, PDIFee, EngineeringReportFee, InternetDeliveryFee, CarbonMonoxideDetectorFee, WireTransferFee, PDFScanFee, ClosingDocChangesFee, MissedAppointmentFee, NSFFee, VendorLienFee, EFTSFee, UtilityDepositFee, or Other"",
             ""amount"": number (before HST),
             ""apsReference"": ""string — APS section reference e.g. Section 5(a)""
-        }}
+        }
     ],
     ""upgrades"": [
-        {{
+        {
             ""description"": ""string"",
             ""amount"": number
-        }}
+        }
     ],
     ""totalUpgrades"": number or null,
     ""builderCredits"": number or null,
     ""specialConditions"": [""array of special conditions or notes""],
     ""confidenceScore"": number between 0 and 1,
     ""warnings"": [""array of any data quality warnings or uncertainties""]
-}}
+}
 
 Important notes:
 - Extract ALL purchaser/buyer names found
 - Extract the COMPLETE deposit schedule with amounts, percentages, and dates
-- Look for Schedule B Part I fees: cheque admin ($300), partial discharge ($350), PDI ($250), engineering report ($350), internet delivery ($150), CO detector ($150), wire transfer ($150), PDF/scan ($150), closing doc changes ($500)
-- Look for levy caps in amendments — often DC and EDC share a combined cap
+- Look for Schedule B Part I fees: cheque admin ($300), partial discharge ($350), PDI ($250), engineering report ($350), internet delivery ($150), CO detector ($150), wire transfer ($150-$250), PDF/scan ($150), closing doc changes ($500), missed appointment/re-booking ($750), NSF admin ($450), vendor's lien fees, EFTS fees, utility security deposit
+- Look for levy caps — may be tiered by unit type (e.g. $12K for 1BR, $16K for 2BR+). If tiered, include description with all tiers and use the cap matching the unit being purchased. Often DC and EDC share a combined cap
 - Extract Tarion Addendum dates: first tentative occupancy, outside occupancy, termination period
 - Extract vendor's solicitor information
 - Extract Tarion registration number and property legal description
@@ -392,11 +649,13 @@ Important notes:
 - Dates should be in YYYY-MM-DD format
 - Include confidence score (0-1) based on how clearly the data was found
 - Add warnings for any fields that were unclear or possibly incorrect
-
-APS DOCUMENT TEXT:
-{documentText}
-
-Return ONLY the JSON object, no other text or explanation.";
+- Some pages may have been filtered out to save processing — extract from what is provided
+- Always extract apsSigningDate — check signature pages, DocuSign timestamps (format: YYYY-MM-DD | HH:MM:SS), or ""DATED at"" clauses
+- For DocuSign documents: extract purchaser email from signer events, signing date from Signed timestamp
+- For deposits with relative due dates (e.g. ""30 days after signing""), set dueDescription to the exact text but leave dueDate null — dates will be calculated automatically
+- Keep specialConditions brief — max 5 items, each under 100 characters
+- Keep warnings brief — max 5 items, each under 100 characters
+- Do NOT include lengthy legal text in any field — summarize instead";
         }
 
         private ApsExtractedData ParseAiResponse(string jsonResponse)
@@ -431,6 +690,110 @@ Return ONLY the JSON object, no other text or explanation.";
                     ConfidenceScore = 0
                 };
             }
+        }
+
+        /// <summary>
+        /// Post-process AI-extracted data: calculate relative dates, fill gaps.
+        /// Runs in C# to avoid wasting AI tokens on date arithmetic.
+        /// </summary>
+        private void PostProcessExtractedData(ApsExtractedData data)
+        {
+            var signingDate = data.ApsSigningDate;
+
+            // Calculate deposit due dates from relative descriptions
+            if (data.Deposits != null)
+            {
+                foreach (var deposit in data.Deposits)
+                {
+                    if (deposit.DueDate.HasValue) continue; // already has a date
+                    if (string.IsNullOrEmpty(deposit.DueDescription)) continue;
+
+                    var desc = deposit.DueDescription.ToLowerInvariant();
+
+                    // === Signing-date-relative patterns ===
+                    if (signingDate.HasValue)
+                    {
+                        // "upon signing", "on signing", "with this agreement", "upon execution", "submitted with"
+                        if (desc.Contains("upon signing") || desc.Contains("on signing") ||
+                            desc.Contains("with this agreement") || desc.Contains("upon execution") ||
+                            desc.Contains("submitted with") || desc.Contains("at time of signing") ||
+                            desc.Contains("together with") || desc.Contains("on execution"))
+                        {
+                            deposit.DueDate = signingDate.Value;
+                            continue;
+                        }
+
+                        // Numeric days: "30 days after", "post-dated 120 days", "120 days following execution"
+                        var daysMatch = System.Text.RegularExpressions.Regex.Match(desc,
+                            @"(\d+)\s*days?\s*(?:after|from|following|of|post[- ]?dated|later)",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (!daysMatch.Success)
+                        {
+                            // Reverse pattern: "post-dated 120 days"
+                            daysMatch = System.Text.RegularExpressions.Regex.Match(desc,
+                                @"(?:post[- ]?dated|after|following|within)\s*(\d+)\s*days?",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        }
+                        if (daysMatch.Success && int.TryParse(daysMatch.Groups[1].Value, out var days))
+                        {
+                            deposit.DueDate = signingDate.Value.AddDays(days);
+                            continue;
+                        }
+
+                        // Written-out numbers: "thirty (30) days", "one hundred twenty (120) days"
+                        var writtenDaysMatch = System.Text.RegularExpressions.Regex.Match(desc,
+                            @"[a-z\s]+\((\d+)\)\s*days?",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (writtenDaysMatch.Success && int.TryParse(writtenDaysMatch.Groups[1].Value, out var writtenDays))
+                        {
+                            deposit.DueDate = signingDate.Value.AddDays(writtenDays);
+                            continue;
+                        }
+
+                        // Months: "6 months after signing", "twelve (12) months"
+                        var monthsMatch = System.Text.RegularExpressions.Regex.Match(desc,
+                            @"(\d+)\s*months?\s*(?:after|from|following|later)",
+                            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        if (!monthsMatch.Success)
+                        {
+                            monthsMatch = System.Text.RegularExpressions.Regex.Match(desc,
+                                @"[a-z\s]+\((\d+)\)\s*months?",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                        }
+                        if (monthsMatch.Success && int.TryParse(monthsMatch.Groups[1].Value, out var months))
+                        {
+                            deposit.DueDate = signingDate.Value.AddMonths(months);
+                            continue;
+                        }
+                    }
+
+                    // === Occupancy-date-relative patterns ===
+                    if (data.ExpectedOccupancyDate.HasValue &&
+                        (desc.Contains("on occupancy") || desc.Contains("upon occupancy") ||
+                         desc.Contains("at occupancy") || desc.Contains("occupancy date") ||
+                         desc.Contains("on the occupancy")))
+                    {
+                        deposit.DueDate = data.ExpectedOccupancyDate.Value;
+                        continue;
+                    }
+
+                    // === Closing-date-relative patterns ===
+                    if (data.FirmClosingDate.HasValue &&
+                        (desc.Contains("on closing") || desc.Contains("upon closing") ||
+                         desc.Contains("at closing") || desc.Contains("closing date") ||
+                         desc.Contains("balance due on closing") || desc.Contains("on the closing")))
+                    {
+                        deposit.DueDate = data.FirmClosingDate.Value;
+                        continue;
+                    }
+                }
+            }
+
+            _logger.LogInformation(
+                "Post-processing complete. Signing date: {SigningDate}, Deposits with calculated dates: {CalculatedCount}/{TotalCount}",
+                signingDate?.ToString("yyyy-MM-dd") ?? "unknown",
+                data.Deposits?.Count(d => d.DueDate.HasValue) ?? 0,
+                data.Deposits?.Count ?? 0);
         }
 
         /// <summary>

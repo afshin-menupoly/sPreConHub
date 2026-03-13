@@ -259,6 +259,12 @@ namespace PreConHub.Models.Entities
         NSFFee = 29,                        // $500 + HST per bounced cheque
         AssignmentFee = 30,                 // $1,500+ HST when APS assigned
 
+        // APS Schedule B — Additional Closing Fees
+        MissedAppointmentFee = 31,          // $750 + HST per occurrence (re-booking)
+        VendorLienFee = 32,                 // Variable — vendor's lien fees
+        EFTSFee = 33,                       // Electronic fund transfer service fee
+        UtilityDepositFee = 34,             // Utility security deposit
+
         Other = 99
     }
 
