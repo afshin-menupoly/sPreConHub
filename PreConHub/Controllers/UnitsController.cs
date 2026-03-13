@@ -3413,6 +3413,91 @@ namespace PreConHub.Controllers
             }
         }
 
+        // GET: /Units/UploadProjectAps/5 (projectId) — upload APS to create a new unit
+        public async Task<IActionResult> UploadProjectAps(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && project.BuilderId != userId) return Forbid();
+
+            var viewModel = new UploadApsViewModel
+            {
+                ProjectId = id,
+                ProjectName = project.Name,
+                UnitId = null,    // null = creating new unit
+                UnitNumber = null
+            };
+
+            return View("UploadAps", viewModel);
+        }
+
+        // POST: /Units/UploadProjectAps/5 (projectId) — AI extraction → create new unit
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [RequestSizeLimit(32_000_000)]
+        public async Task<IActionResult> UploadProjectAps(int id, IFormFile apsFile)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && project.BuilderId != userId) return Forbid();
+
+            if (apsFile == null || apsFile.Length == 0)
+            {
+                TempData["Error"] = "Please select a PDF file.";
+                return RedirectToAction(nameof(UploadProjectAps), new { id });
+            }
+            if (!apsFile.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                TempData["Error"] = "Only PDF files are supported.";
+                return RedirectToAction(nameof(UploadProjectAps), new { id });
+            }
+
+            try
+            {
+                // Save APS PDF temporarily for AI processing
+                var tempDir = Path.Combine(_environment.WebRootPath, "uploads", "aps", "temp");
+                Directory.CreateDirectory(tempDir);
+                var safeFileName = $"APS_new_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+                var filePath = Path.Combine(tempDir, safeFileName);
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    await apsFile.CopyToAsync(fileStream);
+                }
+
+                // Process with AI
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                var extractedData = await _documentAnalysisService.ProcessApsUploadAsync(stream);
+
+                // Store temp file path in session for later (will be moved to unit folder on confirm)
+                HttpContext.Session.SetString($"ApsTempFile_{id}", filePath);
+                HttpContext.Session.SetString($"ApsTempOrigName_{id}", apsFile.FileName);
+
+                var viewModel = new ReviewApsDataViewModel
+                {
+                    ProjectId = id,
+                    ProjectName = project.Name,
+                    UnitId = null,  // null = create new unit
+                    FileName = apsFile.FileName,
+                    ExtractedData = extractedData
+                };
+
+                HttpContext.Session.SetString($"ApsData_{id}",
+                    System.Text.Json.JsonSerializer.Serialize(extractedData));
+
+                return View("ReviewApsData", viewModel);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing APS document for new unit in Project {ProjectId}", id);
+                TempData["Error"] = $"Error processing document: {ex.Message}";
+                return RedirectToAction(nameof(UploadProjectAps), new { id });
+            }
+        }
+
         // POST: /Units/ConfirmApsData/5
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -3462,14 +3547,24 @@ namespace PreConHub.Controllers
                 }
                 else
                 {
-                    // CREATE new unit (existing flow)
+                    // CREATE new unit — check max units first
+                    if (!User.IsInRole("Admin") && project.MaxUnits.HasValue)
+                    {
+                        var currentCount = await _context.Units.CountAsync(u => u.ProjectId == id);
+                        if (currentCount >= project.MaxUnits.Value)
+                        {
+                            TempData["Error"] = $"Cannot create unit — project has reached its limit of {project.MaxUnits} units.";
+                            return RedirectToAction("Dashboard", "Projects", new { id });
+                        }
+                    }
+
                     var existingUnit = await _context.Units
                         .AnyAsync(u => u.ProjectId == id && u.UnitNumber == model.UnitNumber);
 
                     if (existingUnit)
                     {
                         TempData["Error"] = $"Unit {model.UnitNumber} already exists in this project.";
-                        return RedirectToAction(nameof(UploadAps), new { id });
+                        return RedirectToAction(nameof(UploadProjectAps), new { id });
                     }
 
                     unit = new Unit
@@ -3692,7 +3787,7 @@ namespace PreConHub.Controllers
                         {
                             foreach (var fee in scheduleBFees)
                             {
-                                if (fee.Amount <= 0) continue;
+                                if ((fee.Amount ?? 0) <= 0) continue;
                                 var feeType = Enum.TryParse<FeeType>(fee.FeeType, out var ft) ? ft : FeeType.Other;
 
                                 // Only add if this fee type doesn't already exist for the project
@@ -3705,7 +3800,7 @@ namespace PreConHub.Controllers
                                         ProjectId = id,
                                         FeeName = fee.Name,
                                         FeeType = feeType,
-                                        Amount = fee.Amount,
+                                        Amount = fee.Amount ?? 0,
                                         Description = fee.ApsReference,
                                         AppliesToAllUnits = true
                                     });
@@ -3740,6 +3835,40 @@ namespace PreConHub.Controllers
 
                 await _context.SaveChangesAsync();
 
+                // Move temp APS file to unit folder (project-level create flow)
+                if (!isUpdate)
+                {
+                    var tempFilePath = HttpContext.Session.GetString($"ApsTempFile_{id}");
+                    var tempOrigName = HttpContext.Session.GetString($"ApsTempOrigName_{id}");
+                    if (!string.IsNullOrEmpty(tempFilePath) && System.IO.File.Exists(tempFilePath))
+                    {
+                        var unitDir = Path.Combine(_environment.WebRootPath, "uploads", "aps", unit.Id.ToString());
+                        Directory.CreateDirectory(unitDir);
+                        var safeFileName = $"APS_{unit.UnitNumber}_{DateTime.UtcNow:yyyyMMddHHmmss}.pdf";
+                        var destPath = Path.Combine(unitDir, safeFileName);
+                        System.IO.File.Move(tempFilePath, destPath);
+
+                        _context.Documents.Add(new Document
+                        {
+                            UnitId = unit.Id,
+                            ProjectId = id,
+                            FileName = tempOrigName ?? "APS.pdf",
+                            FilePath = $"/uploads/aps/{unit.Id}/{safeFileName}",
+                            ContentType = "application/pdf",
+                            FileSize = new FileInfo(destPath).Length,
+                            DocumentType = DocumentType.AgreementOfPurchaseSale,
+                            Source = DocumentSource.Builder,
+                            Description = "Agreement of Purchase and Sale (uploaded via AI analysis)",
+                            UploadedById = userId!,
+                            UploadedAt = DateTime.UtcNow
+                        });
+                        await _context.SaveChangesAsync();
+
+                        HttpContext.Session.Remove($"ApsTempFile_{id}");
+                        HttpContext.Session.Remove($"ApsTempOrigName_{id}");
+                    }
+                }
+
                 // Calculate SOA
                 try
                 {
@@ -3770,9 +3899,13 @@ namespace PreConHub.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating unit from APS data for Project {ProjectId}", id);
-                TempData["Error"] = $"Error creating unit: {ex.Message}";
-                return RedirectToAction(nameof(UploadAps), new { id });
+                var action = model.UnitId.HasValue ? "updating" : "creating";
+                _logger.LogError(ex, "Error {Action} unit from APS data for Project {ProjectId}", action, id);
+                TempData["Error"] = $"Error {action} unit: {ex.Message}";
+                if (model.UnitId.HasValue)
+                    return RedirectToAction(nameof(UploadUnitAps), new { id = model.UnitId.Value });
+                else
+                    return RedirectToAction(nameof(UploadProjectAps), new { id });
             }
         }
 

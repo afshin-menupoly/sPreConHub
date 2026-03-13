@@ -129,7 +129,7 @@ namespace PreConHub.Services
     {
         public string Name { get; set; } = string.Empty;
         public string? FeeType { get; set; }  // Maps to FeeType enum name
-        public decimal Amount { get; set; }
+        public decimal? Amount { get; set; }
         public string? ApsReference { get; set; }  // e.g. "Section 5(a)"
     }
 
@@ -151,7 +151,7 @@ namespace PreConHub.Services
     public class ExtractedDeposit
     {
         public string? Name { get; set; }
-        public decimal Amount { get; set; }
+        public decimal? Amount { get; set; }
         public decimal? Percentage { get; set; }  // e.g. 5.0 = 5% of purchase price
         public DateTime? DueDate { get; set; }
         public string? DueDescription { get; set; } // e.g., "Upon signing", "30 days after signing"
@@ -161,7 +161,7 @@ namespace PreConHub.Services
     public class ExtractedUpgrade
     {
         public string? Description { get; set; }
-        public decimal Amount { get; set; }
+        public decimal? Amount { get; set; }
     }
 
     #endregion
@@ -296,7 +296,7 @@ namespace PreConHub.Services
 
             try
             {
-                var request = new
+                var requestBody = new
                 {
                     model = model,
                     max_tokens = 4096,
@@ -310,19 +310,18 @@ namespace PreConHub.Services
                     }
                 };
 
-                _httpClient.DefaultRequestHeaders.Clear();
-                _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
-                _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
-                _httpClient.DefaultRequestHeaders.Add("anthropic-beta", "prompt-caching-2024-07-31");
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+                httpRequest.Headers.Add("x-api-key", apiKey);
+                httpRequest.Headers.Add("anthropic-version", "2023-06-01");
+                httpRequest.Headers.Add("anthropic-beta", "prompt-caching-2024-07-31");
+                httpRequest.Content = JsonContent.Create(requestBody);
 
-                var response = await _httpClient.PostAsJsonAsync(
-                    "https://api.anthropic.com/v1/messages",
-                    request);
+                var response = await _httpClient.SendAsync(httpRequest);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Claude API error: {Error}", error);
+                    _logger.LogError("Claude API error for text-based PDF: {StatusCode} {Error}", response.StatusCode, error);
                     throw new Exception($"AI analysis failed: {response.StatusCode}");
                 }
 
@@ -337,8 +336,7 @@ namespace PreConHub.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error calling Claude API for document analysis");
-                // Fall back to mock extraction for demo purposes
+                _logger.LogError(ex, "Error calling Claude API for text-based document analysis");
                 return MockExtractData(documentText);
             }
         }
@@ -460,18 +458,17 @@ namespace PreConHub.Services
                     }
                 };
 
-                _httpClient.DefaultRequestHeaders.Clear();
-                _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
-                _httpClient.DefaultRequestHeaders.Add("anthropic-version", "2023-06-01");
+                using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
+                httpRequest.Headers.Add("x-api-key", apiKey);
+                httpRequest.Headers.Add("anthropic-version", "2023-06-01");
+                httpRequest.Content = JsonContent.Create(request);
 
-                var response = await _httpClient.PostAsJsonAsync(
-                    "https://api.anthropic.com/v1/messages",
-                    request);
+                var response = await _httpClient.SendAsync(httpRequest);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Claude API error (scanned PDF): {Error}", error);
+                    _logger.LogError("Claude API error (scanned PDF): {StatusCode} {Error}", response.StatusCode, error);
                     throw new Exception($"AI analysis failed: {response.StatusCode}");
                 }
 
@@ -645,7 +642,7 @@ Important notes:
 - Extract Tarion Addendum dates: first tentative occupancy, outside occupancy, termination period
 - Extract vendor's solicitor information
 - Extract Tarion registration number and property legal description
-- Prices should be numbers without $ or commas
+- ALL amount/price fields MUST be numeric (no $, commas, or text like ""balance"" or ""TBD""). Use 0 if the amount is unknown, variable, or described as ""balance due on closing""
 - Dates should be in YYYY-MM-DD format
 - Include confidence score (0-1) based on how clearly the data was found
 - Add warnings for any fields that were unclear or possibly incorrect
@@ -671,6 +668,25 @@ Important notes:
                 if (jsonResponse.EndsWith("```"))
                     jsonResponse = jsonResponse.Substring(0, jsonResponse.Length - 3);
                 jsonResponse = jsonResponse.Trim();
+
+                // Sanitize non-numeric "amount" values (e.g. "balance", "TBD", "$5,000")
+                // Replace "amount": "non-numeric-string" with "amount": 0
+                jsonResponse = System.Text.RegularExpressions.Regex.Replace(
+                    jsonResponse,
+                    @"""amount""\s*:\s*""[^""]*""",
+                    match =>
+                    {
+                        // Try parsing the string value — if numeric, keep it; otherwise replace with 0
+                        var valMatch = System.Text.RegularExpressions.Regex.Match(match.Value, @"""([^""]*)""$");
+                        if (valMatch.Success)
+                        {
+                            var cleaned = valMatch.Groups[1].Value.Replace("$", "").Replace(",", "").Trim();
+                            if (decimal.TryParse(cleaned, out _))
+                                return $@"""amount"": ""{cleaned}""";
+                        }
+                        return @"""amount"": 0";
+                    },
+                    System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                 var options = new JsonSerializerOptions
                 {

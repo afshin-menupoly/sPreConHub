@@ -1,6 +1,7 @@
 @model PreConHub.Models.ViewModels.UploadApsViewModel
 @{
-    ViewData["Title"] = "Upload APS Document";
+    var isUnitMode = Model.UnitId.HasValue;
+    ViewData["Title"] = isUnitMode ? "Upload APS — Update Unit" : "Upload APS — New Unit";
 }
 
 <div class="container py-4">
@@ -11,18 +12,37 @@
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="@Url.Action("Index", "Projects")">Projects</a></li>
                     <li class="breadcrumb-item"><a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })">@Model.ProjectName</a></li>
-                    <li class="breadcrumb-item"><a href="@Url.Action("Details", "Units", new { id = Model.UnitId })">Unit @Model.UnitNumber</a></li>
+                    @if (isUnitMode)
+                    {
+                        <li class="breadcrumb-item"><a href="@Url.Action("Details", "Units", new { id = Model.UnitId })">Unit @Model.UnitNumber</a></li>
+                    }
                     <li class="breadcrumb-item active">Upload APS</li>
                 </ol>
             </nav>
             <h1 class="h3 mb-0">
                 <i class="bi bi-file-earmark-text text-primary me-2"></i>AI Document Analysis
             </h1>
-            <p class="text-muted">Upload APS for <strong>Unit @Model.UnitNumber</strong> — extracted data will update this unit</p>
+            @if (isUnitMode)
+            {
+                <p class="text-muted">Upload APS for <strong>Unit @Model.UnitNumber</strong> — extracted data will update this unit</p>
+            }
+            else
+            {
+                <p class="text-muted">Upload an APS document to <strong>create a new unit</strong> with AI-extracted data</p>
+            }
         </div>
-        <a href="@Url.Action("Details", "Units", new { id = Model.UnitId })" class="btn btn-outline-secondary">
-            <i class="bi bi-arrow-left me-2"></i>Back to Unit
-        </a>
+        @if (isUnitMode)
+        {
+            <a href="@Url.Action("Details", "Units", new { id = Model.UnitId })" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Unit
+            </a>
+        }
+        else
+        {
+            <a href="@Url.Action("Dashboard", "Projects", new { id = Model.ProjectId })" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Project
+            </a>
+        }
     </div>
 
     <!-- Messages -->
@@ -49,7 +69,7 @@
                     <h5 class="mb-0"><i class="bi bi-cloud-upload me-2"></i>Upload APS Document</h5>
                 </div>
                 <div class="card-body p-4">
-                    <form action="@Url.Action("UploadUnitAps", "Units", new { id = Model.UnitId })" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <form action="@(isUnitMode ? Url.Action("UploadUnitAps", "Units", new { id = Model.UnitId }) : Url.Action("UploadProjectAps", "Units", new { id = Model.ProjectId }))" method="post" enctype="multipart/form-data" id="uploadForm">
                         @Html.AntiForgeryToken()
 
                         <!-- Drop Zone -->
@@ -130,8 +150,16 @@
                             <span class="badge bg-success rounded-circle p-2">4</span>
                         </div>
                         <div class="ms-3">
-                            <h6 class="mb-1">Update Unit</h6>
-                            <p class="text-muted small mb-0">Unit fields are updated with extracted data</p>
+                            @if (isUnitMode)
+                            {
+                                <h6 class="mb-1">Update Unit</h6>
+                                <p class="text-muted small mb-0">Unit fields are updated with extracted data</p>
+                            }
+                            else
+                            {
+                                <h6 class="mb-1">Create Unit</h6>
+                                <p class="text-muted small mb-0">A new unit is created with extracted data</p>
+                            }
                         </div>
                     </div>
                 </div>
