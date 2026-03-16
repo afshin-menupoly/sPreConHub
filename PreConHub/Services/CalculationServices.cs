@@ -107,13 +107,20 @@ namespace PreConHub.Services
                 ? CalculateTorontoLandTransferTax(totalPrice, unit.IsFirstTimeBuyer)
                 : 0;
 
+            // Helper: unit-level fees (with FeeType) override project-level fees
+            decimal UnitOrProjectFee(FeeType ft) =>
+                unit.Fees.Any(f => f.FeeType == ft)
+                    ? unit.Fees.Where(f => f.FeeType == ft).Sum(f => f.Amount)
+                    : unit.Project.Fees.Where(f => f.FeeType == ft).Sum(f => f.Amount);
+
+            decimal UnitOrProjectFees(params FeeType[] fts) =>
+                unit.Fees.Any(f => f.FeeType.HasValue && fts.Contains(f.FeeType.Value))
+                    ? unit.Fees.Where(f => f.FeeType.HasValue && fts.Contains(f.FeeType.Value)).Sum(f => f.Amount)
+                    : unit.Project.Fees.Where(f => fts.Contains(f.FeeType)).Sum(f => f.Amount);
+
             // 4. Development Charges + 5. EDCs — with combined levy cap support
-            var actualDevCharges = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.DevelopmentCharges)
-                .Sum(f => f.Amount);
-            var actualEDC = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.EducationDevelopmentCharges)
-                .Sum(f => f.Amount);
+            var actualDevCharges = UnitOrProjectFee(FeeType.DevelopmentCharges);
+            var actualEDC = UnitOrProjectFee(FeeType.EducationDevelopmentCharges);
 
             // Check for a combined levy cap covering both DC + EDC
             var combinedCap = unit.Project.LevyCaps
@@ -193,27 +200,20 @@ namespace PreConHub.Services
             }
 
             // 6. Parkland Levy
-            soa.ParklandLevy = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.ParklandLevy)
-                .Sum(f => f.Amount);
+            soa.ParklandLevy = UnitOrProjectFee(FeeType.ParklandLevy);
 
             // 7. Community Benefit Charges
-            soa.CommunityBenefitCharges = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.CommunityBenefitCharges)
-                .Sum(f => f.Amount);
+            soa.CommunityBenefitCharges = UnitOrProjectFee(FeeType.CommunityBenefitCharges);
 
-            // 8. Tarion Warranty Fee
-            soa.TarionFee = CalculateTarionFee(totalPrice);
+            // 8. Tarion Warranty Fee — unit-level override or calculated
+            var unitTarion = unit.Fees.Where(f => f.FeeType == FeeType.TarionWarranty).Sum(f => f.Amount);
+            soa.TarionFee = unitTarion > 0 ? unitTarion : CalculateTarionFee(totalPrice);
 
             // 9. Utility Connection Fees (combined)
-            soa.UtilityConnectionFees = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.UtilityConnection
-                         || f.FeeType == FeeType.SewerConnectionFee
-                         || f.FeeType == FeeType.WaterConnectionFee
-                         || f.FeeType == FeeType.HydroConnectionFee
-                         || f.FeeType == FeeType.GasConnectionFee
-                         || f.FeeType == FeeType.MeterInstallationFee)
-                .Sum(f => f.Amount);
+            soa.UtilityConnectionFees = UnitOrProjectFees(
+                FeeType.UtilityConnection, FeeType.SewerConnectionFee,
+                FeeType.WaterConnectionFee, FeeType.HydroConnectionFee,
+                FeeType.GasConnectionFee, FeeType.MeterInstallationFee);
 
             // 10. Property Tax Adjustment (prorated)
             soa.PropertyTaxAdjustment = CalculatePropertyTaxAdjustment(unit);
@@ -232,40 +232,32 @@ namespace PreConHub.Services
             // 14. Locker
             soa.LockerPrice = unit.HasLocker ? unit.LockerPrice : 0;
 
-            // 15. Upgrades (unit-specific fees that are not credits)
+            // 15. Upgrades (unit-specific fees that are not credits AND have no FeeType)
+            //     Fees WITH a FeeType are categorized (Schedule B, DC, etc.) and handled above
             soa.Upgrades = unit.Fees
-                .Where(f => !f.IsCredit)
+                .Where(f => !f.IsCredit && !f.FeeType.HasValue)
                 .Sum(f => f.Amount);
 
             // 16. Legal Fees Estimate
-            var legalFees = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.LegalFees)
-                .Sum(f => f.Amount);
+            var legalFees = UnitOrProjectFee(FeeType.LegalFees);
             soa.LegalFeesEstimate = legalFees > 0 ? legalFees : EstimateLegalFees(totalPrice);
 
             // 17. Other Debits
-            var otherProjectFees = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.Other && f.AppliesToAllUnits)
-                .Sum(f => f.Amount);
-            soa.OtherDebits = otherProjectFees;
+            var unitOther = unit.Fees.Where(f => f.FeeType == FeeType.Other).Sum(f => f.Amount);
+            soa.OtherDebits = unitOther > 0 ? unitOther
+                : unit.Project.Fees.Where(f => f.FeeType == FeeType.Other && f.AppliesToAllUnits).Sum(f => f.Amount);
 
-            // 17b. APS Schedule B Closing Fees (aggregated)
-            soa.ScheduleBClosingFees = unit.Project.Fees
-                .Where(f => f.FeeType == FeeType.ChequeAdministrationFee
-                         || f.FeeType == FeeType.PartialDischargeFee
-                         || f.FeeType == FeeType.PDIFee
-                         || f.FeeType == FeeType.EngineeringReportFee
-                         || f.FeeType == FeeType.InternetDeliveryFee
-                         || f.FeeType == FeeType.CarbonMonoxideDetectorFee
-                         || f.FeeType == FeeType.WireTransferFee
-                         || f.FeeType == FeeType.PDFScanFee
-                         || f.FeeType == FeeType.ClosingDocChangesFee
-                         || f.FeeType == FeeType.AssignmentFee
-                         || f.FeeType == FeeType.MissedAppointmentFee
-                         || f.FeeType == FeeType.VendorLienFee
-                         || f.FeeType == FeeType.EFTSFee
-                         || f.FeeType == FeeType.UtilityDepositFee)
-                .Sum(f => f.Amount);
+            // 17b. APS Schedule B Closing Fees (aggregated) — unit-level overrides project-level
+            var scheduleBTypes = new[] {
+                FeeType.ChequeAdministrationFee, FeeType.PartialDischargeFee,
+                FeeType.PDIFee, FeeType.EngineeringReportFee,
+                FeeType.InternetDeliveryFee, FeeType.CarbonMonoxideDetectorFee,
+                FeeType.WireTransferFee, FeeType.PDFScanFee,
+                FeeType.ClosingDocChangesFee, FeeType.AssignmentFee,
+                FeeType.MissedAppointmentFee, FeeType.VendorLienFee,
+                FeeType.EFTSFee, FeeType.UtilityDepositFee
+            };
+            soa.ScheduleBClosingFees = UnitOrProjectFees(scheduleBTypes);
 
             // 18. System Fees (loaded from SystemFeeConfig, with HST applied)
             soa.HCRAFee = GetSystemFeeWithHST(systemFees, "HCRA");

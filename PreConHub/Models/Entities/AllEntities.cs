@@ -517,6 +517,9 @@ namespace PreConHub.Models.Entities
         [StringLength(100)]
         public string FeeName { get; set; } = string.Empty;
 
+        /// <summary>Optional fee type — when set, allows SOA to use unit-level fees instead of project-level.</summary>
+        public FeeType? FeeType { get; set; }
+
         [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
 

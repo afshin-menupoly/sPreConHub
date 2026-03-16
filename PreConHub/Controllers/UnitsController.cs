@@ -617,6 +617,7 @@ namespace PreConHub.Controllers
                 {
                     Id = f.Id,
                     FeeName = f.FeeName,
+                    FeeType = f.FeeType,
                     Amount = f.Amount,
                     IsCredit = f.IsCredit,
                     Description = f.Description
@@ -4139,7 +4140,7 @@ namespace PreConHub.Controllers
         // POST: /Units/AddUnitFee
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> AddUnitFee(int unitId, string feeName, decimal amount, bool isCredit, string? description)
+        public async Task<IActionResult> AddUnitFee(int unitId, string feeName, decimal amount, bool isCredit, string? description, FeeType? feeType = null)
         {
             var unit = await _context.Units.Include(u => u.Project).FirstOrDefaultAsync(u => u.Id == unitId);
             if (unit == null)
@@ -4159,6 +4160,7 @@ namespace PreConHub.Controllers
             {
                 UnitId = unitId,
                 FeeName = feeName.Trim(),
+                FeeType = feeType,
                 Amount = amount,
                 IsCredit = isCredit,
                 Description = description?.Trim(),

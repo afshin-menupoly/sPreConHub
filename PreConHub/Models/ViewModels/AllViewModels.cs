@@ -321,6 +321,7 @@ namespace PreConHub.Models.ViewModels
     {
         public int Id { get; set; }
         public string FeeName { get; set; } = "";
+        public FeeType? FeeType { get; set; }
         public decimal Amount { get; set; }
         public bool IsCredit { get; set; }
         public string? Description { get; set; }

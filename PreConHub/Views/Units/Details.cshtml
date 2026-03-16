@@ -642,59 +642,114 @@
                                 @Html.AntiForgeryToken()
                                 <input type="hidden" name="unitId" value="@Model.UnitId" />
                                 <div class="row g-2 align-items-end">
-                                    <div class="col-md-3"><label class="form-label small">Fee Name</label><input type="text" name="feeName" class="form-control form-control-sm" placeholder="e.g., Kitchen Upgrade" required /></div>
-                                    <div class="col-md-2"><label class="form-label small">Amount ($)</label><input type="number" name="amount" class="form-control form-control-sm" step="0.01" min="0.01" required /></div>
-                                    <div class="col-md-2"><label class="form-label small">Type</label><select name="isCredit" class="form-select form-select-sm"><option value="false">Upgrade / Fee</option><option value="true">Credit / Discount</option></select></div>
-                                    <div class="col-md-3"><label class="form-label small">Description</label><input type="text" name="description" class="form-control form-control-sm" placeholder="Optional notes" /></div>
+                                    <div class="col-md-3">
+                                        <label class="form-label small">Fee Category</label>
+                                        <select name="feeType" id="feeTypeSelect" class="form-select form-select-sm" onchange="onFeeTypeChange(this)">
+                                            <option value="">Custom (free-form)</option>
+                                            <optgroup label="Schedule B — Closing Fees">
+                                                <option value="20" data-name="Cheque Administration Fee" data-amt="300">Cheque Admin Fee ($300)</option>
+                                                <option value="21" data-name="Partial Discharge Fee" data-amt="350">Partial Discharge ($350)</option>
+                                                <option value="22" data-name="PDI Fee" data-amt="250">PDI Fee ($250)</option>
+                                                <option value="23" data-name="Engineering Report Fee" data-amt="350">Engineering Report ($350)</option>
+                                                <option value="24" data-name="Internet Delivery Fee" data-amt="150">Internet Delivery ($150)</option>
+                                                <option value="25" data-name="CO Detector Fee" data-amt="150">CO Detector ($150)</option>
+                                                <option value="26" data-name="Wire Transfer Fee" data-amt="150">Wire Transfer ($150)</option>
+                                                <option value="27" data-name="PDF/Scan Fee" data-amt="150">PDF/Scan Fee ($150)</option>
+                                                <option value="28" data-name="Closing Document Changes Fee" data-amt="500">Closing Doc Changes ($500)</option>
+                                                <option value="31" data-name="Missed Appointment Fee" data-amt="750">Missed Appointment ($750)</option>
+                                                <option value="32" data-name="Vendor Lien Fee" data-amt="0">Vendor Lien Fee</option>
+                                                <option value="33" data-name="EFTS Fee" data-amt="0">EFTS Fee</option>
+                                                <option value="34" data-name="Utility Security Deposit" data-amt="0">Utility Security Deposit</option>
+                                            </optgroup>
+                                            <optgroup label="Development Charges & Levies">
+                                                <option value="2" data-name="Development Charges" data-amt="0">Development Charges</option>
+                                                <option value="8" data-name="Education Development Charges" data-amt="0">Education Development Charges</option>
+                                                <option value="9" data-name="Parkland Levy" data-amt="0">Parkland Levy</option>
+                                                <option value="10" data-name="Community Benefit Charges" data-amt="0">Community Benefit Charges</option>
+                                            </optgroup>
+                                            <optgroup label="Utility Connection Fees">
+                                                <option value="4" data-name="Utility Connection Fee" data-amt="0">Utility Connection</option>
+                                                <option value="13" data-name="Sewer Connection Fee" data-amt="0">Sewer Connection</option>
+                                                <option value="14" data-name="Water Connection Fee" data-amt="0">Water Connection</option>
+                                                <option value="15" data-name="Hydro Connection Fee" data-amt="0">Hydro Connection</option>
+                                                <option value="16" data-name="Gas Connection Fee" data-amt="0">Gas Connection</option>
+                                                <option value="19" data-name="Meter Installation Fee" data-amt="0">Meter Installation</option>
+                                            </optgroup>
+                                            <optgroup label="Other">
+                                                <option value="3" data-name="Tarion Warranty Fee" data-amt="0">Tarion Warranty</option>
+                                                <option value="5" data-name="Legal Fees" data-amt="0">Legal Fees</option>
+                                            </optgroup>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2"><label class="form-label small">Fee Name</label><input type="text" id="feeNameInput" name="feeName" class="form-control form-control-sm" placeholder="e.g., Kitchen Upgrade" required /></div>
+                                    <div class="col-md-2"><label class="form-label small">Amount ($)</label><input type="number" id="feeAmountInput" name="amount" class="form-control form-control-sm" step="0.01" min="0.01" required /></div>
+                                    <div class="col-md-2"><label class="form-label small">Type</label><select name="isCredit" class="form-select form-select-sm"><option value="false">Fee / Charge</option><option value="true">Credit / Discount</option></select></div>
                                     <div class="col-md-2"><button type="submit" class="btn btn-success btn-sm w-100"><i class="bi bi-plus-circle me-1"></i>Add</button></div>
                                 </div>
                             </form>
                         </div>
                     </div>
                     @{
-                        var upgrades = Model.UnitFees.Where(f => !f.IsCredit).ToList();
+                        var scheduleBFees = Model.UnitFees.Where(f => !f.IsCredit && f.FeeType.HasValue).ToList();
+                        var upgrades = Model.UnitFees.Where(f => !f.IsCredit && !f.FeeType.HasValue).ToList();
                         var credits = Model.UnitFees.Where(f => f.IsCredit).ToList();
                     }
                     @if (!Model.UnitFees.Any())
                     {
-                        <p class="text-muted mb-0">No unit-level fees or credits.</p>
+                        <p class="text-muted mb-0">No unit-level fees or credits. Click "Add Fee / Credit" above. Unit-level fees override project-level defaults in the SOA.</p>
                     }
-                    else
+                    @if (scheduleBFees.Any())
                     {
-                        @if (upgrades.Any())
-                        {
-                            <h6 class="text-muted mb-2">Upgrades & Fees</h6>
-                            <table class="table table-sm mb-3">
-                                <thead class="table-light"><tr><th>Fee Name</th><th>Description</th><th class="text-end">Amount</th><th style="width:50px;"></th></tr></thead>
-                                <tbody>
-                                    @foreach (var fee in upgrades)
-                                    {
-                                        <tr>
-                                            <td>@fee.FeeName</td><td class="text-muted small">@(fee.Description ?? "—")</td><td class="text-end">$@fee.Amount.ToString("N2")</td>
-                                            <td><form asp-action="DeleteUnitFee" asp-controller="Units" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@fee.Id" /><input type="hidden" name="unitId" value="@Model.UnitId" /><button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1" onclick="return confirm('Delete?')"><i class="bi bi-trash"></i></button></form></td>
-                                        </tr>
-                                    }
-                                </tbody>
-                                <tfoot><tr class="fw-bold"><td colspan="2">Total Upgrades</td><td class="text-end">$@upgrades.Sum(f => f.Amount).ToString("N2")</td><td></td></tr></tfoot>
-                            </table>
-                        }
-                        @if (credits.Any())
-                        {
-                            <h6 class="text-muted mb-2">Credits & Discounts</h6>
-                            <table class="table table-sm mb-0">
-                                <thead class="table-light"><tr><th>Credit Name</th><th>Description</th><th class="text-end">Amount</th><th style="width:50px;"></th></tr></thead>
-                                <tbody>
-                                    @foreach (var credit in credits)
-                                    {
-                                        <tr>
-                                            <td>@credit.FeeName</td><td class="text-muted small">@(credit.Description ?? "—")</td><td class="text-end text-success">-$@credit.Amount.ToString("N2")</td>
-                                            <td><form asp-action="DeleteUnitFee" asp-controller="Units" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@credit.Id" /><input type="hidden" name="unitId" value="@Model.UnitId" /><button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1" onclick="return confirm('Delete?')"><i class="bi bi-trash"></i></button></form></td>
-                                        </tr>
-                                    }
-                                </tbody>
-                                <tfoot><tr class="fw-bold"><td colspan="2">Total Credits</td><td class="text-end text-success">-$@credits.Sum(f => f.Amount).ToString("N2")</td><td></td></tr></tfoot>
-                            </table>
-                        }
+                        <h6 class="text-muted mb-2"><i class="bi bi-list-check me-1"></i>Schedule B & Categorized Fees</h6>
+                        <table class="table table-sm mb-3">
+                            <thead class="table-light"><tr><th>Fee Name</th><th>Category</th><th class="text-end">Amount</th><th style="width:50px;"></th></tr></thead>
+                            <tbody>
+                                @foreach (var fee in scheduleBFees)
+                                {
+                                    <tr>
+                                        <td>@fee.FeeName</td>
+                                        <td><span class="badge bg-info text-dark">@fee.FeeType</span></td>
+                                        <td class="text-end">$@fee.Amount.ToString("N2")</td>
+                                        <td><form asp-action="DeleteUnitFee" asp-controller="Units" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@fee.Id" /><input type="hidden" name="unitId" value="@Model.UnitId" /><button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1" onclick="return confirm('Delete?')"><i class="bi bi-trash"></i></button></form></td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot><tr class="fw-bold"><td colspan="2">Total Categorized Fees</td><td class="text-end">$@scheduleBFees.Sum(f => f.Amount).ToString("N2")</td><td></td></tr></tfoot>
+                        </table>
+                    }
+                    @if (upgrades.Any())
+                    {
+                        <h6 class="text-muted mb-2">Upgrades & Custom Fees</h6>
+                        <table class="table table-sm mb-3">
+                            <thead class="table-light"><tr><th>Fee Name</th><th>Description</th><th class="text-end">Amount</th><th style="width:50px;"></th></tr></thead>
+                            <tbody>
+                                @foreach (var fee in upgrades)
+                                {
+                                    <tr>
+                                        <td>@fee.FeeName</td><td class="text-muted small">@(fee.Description ?? "—")</td><td class="text-end">$@fee.Amount.ToString("N2")</td>
+                                        <td><form asp-action="DeleteUnitFee" asp-controller="Units" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@fee.Id" /><input type="hidden" name="unitId" value="@Model.UnitId" /><button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1" onclick="return confirm('Delete?')"><i class="bi bi-trash"></i></button></form></td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot><tr class="fw-bold"><td colspan="2">Total Upgrades</td><td class="text-end">$@upgrades.Sum(f => f.Amount).ToString("N2")</td><td></td></tr></tfoot>
+                        </table>
+                    }
+                    @if (credits.Any())
+                    {
+                        <h6 class="text-muted mb-2">Credits & Discounts</h6>
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light"><tr><th>Credit Name</th><th>Description</th><th class="text-end">Amount</th><th style="width:50px;"></th></tr></thead>
+                            <tbody>
+                                @foreach (var credit in credits)
+                                {
+                                    <tr>
+                                        <td>@credit.FeeName</td><td class="text-muted small">@(credit.Description ?? "—")</td><td class="text-end text-success">-$@credit.Amount.ToString("N2")</td>
+                                        <td><form asp-action="DeleteUnitFee" asp-controller="Units" method="post" class="d-inline">@Html.AntiForgeryToken()<input type="hidden" name="id" value="@credit.Id" /><input type="hidden" name="unitId" value="@Model.UnitId" /><button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1" onclick="return confirm('Delete?')"><i class="bi bi-trash"></i></button></form></td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot><tr class="fw-bold"><td colspan="2">Total Credits</td><td class="text-end text-success">-$@credits.Sum(f => f.Amount).ToString("N2")</td><td></td></tr></tfoot>
+                        </table>
                     }
                 </div>
             </div>
@@ -1187,6 +1242,22 @@
             else { alert(data.message || 'Failed to update.'); document.getElementById('firstTimeBuyerCheck').checked = !checked; }
         })
         .catch(() => { alert('An error occurred.'); document.getElementById('firstTimeBuyerCheck').checked = !checked; });
+    }
+
+    function onFeeTypeChange(sel) {
+        var opt = sel.options[sel.selectedIndex];
+        var nameInput = document.getElementById('feeNameInput');
+        var amtInput = document.getElementById('feeAmountInput');
+        if (opt.value) {
+            nameInput.value = opt.getAttribute('data-name') || '';
+            var amt = parseFloat(opt.getAttribute('data-amt') || '0');
+            if (amt > 0) amtInput.value = amt.toFixed(2);
+            nameInput.setAttribute('readonly', 'readonly');
+        } else {
+            nameInput.value = '';
+            amtInput.value = '';
+            nameInput.removeAttribute('readonly');
+        }
     }
 </script>
 }
