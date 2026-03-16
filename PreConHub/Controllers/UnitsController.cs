@@ -156,12 +156,21 @@ namespace PreConHub.Controllers
                 PurchasePrice = model.PurchasePrice,
                 HasParking = model.HasParking,
                 ParkingPrice = model.HasParking ? model.ParkingPrice : 0,
+                ParkingCount = model.HasParking ? model.ParkingCount : 0,
+                ParkingNumber = model.HasParking ? model.ParkingNumber : null,
                 HasLocker = model.HasLocker,
                 LockerPrice = model.HasLocker ? model.LockerPrice : 0,
+                LockerCount = model.HasLocker ? model.LockerCount : 0,
+                LockerNumber = model.HasLocker ? model.LockerNumber : null,
                 OccupancyDate = model.OccupancyDate ?? project.OccupancyDate,
                 ClosingDate = model.ClosingDate ?? project.ClosingDate,
-                ParkingCount = model.ParkingCount,
-                LockerCount = model.LockerCount,
+                APSDate = model.APSDate,
+                FirmClosingDate = model.FirmClosingDate,
+                InterimOccupancyStartDate = model.InterimOccupancyStartDate,
+                IsFirstTimeBuyer = model.IsFirstTimeBuyer,
+                IsPrimaryResidence = model.IsPrimaryResidence,
+                ActualAnnualLandTax = model.ActualAnnualLandTax,
+                ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee,
                 FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = model.OutsideOccupancyDate,
                 DelayedOccupancyDate = model.DelayedOccupancyDate,
@@ -226,14 +235,21 @@ namespace PreConHub.Controllers
                 PurchasePrice = unit.PurchasePrice,
                 HasParking = unit.HasParking,
                 ParkingPrice = unit.ParkingPrice,
+                ParkingCount = unit.ParkingCount,
+                ParkingNumber = unit.ParkingNumber,
                 HasLocker = unit.HasLocker,
                 LockerPrice = unit.LockerPrice,
+                LockerCount = unit.LockerCount,
+                LockerNumber = unit.LockerNumber,
                 OccupancyDate = unit.OccupancyDate,
                 ClosingDate = unit.ClosingDate,
+                APSDate = unit.APSDate,
+                FirmClosingDate = unit.FirmClosingDate,
+                InterimOccupancyStartDate = unit.InterimOccupancyStartDate,
+                IsFirstTimeBuyer = unit.IsFirstTimeBuyer,
+                IsPrimaryResidence = unit.IsPrimaryResidence,
                 ActualAnnualLandTax = unit.ActualAnnualLandTax,
                 ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
-                ParkingCount = unit.ParkingCount,
-                LockerCount = unit.LockerCount,
                 FirstTentativeOccupancyDate = unit.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = unit.OutsideOccupancyDate,
                 DelayedOccupancyDate = unit.DelayedOccupancyDate,
@@ -292,14 +308,21 @@ namespace PreConHub.Controllers
             unit.PurchasePrice = model.PurchasePrice;
             unit.HasParking = model.HasParking;
             unit.ParkingPrice = model.HasParking ? model.ParkingPrice : 0;
+            unit.ParkingCount = model.HasParking ? model.ParkingCount : 0;
+            unit.ParkingNumber = model.HasParking ? model.ParkingNumber : null;
             unit.HasLocker = model.HasLocker;
             unit.LockerPrice = model.HasLocker ? model.LockerPrice : 0;
+            unit.LockerCount = model.HasLocker ? model.LockerCount : 0;
+            unit.LockerNumber = model.HasLocker ? model.LockerNumber : null;
             unit.OccupancyDate = model.OccupancyDate;
             unit.ClosingDate = model.ClosingDate;
+            unit.APSDate = model.APSDate;
+            unit.FirmClosingDate = model.FirmClosingDate;
+            unit.InterimOccupancyStartDate = model.InterimOccupancyStartDate;
+            unit.IsFirstTimeBuyer = model.IsFirstTimeBuyer;
+            unit.IsPrimaryResidence = model.IsPrimaryResidence;
             unit.ActualAnnualLandTax = model.ActualAnnualLandTax;
             unit.ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee;
-            unit.ParkingCount = model.ParkingCount;
-            unit.LockerCount = model.LockerCount;
             unit.FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate;
             unit.OutsideOccupancyDate = model.OutsideOccupancyDate;
             unit.DelayedOccupancyDate = model.DelayedOccupancyDate;
@@ -2791,6 +2814,8 @@ namespace PreConHub.Controllers
                         }
 
                         // Create unit with SOA fields
+                        var hasParking = ParseBool(row.HasParking);
+                        var hasLocker = ParseBool(row.HasLocker);
                         var unit = new Unit
                         {
                             ProjectId = id,
@@ -2801,12 +2826,18 @@ namespace PreConHub.Controllers
                             Bathrooms = row.Bathrooms,
                             SquareFootage = row.SquareFootage,
                             PurchasePrice = row.PurchasePrice,
-                            HasParking = ParseBool(row.HasParking),
+                            HasParking = hasParking,
                             ParkingPrice = row.ParkingPrice,
-                            HasLocker = ParseBool(row.HasLocker),
+                            ParkingCount = hasParking ? row.ParkingCount : 0,
+                            ParkingNumber = hasParking ? row.ParkingNumber?.Trim() : null,
+                            HasLocker = hasLocker,
                             LockerPrice = row.LockerPrice,
+                            LockerCount = hasLocker ? row.LockerCount : 0,
+                            LockerNumber = hasLocker ? row.LockerNumber?.Trim() : null,
                             OccupancyDate = row.OccupancyDate ?? project.OccupancyDate,
                             ClosingDate = row.ClosingDate ?? project.ClosingDate,
+                            FirmClosingDate = row.FirmClosingDate,
+                            InterimOccupancyStartDate = row.InterimOccupancyStartDate,
                             Status = UnitStatus.Pending,
                             CreatedAt = DateTime.UtcNow,
 
@@ -2815,9 +2846,18 @@ namespace PreConHub.Controllers
                             IsFirstTimeBuyer = ParseBool(row.IsFirstTimeBuyer),
                             IsPrimaryResidence = ParseBool(row.IsPrimaryResidence) || string.IsNullOrEmpty(row.IsPrimaryResidence), // Default true
 
-                            // ===== SOA Adjustment Fields (Priority 6C) =====
+                            // ===== SOA Adjustment Fields =====
                             ActualAnnualLandTax = row.ActualAnnualLandTax,
-                            ActualMonthlyMaintenanceFee = row.ActualMonthlyMaintenanceFee
+                            ActualMonthlyMaintenanceFee = row.ActualMonthlyMaintenanceFee,
+
+                            // ===== Tarion Dates =====
+                            FirstTentativeOccupancyDate = row.FirstTentativeOccupancyDate,
+                            OutsideOccupancyDate = row.OutsideOccupancyDate,
+                            DelayedOccupancyDate = row.DelayedOccupancyDate,
+                            PurchaserTerminationDate = row.PurchaserTerminationDate,
+
+                            // ===== Late Closing Penalty =====
+                            DailyPenaltyAmount = row.DailyPenaltyAmount
                         };
 
                         _context.Units.Add(unit);
@@ -3022,15 +3062,18 @@ namespace PreConHub.Controllers
         {
             var csv = new StringBuilder();
 
-            // Header row - Updated for SOA Compliance
+            // Header row - Updated with full APS fields
             csv.AppendLine(string.Join(",", new[]
             {
         // Unit Info
         "UnitNumber", "FloorNumber", "UnitType", "Bedrooms", "Bathrooms", "SquareFootage", "PurchasePrice",
         // Parking & Locker
-        "HasParking", "ParkingPrice", "HasLocker", "LockerPrice",
+        "HasParking", "ParkingPrice", "ParkingCount", "ParkingNumber",
+        "HasLocker", "LockerPrice", "LockerCount", "LockerNumber",
         // Dates
-        "OccupancyDate", "ClosingDate", "APSDate",
+        "OccupancyDate", "ClosingDate", "APSDate", "FirmClosingDate", "InterimOccupancyStartDate",
+        // Tarion Dates
+        "FirstTentativeOccupancyDate", "OutsideOccupancyDate", "DelayedOccupancyDate", "PurchaserTerminationDate",
         // SOA Fields
         "IsFirstTimeBuyer", "IsPrimaryResidence",
         // SOA Adjustment Fields
@@ -3039,6 +3082,8 @@ namespace PreConHub.Controllers
         "PurchaserEmail", "PurchaserFirstName", "PurchaserLastName", "PurchaserPhone",
         // Buyer's Lawyer
         "BuyerLawyerEmail", "BuyerLawyerFirstName", "BuyerLawyerLastName", "BuyerLawyerPhone", "BuyerLawyerFirm",
+        // Late Closing Penalty
+        "DailyPenaltyAmount",
         // Deposit 1
         "Deposit1Amount", "Deposit1DueDate", "Deposit1PaidDate", "Deposit1Holder", "Deposit1InterestEligible", "Deposit1InterestRate",
         // Deposit 2
@@ -3051,14 +3096,14 @@ namespace PreConHub.Controllers
         "Deposit5Amount", "Deposit5DueDate", "Deposit5PaidDate", "Deposit5Holder", "Deposit5InterestEligible", "Deposit5InterestRate"
     }));
 
-            // Sample data row 1 - First-time buyer, primary residence, with actual tax/maintenance
-            csv.AppendLine("101,1,OneBedroom,1,1,650,599000,true,50000,true,5000,2026-06-01,2026-09-01,2024-01-10,true,true,5200,450,john.smith@email.com,John,Smith,416-555-1234,buyer.lawyer@lawfirm.ca,Lisa,Chen,416-555-7777,Chen Law LLP,29950,2024-01-15,2024-01-15,Trust,true,0.02,29950,2024-04-15,2024-04-15,Trust,true,0.02,29950,2024-07-15,,Trust,true,0.02,0,,,,,,0,,,,,");
+            // Sample data row 1 - First-time buyer, primary residence, with all fields
+            csv.AppendLine("101,1,OneBedroom,1,1,650,599000,true,50000,1,P1-23,true,5000,1,L-15,2026-06-01,2026-09-01,2024-01-10,2026-09-01,2026-06-01,2026-03-01,2026-12-01,,2027-03-01,true,true,5200,450,john.smith@email.com,John,Smith,416-555-1234,buyer.lawyer@lawfirm.ca,Lisa,Chen,416-555-7777,Chen Law LLP,,29950,2024-01-15,2024-01-15,Trust,true,0.02,29950,2024-04-15,2024-04-15,Trust,true,0.02,29950,2024-07-15,,Trust,true,0.02,0,,,,,,0,,,,,");
 
-            // Sample data row 2 - Not first-time buyer, with actual tax only
-            csv.AppendLine("102,1,TwoBedroom,2,2,850,699000,true,50000,false,0,2026-06-01,2026-09-01,2024-02-01,false,true,6100,,jane.doe@email.com,Jane,Doe,416-555-5678,,,,,, 34950,2024-02-15,2024-02-15,Builder,false,,34950,2024-05-15,,,Builder,false,,0,,,,,,0,,,,,,0,,,,,");
+            // Sample data row 2 - Not first-time buyer, minimal optional fields
+            csv.AppendLine("102,1,TwoBedroom,2,2,850,699000,true,50000,1,,false,0,0,,2026-06-01,2026-09-01,2024-02-01,,,,,,,false,true,6100,,jane.doe@email.com,Jane,Doe,416-555-5678,,,,,,, 34950,2024-02-15,2024-02-15,Builder,false,,34950,2024-05-15,,,Builder,false,,0,,,,,,0,,,,,,0,,,,,");
 
-            // Sample data row 3 - No purchaser yet, no tax/maintenance data
-            csv.AppendLine("201,2,Studio,0,1,450,399000,false,0,false,0,2026-06-01,2026-09-01,,true,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,");
+            // Sample data row 3 - No purchaser yet, no optional data
+            csv.AppendLine("201,2,Studio,0,1,450,399000,false,0,0,,false,0,0,,2026-06-01,2026-09-01,,,,,,,,,true,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,");
 
             var bytes = Encoding.UTF8.GetBytes(csv.ToString());
             return File(bytes, "text/csv", "PreConHub_BulkImport_Template_v2.csv");

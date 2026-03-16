@@ -542,9 +542,22 @@ namespace PreConHub.Models.ViewModels
         public decimal? ActualAnnualLandTax { get; set; }
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
 
-        // Phase 3: Tarion dates & counts
+        // APS dates
+        public DateTime? APSDate { get; set; }
+        public DateTime? FirmClosingDate { get; set; }
+        public DateTime? InterimOccupancyStartDate { get; set; }
+
+        // SOA flags
+        public bool IsFirstTimeBuyer { get; set; }
+        public bool IsPrimaryResidence { get; set; } = true;
+
+        // Parking & Locker details
         public int ParkingCount { get; set; }
+        public string? ParkingNumber { get; set; }
         public int LockerCount { get; set; }
+        public string? LockerNumber { get; set; }
+
+        // Tarion dates
         public DateTime? FirstTentativeOccupancyDate { get; set; }
         public DateTime? OutsideOccupancyDate { get; set; }
         public DateTime? DelayedOccupancyDate { get; set; }
@@ -1168,12 +1181,24 @@ namespace PreConHub.Models.ViewModels
         // ===== PARKING & LOCKER (Optional) =====
         public string? HasParking { get; set; }
         public decimal ParkingPrice { get; set; }
+        public int ParkingCount { get; set; }
+        public string? ParkingNumber { get; set; }
         public string? HasLocker { get; set; }
         public decimal LockerPrice { get; set; }
+        public int LockerCount { get; set; }
+        public string? LockerNumber { get; set; }
 
         // ===== DATES (Optional - defaults to project dates) =====
         public DateTime? OccupancyDate { get; set; }
         public DateTime? ClosingDate { get; set; }
+        public DateTime? FirmClosingDate { get; set; }
+        public DateTime? InterimOccupancyStartDate { get; set; }
+
+        // ===== TARION DATES (Optional) =====
+        public DateTime? FirstTentativeOccupancyDate { get; set; }
+        public DateTime? OutsideOccupancyDate { get; set; }
+        public DateTime? DelayedOccupancyDate { get; set; }
+        public DateTime? PurchaserTerminationDate { get; set; }
 
         // ===== SOA ENHANCEMENT FIELDS =====
         /// <summary>
@@ -1216,6 +1241,9 @@ namespace PreConHub.Models.ViewModels
         public string? BuyerLawyerLastName { get; set; }
         public string? BuyerLawyerPhone { get; set; }
         public string? BuyerLawyerFirm { get; set; }
+
+        // ===== LATE CLOSING PENALTY (Optional) =====
+        public decimal? DailyPenaltyAmount { get; set; }
 
         // ===== DEPOSITS (Optional - up to 5 deposits) =====
         // Deposit 1

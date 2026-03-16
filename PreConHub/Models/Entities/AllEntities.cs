@@ -387,8 +387,14 @@ namespace PreConHub.Models.Entities
         // =====================================
         /// <summary>Number of parking units included in APS (default 0).</summary>
         public int ParkingCount { get; set; }
+        /// <summary>Parking spot identifier (e.g., "P1-23").</summary>
+        [StringLength(50)]
+        public string? ParkingNumber { get; set; }
         /// <summary>Number of storage locker units included in APS (default 0).</summary>
         public int LockerCount { get; set; }
+        /// <summary>Locker identifier (e.g., "L-15").</summary>
+        [StringLength(50)]
+        public string? LockerNumber { get; set; }
 
         // =====================================
         // NSF Charges & Assignment
