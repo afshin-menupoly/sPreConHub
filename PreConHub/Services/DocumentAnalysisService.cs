@@ -611,9 +611,9 @@ Required JSON structure:
     ""bedrooms"": number or null,
     ""bathrooms"": number or null,
     ""squareFootage"": number or null,
-    ""purchasePrice"": number or null,
+    ""purchasePrice"": number or null — DWELLING/UNIT price ONLY (exclude parking and locker). If APS states a total price that includes parking+locker, SUBTRACT them. Example: total $1095800 with parking $69900 and locker $5000 → purchasePrice = 1020900,
     ""hasParking"": boolean,
-    ""parkingPrice"": number or null,
+    ""parkingPrice"": number or null — parking price as a SEPARATE line item (not included in purchasePrice),
     ""parkingNumber"": ""string or null"",
     ""parkingCount"": number (default 0),
     ""hasLocker"": boolean,
@@ -704,6 +704,7 @@ Important notes:
 - Extract occupancy fee details: look for ""occupancy fee"", ""rent during occupancy"", ""interim occupancy"", or ""phantom rent"" sections. The occupancy fee typically has 3 components: (a) interest on unpaid balance at a prescribed rate, (b) estimated monthly common expenses/maintenance, (c) estimated monthly property taxes. Extract the interest rate as a decimal (4.25% = 0.0425), and each component amount. If only a total is given, set estimatedMonthlyOccupancyFee
 - Extract vendor's solicitor information
 - Extract Tarion registration number and property legal description
+- CRITICAL — purchasePrice vs total price: The APS often states a TOTAL purchase price that INCLUDES parking and locker. You MUST separate them. purchasePrice = dwelling/unit price ONLY. If the APS says ""Purchase Price: $1,095,800"" and also lists ""Parking: $69,900"" and ""Locker: $5,000"", then purchasePrice = 1095800 - 69900 - 5000 = 1020900. The system calculates SalePrice = purchasePrice + parkingPrice + lockerPrice, so double-counting will produce wrong SOA figures. Look for Schedule A or the price breakdown section to find individual components
 - ALL amount/price fields MUST be numeric (no $, commas, or text like ""balance"" or ""TBD""). Use 0 if the amount is unknown, variable, or described as ""balance due on closing""
 - Dates should be in YYYY-MM-DD format
 - Include confidence score (0-1) based on how clearly the data was found
