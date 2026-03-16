@@ -232,11 +232,12 @@ namespace PreConHub.Services
             // 14. Locker
             soa.LockerPrice = unit.HasLocker ? unit.LockerPrice : 0;
 
-            // 15. Upgrades (unit-specific fees that are not credits AND have no FeeType)
+            // 15. Upgrades = APS upgrade charges + any additional unit-level custom fees
             //     Fees WITH a FeeType are categorized (Schedule B, DC, etc.) and handled above
-            soa.Upgrades = unit.Fees
-                .Where(f => !f.IsCredit && !f.FeeType.HasValue)
-                .Sum(f => f.Amount);
+            soa.Upgrades = (unit.UpgradeAmount ?? 0)
+                + unit.Fees
+                    .Where(f => !f.IsCredit && !f.FeeType.HasValue)
+                    .Sum(f => f.Amount);
 
             // 16. Legal Fees Estimate
             var legalFees = UnitOrProjectFee(FeeType.LegalFees);

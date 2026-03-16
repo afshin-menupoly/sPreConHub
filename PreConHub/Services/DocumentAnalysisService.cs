@@ -83,6 +83,7 @@ namespace PreConHub.Services
         public List<ExtractedUpgrade> Upgrades { get; set; } = new();
         public decimal? TotalUpgrades { get; set; }
         public decimal? BuilderCredits { get; set; }
+        public DateTime? UpgradePaidDate { get; set; }  // When upgrade charges were paid
 
         // Special Conditions
         public List<string> SpecialConditions { get; set; } = new();
@@ -688,7 +689,8 @@ Required JSON structure:
             ""amount"": number
         }
     ],
-    ""totalUpgrades"": number or null,
+    ""totalUpgrades"": number or null — total upgrade charges (purchaser-selected upgrades beyond standard features),
+    ""upgradePaidDate"": ""YYYY-MM-DD or null — date upgrade charges were paid (look for 'PAID' or payment date near upgrades)"",
     ""builderCredits"": number or null,
     ""specialConditions"": [""array of special conditions or notes""],
     ""confidenceScore"": number between 0 and 1,

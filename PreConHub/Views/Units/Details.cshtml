@@ -288,6 +288,24 @@
                         </div>
                     }
 
+                    @* -- Upgrade Charges -- *@
+                    @if (Model.UpgradeAmount.HasValue && Model.UpgradeAmount.Value > 0)
+                    {
+                        <div class="border-top pt-3 mt-3">
+                            <h6 class="text-uppercase text-muted small fw-bold mb-2"><i class="bi bi-tools me-1"></i>Upgrade Charges</h6>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="text-muted small">Amount</div>
+                                    <div class="fw-bold">$@Model.UpgradeAmount.Value.ToString("N2")</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted small">Paid Date</div>
+                                    <div>@(Model.UpgradePaidDate.HasValue ? Model.UpgradePaidDate.Value.ToString("MMM dd, yyyy") : "<span class='text-muted fst-italic'>Not set</span>")</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
                     @* -- SOA Settings -- *@
                     <div class="border-top pt-3 mt-3">
                         <h6 class="text-uppercase text-muted small fw-bold mb-2">SOA Settings</h6>

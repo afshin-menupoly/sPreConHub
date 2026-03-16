@@ -383,6 +383,14 @@ namespace PreConHub.Models.Entities
         [Column(TypeName = "decimal(18,2)")] public decimal? EstimatedMonthlyOccupancyFee { get; set; }
 
         // =====================================
+        // APS Upgrade Charges
+        // =====================================
+        /// <summary>Total upgrade charges from APS (purchaser-selected upgrades beyond standard features).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? UpgradeAmount { get; set; }
+        /// <summary>Date the upgrade charges were paid.</summary>
+        public DateTime? UpgradePaidDate { get; set; }
+
+        // =====================================
         // APS / Tarion Addendum — Critical Dates
         // =====================================
         /// <summary>Tarion: first tentative occupancy date from addendum.</summary>

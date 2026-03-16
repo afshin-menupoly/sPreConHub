@@ -261,6 +261,10 @@ namespace PreConHub.Models.ViewModels
         public decimal? OccupancyFeeEstPropertyTax { get; set; }
         public decimal? EstimatedMonthlyOccupancyFee { get; set; }
 
+        // Upgrade Charges
+        public decimal? UpgradeAmount { get; set; }
+        public DateTime? UpgradePaidDate { get; set; }
+
         // Purchaser Info
         public PurchaserInfoViewModel? PrimaryPurchaser { get; set; }
         public List<PurchaserInfoViewModel> AllPurchasers { get; set; } = new();
@@ -572,6 +576,10 @@ namespace PreConHub.Models.ViewModels
         public decimal? OccupancyFeeEstCommonExpense { get; set; }
         public decimal? OccupancyFeeEstPropertyTax { get; set; }
         public decimal? EstimatedMonthlyOccupancyFee { get; set; }
+
+        // Upgrade Charges (from APS)
+        public decimal? UpgradeAmount { get; set; }
+        public DateTime? UpgradePaidDate { get; set; }
 
         // Parking & Locker details
         public int ParkingCount { get; set; }
@@ -1257,6 +1265,10 @@ namespace PreConHub.Models.ViewModels
         public decimal? OccupancyFeeEstPropertyTax { get; set; }
         public decimal? EstimatedMonthlyOccupancyFee { get; set; }
 
+        // ===== UPGRADE CHARGES (Optional) =====
+        public decimal? UpgradeAmount { get; set; }
+        public DateTime? UpgradePaidDate { get; set; }
+
         // ===== PURCHASER INFORMATION (Optional) =====
         public string? PurchaserEmail { get; set; }
         public string? PurchaserFirstName { get; set; }
@@ -1583,6 +1595,7 @@ namespace PreConHub.Models.ViewModels
         // Upgrades & Credits (extracted from APS)
         public decimal? TotalUpgrades { get; set; }
         public decimal? BuilderCredits { get; set; }
+        public DateTime? UpgradePaidDate { get; set; }
 
         // Levy Cap
         public bool HasLevyCap { get; set; }

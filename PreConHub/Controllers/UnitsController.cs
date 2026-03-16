@@ -175,6 +175,8 @@ namespace PreConHub.Controllers
                 OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense,
                 OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax,
                 EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee,
+                UpgradeAmount = model.UpgradeAmount,
+                UpgradePaidDate = model.UpgradePaidDate,
                 FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = model.OutsideOccupancyDate,
                 DelayedOccupancyDate = model.DelayedOccupancyDate,
@@ -258,6 +260,8 @@ namespace PreConHub.Controllers
                 OccupancyFeeEstCommonExpense = unit.OccupancyFeeEstCommonExpense,
                 OccupancyFeeEstPropertyTax = unit.OccupancyFeeEstPropertyTax,
                 EstimatedMonthlyOccupancyFee = unit.EstimatedMonthlyOccupancyFee,
+                UpgradeAmount = unit.UpgradeAmount,
+                UpgradePaidDate = unit.UpgradePaidDate,
                 FirstTentativeOccupancyDate = unit.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = unit.OutsideOccupancyDate,
                 DelayedOccupancyDate = unit.DelayedOccupancyDate,
@@ -335,6 +339,8 @@ namespace PreConHub.Controllers
             unit.OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense;
             unit.OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax;
             unit.EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee;
+            unit.UpgradeAmount = model.UpgradeAmount;
+            unit.UpgradePaidDate = model.UpgradePaidDate;
             unit.FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate;
             unit.OutsideOccupancyDate = model.OutsideOccupancyDate;
             unit.DelayedOccupancyDate = model.DelayedOccupancyDate;
@@ -456,6 +462,10 @@ namespace PreConHub.Controllers
                 OccupancyFeeEstCommonExpense = unit.OccupancyFeeEstCommonExpense,
                 OccupancyFeeEstPropertyTax = unit.OccupancyFeeEstPropertyTax,
                 EstimatedMonthlyOccupancyFee = unit.EstimatedMonthlyOccupancyFee,
+
+                // Upgrade Charges
+                UpgradeAmount = unit.UpgradeAmount,
+                UpgradePaidDate = unit.UpgradePaidDate,
 
                 // Status
                 Status = unit.Status,
@@ -2933,6 +2943,10 @@ namespace PreConHub.Controllers
                             OccupancyFeeEstPropertyTax = row.OccupancyFeeEstPropertyTax,
                             EstimatedMonthlyOccupancyFee = row.EstimatedMonthlyOccupancyFee,
 
+                            // ===== Upgrade Charges =====
+                            UpgradeAmount = row.UpgradeAmount,
+                            UpgradePaidDate = row.UpgradePaidDate,
+
                             // ===== Tarion Dates =====
                             FirstTentativeOccupancyDate = row.FirstTentativeOccupancyDate,
                             OutsideOccupancyDate = row.OutsideOccupancyDate,
@@ -3163,6 +3177,8 @@ namespace PreConHub.Controllers
         "ActualAnnualLandTax", "ActualMonthlyMaintenanceFee",
         // Occupancy Fee
         "OccupancyFeeInterestRate", "OccupancyFeeEstCommonExpense", "OccupancyFeeEstPropertyTax", "EstimatedMonthlyOccupancyFee",
+        // Upgrade Charges
+        "UpgradeAmount", "UpgradePaidDate",
         // Purchaser Info
         "PurchaserEmail", "PurchaserFirstName", "PurchaserLastName", "PurchaserPhone",
         // Buyer's Lawyer
@@ -3680,6 +3696,8 @@ namespace PreConHub.Controllers
                     if (model.OccupancyFeeEstCommonExpense.HasValue) unit.OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense;
                     if (model.OccupancyFeeEstPropertyTax.HasValue) unit.OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax;
                     if (model.EstimatedMonthlyOccupancyFee.HasValue) unit.EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee;
+                    if (model.TotalUpgrades.HasValue && model.TotalUpgrades.Value > 0) unit.UpgradeAmount = model.TotalUpgrades.Value;
+                    if (model.UpgradePaidDate.HasValue) unit.UpgradePaidDate = model.UpgradePaidDate;
                     unit.UpdatedAt = DateTime.UtcNow;
                 }
                 else
@@ -3733,7 +3751,9 @@ namespace PreConHub.Controllers
                         OccupancyFeeInterestRate = model.OccupancyFeeInterestRate,
                         OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense,
                         OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax,
-                        EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee
+                        EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee,
+                        UpgradeAmount = model.TotalUpgrades,
+                        UpgradePaidDate = model.UpgradePaidDate
                     };
 
                     _context.Units.Add(unit);
