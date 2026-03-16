@@ -73,14 +73,7 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label">Unit Number <span class="text-danger">*</span></label>
-                                @if (Model.UnitId.HasValue)
-                                {
-                                    <input type="text" class="form-control bg-light" value="Unit @data?.UnitNumber (APS)" disabled title="Unit number is not changed during update" />
-                                }
-                                else
-                                {
-                                    <input type="text" name="UnitNumber" class="form-control" value="@data?.UnitNumber" required />
-                                }
+                                <input type="text" name="UnitNumber" class="form-control" value="@data?.UnitNumber" required />
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Floor</label>
@@ -153,8 +146,16 @@
                                     <span class="input-group-text">$</span>
                                     <input type="number" name="ParkingPrice" class="form-control" value="@data?.ParkingPrice" step="0.01" placeholder="Parking Price" />
                                 </div>
-                                <label class="form-label small">Count</label>
-                                <input type="number" name="ParkingCount" class="form-control form-control-sm" value="@data?.ParkingCount" min="0" style="max-width:80px" />
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small">Count</label>
+                                        <input type="number" name="ParkingCount" class="form-control form-control-sm" value="@data?.ParkingCount" min="0" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">Parking #</label>
+                                        <input type="text" name="ParkingNumber" class="form-control form-control-sm" value="@data?.ParkingNumber" placeholder="e.g., P1-23" />
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-check mb-2">
@@ -165,8 +166,16 @@
                                     <span class="input-group-text">$</span>
                                     <input type="number" name="LockerPrice" class="form-control" value="@data?.LockerPrice" step="0.01" placeholder="Locker Price" />
                                 </div>
-                                <label class="form-label small">Count</label>
-                                <input type="number" name="LockerCount" class="form-control form-control-sm" value="@data?.LockerCount" min="0" style="max-width:80px" />
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label class="form-label small">Count</label>
+                                        <input type="number" name="LockerCount" class="form-control form-control-sm" value="@data?.LockerCount" min="0" />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label small">Locker #</label>
+                                        <input type="text" name="LockerNumber" class="form-control form-control-sm" value="@data?.LockerNumber" placeholder="e.g., L-15" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -285,6 +294,72 @@
                             <div class="col-md-4">
                                 <label class="form-label">Solicitor Phone</label>
                                 <input type="text" name="VendorSolicitorPhone" class="form-control" value="@data?.VendorSolicitorPhone" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Levies & Charges -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="bi bi-bank me-2"></i>Development Charges & Levies</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label small">Development Charges</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="DevelopmentCharges" class="form-control" value="@data?.DevelopmentCharges" step="0.01" min="0" placeholder="e.g., 15000" />
+                                </div>
+                                <div class="form-text">Municipal development charge per unit</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Education Levy</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="EducationLevy" class="form-control" value="@data?.EducationLevy" step="0.01" min="0" placeholder="e.g., 5000" />
+                                </div>
+                                <div class="form-text">Education development charge</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="alert alert-light border small mb-0 mt-4">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    These values will be saved as project-level fees and used in SOA calculations for all units.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upgrades & Credits -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-tools me-2"></i>Upgrades & Credits</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label small">Total Upgrades</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="TotalUpgrades" class="form-control" value="@data?.TotalUpgrades" step="0.01" min="0" placeholder="e.g., 25000" />
+                                </div>
+                                <div class="form-text">Total value of upgrades/extras selected by purchaser</div>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small">Builder Credits</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" name="BuilderCredits" class="form-control" value="@data?.BuilderCredits" step="0.01" min="0" placeholder="e.g., 5000" />
+                                </div>
+                                <div class="form-text">Credits or discounts from builder to purchaser</div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="alert alert-light border small mb-0 mt-4">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Upgrades are added as unit-level fees. Credits are added as unit-level credits. Both appear in the SOA.
+                                </div>
                             </div>
                         </div>
                     </div>

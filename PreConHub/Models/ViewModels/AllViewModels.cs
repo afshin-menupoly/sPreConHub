@@ -1543,7 +1543,9 @@ namespace PreConHub.Models.ViewModels
 
         // Parking & Locker Counts
         public int ParkingCount { get; set; }
+        public string? ParkingNumber { get; set; }
         public int LockerCount { get; set; }
+        public string? LockerNumber { get; set; }
 
         // Occupancy Fee
         public decimal? OccupancyFeeInterestRate { get; set; }
@@ -1572,6 +1574,14 @@ namespace PreConHub.Models.ViewModels
 
         // Schedule B Fees (JSON-serialized for form roundtrip)
         public string? ScheduleBFeesJson { get; set; }
+
+        // Levies & Charges (extracted from APS)
+        public decimal? DevelopmentCharges { get; set; }
+        public decimal? EducationLevy { get; set; }
+
+        // Upgrades & Credits (extracted from APS)
+        public decimal? TotalUpgrades { get; set; }
+        public decimal? BuilderCredits { get; set; }
 
         // Levy Cap
         public bool HasLevyCap { get; set; }

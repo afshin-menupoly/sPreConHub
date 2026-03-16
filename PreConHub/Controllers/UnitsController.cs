@@ -3617,7 +3617,8 @@ namespace PreConHub.Controllers
                         return NotFound();
 
                     // Don't overwrite UnitNumber on update — keep existing unit number
-                    // AI extracts unit number from APS which may differ from this unit
+                    // AI extracts unit number from APS — allow builder to update it
+                    if (!string.IsNullOrWhiteSpace(model.UnitNumber)) unit.UnitNumber = model.UnitNumber;
                     if (!string.IsNullOrWhiteSpace(model.FloorNumber)) unit.FloorNumber = model.FloorNumber;
                     if (!string.IsNullOrWhiteSpace(model.UnitType) && Enum.TryParse<UnitType>(model.UnitType, out var ut)) unit.UnitType = ut;
                     if (model.Bedrooms.HasValue) unit.Bedrooms = model.Bedrooms.Value;
@@ -3626,8 +3627,10 @@ namespace PreConHub.Controllers
                     if (model.PurchasePrice.HasValue) unit.PurchasePrice = model.PurchasePrice.Value;
                     unit.HasParking = model.HasParking;
                     if (model.ParkingPrice.HasValue) unit.ParkingPrice = model.ParkingPrice.Value;
+                    if (model.HasParking) unit.ParkingNumber = model.ParkingNumber;
                     unit.HasLocker = model.HasLocker;
                     if (model.LockerPrice.HasValue) unit.LockerPrice = model.LockerPrice.Value;
+                    if (model.HasLocker) unit.LockerNumber = model.LockerNumber;
                     if (model.OccupancyDate.HasValue) unit.OccupancyDate = model.OccupancyDate.Value;
                     if (model.ClosingDate.HasValue) unit.ClosingDate = model.ClosingDate.Value;
                     if (model.ParkingCount > 0) unit.ParkingCount = model.ParkingCount;
@@ -3683,7 +3686,9 @@ namespace PreConHub.Controllers
                         Status = UnitStatus.Pending,
                         CreatedAt = DateTime.UtcNow,
                         ParkingCount = model.ParkingCount,
+                        ParkingNumber = model.ParkingNumber,
                         LockerCount = model.LockerCount,
+                        LockerNumber = model.LockerNumber,
                         FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
                         OutsideOccupancyDate = model.OutsideOccupancyDate,
                         DelayedOccupancyDate = model.DelayedOccupancyDate,
@@ -3919,6 +3924,80 @@ namespace PreConHub.Controllers
                     catch (Exception ex)
                     {
                         _logger.LogWarning(ex, "Error parsing Schedule B fees JSON for Project {ProjectId}", id);
+                    }
+                }
+
+                // Create DevelopmentCharges ProjectFee if extracted and not already present
+                if (model.DevelopmentCharges.HasValue && model.DevelopmentCharges.Value > 0)
+                {
+                    var dcExists = await _context.ProjectFees.AnyAsync(
+                        f => f.ProjectId == id && f.FeeType == FeeType.DevelopmentCharges);
+                    if (!dcExists)
+                    {
+                        _context.ProjectFees.Add(new ProjectFee
+                        {
+                            ProjectId = id,
+                            FeeName = "Development Charges",
+                            FeeType = FeeType.DevelopmentCharges,
+                            Amount = model.DevelopmentCharges.Value,
+                            Description = "Extracted from APS",
+                            AppliesToAllUnits = true
+                        });
+                    }
+                }
+
+                // Create EducationLevy ProjectFee if extracted and not already present
+                if (model.EducationLevy.HasValue && model.EducationLevy.Value > 0)
+                {
+                    var edcExists = await _context.ProjectFees.AnyAsync(
+                        f => f.ProjectId == id && f.FeeType == FeeType.EducationDevelopmentCharges);
+                    if (!edcExists)
+                    {
+                        _context.ProjectFees.Add(new ProjectFee
+                        {
+                            ProjectId = id,
+                            FeeName = "Education Development Charges",
+                            FeeType = FeeType.EducationDevelopmentCharges,
+                            Amount = model.EducationLevy.Value,
+                            Description = "Extracted from APS",
+                            AppliesToAllUnits = true
+                        });
+                    }
+                }
+
+                // Create UnitFee for Upgrades if extracted
+                if (model.TotalUpgrades.HasValue && model.TotalUpgrades.Value > 0)
+                {
+                    var upgradeExists = await _context.Set<UnitFee>().AnyAsync(
+                        f => f.UnitId == unit.Id && f.FeeName == "APS Upgrades" && !f.IsCredit);
+                    if (!upgradeExists)
+                    {
+                        _context.Set<UnitFee>().Add(new UnitFee
+                        {
+                            UnitId = unit.Id,
+                            FeeName = "APS Upgrades",
+                            Amount = model.TotalUpgrades.Value,
+                            IsCredit = false,
+                            Description = "Total upgrades/extras extracted from APS"
+                        });
+                    }
+                }
+
+                // Create UnitFee for BuilderCredits if extracted
+                if (model.BuilderCredits.HasValue && model.BuilderCredits.Value > 0)
+                {
+                    var creditExists = await _context.Set<UnitFee>().AnyAsync(
+                        f => f.UnitId == unit.Id && f.FeeName == "Builder Credit (APS)" && f.IsCredit);
+                    if (!creditExists)
+                    {
+                        _context.Set<UnitFee>().Add(new UnitFee
+                        {
+                            UnitId = unit.Id,
+                            FeeName = "Builder Credit (APS)",
+                            Amount = model.BuilderCredits.Value,
+                            IsCredit = true,
+                            Description = "Builder credit/discount extracted from APS"
+                        });
                     }
                 }
 
