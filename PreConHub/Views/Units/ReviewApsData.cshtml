@@ -172,6 +172,50 @@
                     </div>
                 </div>
 
+                <!-- Occupancy Fee -->
+                @if (data?.OccupancyFeeInterestRate.HasValue == true || data?.EstimatedMonthlyOccupancyFee.HasValue == true)
+                {
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="mb-0"><i class="bi bi-house-check me-2"></i>Occupancy Fee (Interim Occupancy)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-light border small mb-3">
+                                <i class="bi bi-info-circle me-1"></i>
+                                Monthly fee during interim occupancy: interest on unpaid balance + common expenses + property taxes.
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label small">Interest Rate (decimal)</label>
+                                    <input type="number" name="OccupancyFeeInterestRate" class="form-control form-control-sm" value="@data?.OccupancyFeeInterestRate" step="0.0001" min="0" max="1" placeholder="e.g., 0.0425" />
+                                    <div class="form-text">4.25% = 0.0425</div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Est. Common Expense</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="OccupancyFeeEstCommonExpense" class="form-control" value="@data?.OccupancyFeeEstCommonExpense" step="0.01" min="0" placeholder="Monthly" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Est. Property Tax</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="OccupancyFeeEstPropertyTax" class="form-control" value="@data?.OccupancyFeeEstPropertyTax" step="0.01" min="0" placeholder="Monthly" />
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small">Est. Total Monthly</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text">$</span>
+                                        <input type="number" name="EstimatedMonthlyOccupancyFee" class="form-control" value="@data?.EstimatedMonthlyOccupancyFee" step="0.01" min="0" placeholder="Total" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
                 <!-- Dates -->
                 <div class="card border-0 shadow-sm mb-4">
                     <div class="card-header bg-info text-white">

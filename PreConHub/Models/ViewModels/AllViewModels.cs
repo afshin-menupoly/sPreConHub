@@ -255,6 +255,12 @@ namespace PreConHub.Models.ViewModels
         public decimal? ActualAnnualLandTax { get; set; }
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
 
+        // Occupancy Fee Parameters
+        public decimal? OccupancyFeeInterestRate { get; set; }
+        public decimal? OccupancyFeeEstCommonExpense { get; set; }
+        public decimal? OccupancyFeeEstPropertyTax { get; set; }
+        public decimal? EstimatedMonthlyOccupancyFee { get; set; }
+
         // Purchaser Info
         public PurchaserInfoViewModel? PrimaryPurchaser { get; set; }
         public List<PurchaserInfoViewModel> AllPurchasers { get; set; } = new();
@@ -559,6 +565,12 @@ namespace PreConHub.Models.ViewModels
         // SOA flags
         public bool IsFirstTimeBuyer { get; set; }
         public bool IsPrimaryResidence { get; set; } = true;
+
+        // Occupancy Fee (from APS)
+        public decimal? OccupancyFeeInterestRate { get; set; }
+        public decimal? OccupancyFeeEstCommonExpense { get; set; }
+        public decimal? OccupancyFeeEstPropertyTax { get; set; }
+        public decimal? EstimatedMonthlyOccupancyFee { get; set; }
 
         // Parking & Locker details
         public int ParkingCount { get; set; }
@@ -1238,6 +1250,12 @@ namespace PreConHub.Models.ViewModels
         /// </summary>
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
 
+        // ===== OCCUPANCY FEE (Optional) =====
+        public decimal? OccupancyFeeInterestRate { get; set; }
+        public decimal? OccupancyFeeEstCommonExpense { get; set; }
+        public decimal? OccupancyFeeEstPropertyTax { get; set; }
+        public decimal? EstimatedMonthlyOccupancyFee { get; set; }
+
         // ===== PURCHASER INFORMATION (Optional) =====
         public string? PurchaserEmail { get; set; }
         public string? PurchaserFirstName { get; set; }
@@ -1526,6 +1544,12 @@ namespace PreConHub.Models.ViewModels
         // Parking & Locker Counts
         public int ParkingCount { get; set; }
         public int LockerCount { get; set; }
+
+        // Occupancy Fee
+        public decimal? OccupancyFeeInterestRate { get; set; }
+        public decimal? OccupancyFeeEstCommonExpense { get; set; }
+        public decimal? OccupancyFeeEstPropertyTax { get; set; }
+        public decimal? EstimatedMonthlyOccupancyFee { get; set; }
 
         // Dates
         public DateTime? OccupancyDate { get; set; }

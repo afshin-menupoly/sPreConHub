@@ -371,6 +371,18 @@ namespace PreConHub.Models.Entities
         public virtual ICollection<SOAVersion> SOAVersions { get; set; } = new List<SOAVersion>();
 
         // =====================================
+        // Occupancy Fee Parameters (from APS)
+        // =====================================
+        /// <summary>Annual interest rate on unpaid balance for occupancy fee calculation (e.g., 0.0425 = 4.25%).</summary>
+        [Column(TypeName = "decimal(5,4)")] public decimal? OccupancyFeeInterestRate { get; set; }
+        /// <summary>Estimated monthly common expense component of occupancy fee.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? OccupancyFeeEstCommonExpense { get; set; }
+        /// <summary>Estimated monthly property tax component of occupancy fee.</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? OccupancyFeeEstPropertyTax { get; set; }
+        /// <summary>Total estimated monthly occupancy fee (interest + common expense + property tax).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? EstimatedMonthlyOccupancyFee { get; set; }
+
+        // =====================================
         // APS / Tarion Addendum — Critical Dates
         // =====================================
         /// <summary>Tarion: first tentative occupancy date from addendum.</summary>

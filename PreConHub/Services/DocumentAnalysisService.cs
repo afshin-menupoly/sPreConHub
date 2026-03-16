@@ -119,6 +119,12 @@ namespace PreConHub.Services
         public int ParkingCount { get; set; }
         public int LockerCount { get; set; }
 
+        // Occupancy Fee (interim occupancy period)
+        public decimal? OccupancyFeeInterestRate { get; set; }  // Annual rate as decimal (e.g. 0.0425 = 4.25%)
+        public decimal? OccupancyFeeEstCommonExpense { get; set; }  // Estimated monthly common expense component
+        public decimal? OccupancyFeeEstPropertyTax { get; set; }  // Estimated monthly property tax component
+        public decimal? EstimatedMonthlyOccupancyFee { get; set; }  // Total estimated monthly occupancy fee
+
         // Extraction Metadata
         public decimal ConfidenceScore { get; set; }
         public List<string> Warnings { get; set; } = new();
@@ -614,6 +620,10 @@ Required JSON structure:
     ""lockerPrice"": number or null,
     ""lockerNumber"": ""string or null"",
     ""lockerCount"": number (default 0),
+    ""occupancyFeeInterestRate"": number or null — annual interest rate as decimal (e.g., 0.0425 for 4.25%) on unpaid purchase price balance during interim occupancy,
+    ""occupancyFeeEstCommonExpense"": number or null — estimated monthly common expense/maintenance component of occupancy fee,
+    ""occupancyFeeEstPropertyTax"": number or null — estimated monthly property tax component of occupancy fee,
+    ""estimatedMonthlyOccupancyFee"": number or null — total estimated monthly occupancy fee (interest + common expense + property tax),
     ""apsSigningDate"": ""YYYY-MM-DD or null"",
     ""expectedOccupancyDate"": ""YYYY-MM-DD or null"",
     ""firmClosingDate"": ""YYYY-MM-DD or null"",
@@ -691,6 +701,7 @@ Important notes:
 - Look for Schedule B Part I fees: cheque admin ($300), partial discharge ($350), PDI ($250), engineering report ($350), internet delivery ($150), CO detector ($150), wire transfer ($150-$250), PDF/scan ($150), closing doc changes ($500), missed appointment/re-booking ($750), NSF admin ($450), vendor's lien fees, EFTS fees, utility security deposit
 - Look for levy caps — may be tiered by unit type (e.g. $12K for 1BR, $16K for 2BR+). If tiered, include description with all tiers and use the cap matching the unit being purchased. Often DC and EDC share a combined cap
 - Extract Tarion Addendum dates: first tentative occupancy, outside occupancy, termination period
+- Extract occupancy fee details: look for ""occupancy fee"", ""rent during occupancy"", ""interim occupancy"", or ""phantom rent"" sections. The occupancy fee typically has 3 components: (a) interest on unpaid balance at a prescribed rate, (b) estimated monthly common expenses/maintenance, (c) estimated monthly property taxes. Extract the interest rate as a decimal (4.25% = 0.0425), and each component amount. If only a total is given, set estimatedMonthlyOccupancyFee
 - Extract vendor's solicitor information
 - Extract Tarion registration number and property legal description
 - ALL amount/price fields MUST be numeric (no $, commas, or text like ""balance"" or ""TBD""). Use 0 if the amount is unknown, variable, or described as ""balance due on closing""

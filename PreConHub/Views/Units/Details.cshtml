@@ -262,6 +262,32 @@
                         </div>
                     </div>
 
+                    @* -- Occupancy Fee -- *@
+                    @if (Model.OccupancyFeeInterestRate.HasValue || Model.EstimatedMonthlyOccupancyFee.HasValue)
+                    {
+                        <div class="border-top pt-3 mt-3">
+                            <h6 class="text-uppercase text-muted small fw-bold mb-2"><i class="bi bi-house-check me-1"></i>Occupancy Fee</h6>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="text-muted small">Interest Rate</div>
+                                    <div>@(Model.OccupancyFeeInterestRate.HasValue ? (Model.OccupancyFeeInterestRate.Value * 100).ToString("0.00") + "%" : "—")</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted small">Est. Monthly Total</div>
+                                    <div class="fw-bold">@(Model.EstimatedMonthlyOccupancyFee.HasValue ? "$" + Model.EstimatedMonthlyOccupancyFee.Value.ToString("N2") : "—")</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted small">Est. Common Expense</div>
+                                    <div>@(Model.OccupancyFeeEstCommonExpense.HasValue ? "$" + Model.OccupancyFeeEstCommonExpense.Value.ToString("N2") : "—")</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted small">Est. Property Tax</div>
+                                    <div>@(Model.OccupancyFeeEstPropertyTax.HasValue ? "$" + Model.OccupancyFeeEstPropertyTax.Value.ToString("N2") : "—")</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
                     @* -- SOA Settings -- *@
                     <div class="border-top pt-3 mt-3">
                         <h6 class="text-uppercase text-muted small fw-bold mb-2">SOA Settings</h6>

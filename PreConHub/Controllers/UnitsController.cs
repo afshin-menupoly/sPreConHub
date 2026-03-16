@@ -171,6 +171,10 @@ namespace PreConHub.Controllers
                 IsPrimaryResidence = model.IsPrimaryResidence,
                 ActualAnnualLandTax = model.ActualAnnualLandTax,
                 ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee,
+                OccupancyFeeInterestRate = model.OccupancyFeeInterestRate,
+                OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense,
+                OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax,
+                EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee,
                 FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = model.OutsideOccupancyDate,
                 DelayedOccupancyDate = model.DelayedOccupancyDate,
@@ -250,6 +254,10 @@ namespace PreConHub.Controllers
                 IsPrimaryResidence = unit.IsPrimaryResidence,
                 ActualAnnualLandTax = unit.ActualAnnualLandTax,
                 ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
+                OccupancyFeeInterestRate = unit.OccupancyFeeInterestRate,
+                OccupancyFeeEstCommonExpense = unit.OccupancyFeeEstCommonExpense,
+                OccupancyFeeEstPropertyTax = unit.OccupancyFeeEstPropertyTax,
+                EstimatedMonthlyOccupancyFee = unit.EstimatedMonthlyOccupancyFee,
                 FirstTentativeOccupancyDate = unit.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = unit.OutsideOccupancyDate,
                 DelayedOccupancyDate = unit.DelayedOccupancyDate,
@@ -323,6 +331,10 @@ namespace PreConHub.Controllers
             unit.IsPrimaryResidence = model.IsPrimaryResidence;
             unit.ActualAnnualLandTax = model.ActualAnnualLandTax;
             unit.ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee;
+            unit.OccupancyFeeInterestRate = model.OccupancyFeeInterestRate;
+            unit.OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense;
+            unit.OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax;
+            unit.EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee;
             unit.FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate;
             unit.OutsideOccupancyDate = model.OutsideOccupancyDate;
             unit.DelayedOccupancyDate = model.DelayedOccupancyDate;
@@ -438,6 +450,12 @@ namespace PreConHub.Controllers
                 IsPrimaryResidence = unit.IsPrimaryResidence,
                 ActualAnnualLandTax = unit.ActualAnnualLandTax,
                 ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
+
+                // Occupancy Fee Parameters
+                OccupancyFeeInterestRate = unit.OccupancyFeeInterestRate,
+                OccupancyFeeEstCommonExpense = unit.OccupancyFeeEstCommonExpense,
+                OccupancyFeeEstPropertyTax = unit.OccupancyFeeEstPropertyTax,
+                EstimatedMonthlyOccupancyFee = unit.EstimatedMonthlyOccupancyFee,
 
                 // Status
                 Status = unit.Status,
@@ -2872,6 +2890,12 @@ namespace PreConHub.Controllers
                             ActualAnnualLandTax = row.ActualAnnualLandTax,
                             ActualMonthlyMaintenanceFee = row.ActualMonthlyMaintenanceFee,
 
+                            // ===== Occupancy Fee =====
+                            OccupancyFeeInterestRate = row.OccupancyFeeInterestRate,
+                            OccupancyFeeEstCommonExpense = row.OccupancyFeeEstCommonExpense,
+                            OccupancyFeeEstPropertyTax = row.OccupancyFeeEstPropertyTax,
+                            EstimatedMonthlyOccupancyFee = row.EstimatedMonthlyOccupancyFee,
+
                             // ===== Tarion Dates =====
                             FirstTentativeOccupancyDate = row.FirstTentativeOccupancyDate,
                             OutsideOccupancyDate = row.OutsideOccupancyDate,
@@ -3100,6 +3124,8 @@ namespace PreConHub.Controllers
         "IsFirstTimeBuyer", "IsPrimaryResidence",
         // SOA Adjustment Fields
         "ActualAnnualLandTax", "ActualMonthlyMaintenanceFee",
+        // Occupancy Fee
+        "OccupancyFeeInterestRate", "OccupancyFeeEstCommonExpense", "OccupancyFeeEstPropertyTax", "EstimatedMonthlyOccupancyFee",
         // Purchaser Info
         "PurchaserEmail", "PurchaserFirstName", "PurchaserLastName", "PurchaserPhone",
         // Buyer's Lawyer
@@ -3119,10 +3145,10 @@ namespace PreConHub.Controllers
     }));
 
             // Sample data row 1 - First-time buyer, primary residence, with all fields
-            csv.AppendLine("101,1,OneBedroom,1,1,650,599000,true,50000,1,P1-23,true,5000,1,L-15,2026-06-01,2026-09-01,2024-01-10,2026-09-01,2026-06-01,2026-03-01,2026-12-01,,2027-03-01,true,true,5200,450,john.smith@email.com,John,Smith,416-555-1234,buyer.lawyer@lawfirm.ca,Lisa,Chen,416-555-7777,Chen Law LLP,,29950,2024-01-15,2024-01-15,Trust,true,0.02,29950,2024-04-15,2024-04-15,Trust,true,0.02,29950,2024-07-15,,Trust,true,0.02,0,,,,,,0,,,,,");
+            csv.AppendLine("101,1,OneBedroom,1,1,650,599000,true,50000,1,P1-23,true,5000,1,L-15,2026-06-01,2026-09-01,2024-01-10,2026-09-01,2026-06-01,2026-03-01,2026-12-01,,2027-03-01,true,true,5200,450,0.0425,450,350,2500,john.smith@email.com,John,Smith,416-555-1234,buyer.lawyer@lawfirm.ca,Lisa,Chen,416-555-7777,Chen Law LLP,,29950,2024-01-15,2024-01-15,Trust,true,0.02,29950,2024-04-15,2024-04-15,Trust,true,0.02,29950,2024-07-15,,Trust,true,0.02,0,,,,,,0,,,,,");
 
             // Sample data row 2 - Not first-time buyer, minimal optional fields
-            csv.AppendLine("102,1,TwoBedroom,2,2,850,699000,true,50000,1,,false,0,0,,2026-06-01,2026-09-01,2024-02-01,,,,,,,false,true,6100,,jane.doe@email.com,Jane,Doe,416-555-5678,,,,,,, 34950,2024-02-15,2024-02-15,Builder,false,,34950,2024-05-15,,,Builder,false,,0,,,,,,0,,,,,,0,,,,,");
+            csv.AppendLine("102,1,TwoBedroom,2,2,850,699000,true,50000,1,,false,0,0,,2026-06-01,2026-09-01,2024-02-01,,,,,,,false,true,6100,,,,,, jane.doe@email.com,Jane,Doe,416-555-5678,,,,,,, 34950,2024-02-15,2024-02-15,Builder,false,,34950,2024-05-15,,,Builder,false,,0,,,,,,0,,,,,,0,,,,,");
 
             // Sample data row 3 - No purchaser yet, no optional data
             csv.AppendLine("201,2,Studio,0,1,450,399000,false,0,0,,false,0,0,,2026-06-01,2026-09-01,,,,,,,,,true,true,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,");
@@ -3610,6 +3636,10 @@ namespace PreConHub.Controllers
                     if (model.OutsideOccupancyDate.HasValue) unit.OutsideOccupancyDate = model.OutsideOccupancyDate;
                     if (model.DelayedOccupancyDate.HasValue) unit.DelayedOccupancyDate = model.DelayedOccupancyDate;
                     if (model.PurchaserTerminationDate.HasValue) unit.PurchaserTerminationDate = model.PurchaserTerminationDate;
+                    if (model.OccupancyFeeInterestRate.HasValue) unit.OccupancyFeeInterestRate = model.OccupancyFeeInterestRate;
+                    if (model.OccupancyFeeEstCommonExpense.HasValue) unit.OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense;
+                    if (model.OccupancyFeeEstPropertyTax.HasValue) unit.OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax;
+                    if (model.EstimatedMonthlyOccupancyFee.HasValue) unit.EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee;
                     unit.UpdatedAt = DateTime.UtcNow;
                 }
                 else
@@ -3657,7 +3687,11 @@ namespace PreConHub.Controllers
                         FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
                         OutsideOccupancyDate = model.OutsideOccupancyDate,
                         DelayedOccupancyDate = model.DelayedOccupancyDate,
-                        PurchaserTerminationDate = model.PurchaserTerminationDate
+                        PurchaserTerminationDate = model.PurchaserTerminationDate,
+                        OccupancyFeeInterestRate = model.OccupancyFeeInterestRate,
+                        OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense,
+                        OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax,
+                        EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee
                     };
 
                     _context.Units.Add(unit);
