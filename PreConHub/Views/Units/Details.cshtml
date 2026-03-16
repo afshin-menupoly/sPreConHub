@@ -581,7 +581,7 @@
                                                             <tbody>
                                                                 @foreach (var period in deposit.InterestPeriods)
                                                                 {
-                                                                    var days = (period.PeriodEnd - period.PeriodStart).Days;
+                                                                    var days = (period.PeriodEnd - period.PeriodStart).Days + 1; // +1 inclusive (both start and end dates count)
                                                                     var estInterest = deposit.Amount * (period.AnnualRate / 100m) * (days / 365m);
                                                                     <tr>
                                                                         <td>@period.PeriodStart.ToString("MMM d, yyyy")</td>
@@ -612,11 +612,28 @@
                                                         <div class="row g-2 align-items-end">
                                                             <div class="col-md-3"><label class="form-label form-label-sm fw-semibold">Start</label><input type="date" name="periodStart" class="form-control form-control-sm" required /></div>
                                                             <div class="col-md-3"><label class="form-label form-label-sm fw-semibold">End</label><input type="date" name="periodEnd" class="form-control form-control-sm" required /></div>
-                                                            <div class="col-md-3"><label class="form-label form-label-sm fw-semibold">Rate (%)</label><input type="number" name="annualRate" class="form-control form-control-sm" placeholder="e.g. 1.500" step="0.001" min="0.001" max="99.999" required /></div>
+                                                            <div class="col-md-3"><label class="form-label form-label-sm fw-semibold">Rate (%)</label><input type="number" name="annualRate" class="form-control form-control-sm" placeholder="e.g. 1.500" step="0.001" min="0" max="99.999" required /></div>
                                                             <div class="col-md-3"><button type="submit" class="btn btn-sm btn-info text-white w-100"><i class="bi bi-plus me-1"></i>Add Period</button></div>
                                                         </div>
                                                         <div class="form-text mt-1"><i class="bi bi-lightbulb me-1"></i>Use government-published semi-annual rates. <a href="@Url.Action("FeeReference", "Projects")" target="_blank" class="ms-1"><i class="bi bi-book me-1"></i>Fee Reference</a></div>
                                                     </form>
+                                                    @{
+                                                        // Find the previous deposit (by order in list) that has interest periods
+                                                        var depositIndex = Model.Deposits.IndexOf(deposit);
+                                                        var prevDeposit = depositIndex > 0 ? Model.Deposits.Take(depositIndex).LastOrDefault(d => d.InterestPeriods.Any()) : null;
+                                                    }
+                                                    @if (prevDeposit != null)
+                                                    {
+                                                        <form asp-action="CopyDepositPeriods" asp-controller="Units" method="post" class="mt-2">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="depositId" value="@deposit.Id" />
+                                                            <input type="hidden" name="sourceDepositId" value="@prevDeposit.Id" />
+                                                            <input type="hidden" name="unitId" value="@Model.UnitId" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-secondary" onclick="return confirm('Import all interest periods from @prevDeposit.DepositName? You can still edit them after import.')">
+                                                                <i class="bi bi-copy me-1"></i>Import Periods from @prevDeposit.DepositName
+                                                            </button>
+                                                        </form>
+                                                    }
                                                 </div>
                                             </td>
                                         </tr>

@@ -2601,6 +2601,64 @@ namespace PreConHub.Controllers
             return RedirectToAction(nameof(Details), new { id = unitId });
         }
 
+        // POST: /Units/CopyDepositPeriods — Import interest periods from previous deposit
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CopyDepositPeriods(int depositId, int sourceDepositId, int unitId)
+        {
+            var deposit = await _context.Deposits
+                .Include(d => d.Unit).ThenInclude(u => u.Project)
+                .Include(d => d.InterestPeriods)
+                .FirstOrDefaultAsync(d => d.Id == depositId);
+
+            var sourceDeposit = await _context.Deposits
+                .Include(d => d.InterestPeriods)
+                .FirstOrDefaultAsync(d => d.Id == sourceDepositId);
+
+            if (deposit == null || sourceDeposit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && deposit.Unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (!sourceDeposit.InterestPeriods.Any())
+            {
+                TempData["Error"] = "Source deposit has no interest periods to copy.";
+                return RedirectToAction(nameof(Details), new { id = unitId });
+            }
+
+            var copiedCount = 0;
+            foreach (var sourcePeriod in sourceDeposit.InterestPeriods.OrderBy(p => p.PeriodStart))
+            {
+                // Skip if this exact period already exists on the target deposit
+                var exists = deposit.InterestPeriods.Any(p =>
+                    p.PeriodStart == sourcePeriod.PeriodStart && p.PeriodEnd == sourcePeriod.PeriodEnd);
+                if (exists) continue;
+
+                _context.DepositInterestPeriods.Add(new DepositInterestPeriod
+                {
+                    DepositId = depositId,
+                    PeriodStart = sourcePeriod.PeriodStart,
+                    PeriodEnd = sourcePeriod.PeriodEnd,
+                    AnnualRate = sourcePeriod.AnnualRate
+                });
+                copiedCount++;
+            }
+
+            if (copiedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+                TempData["Success"] = $"Imported {copiedCount} period(s) from {sourceDeposit.DepositName}. You can edit them as needed.";
+            }
+            else
+            {
+                TempData["Error"] = "All periods from the source deposit already exist on this deposit.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = unitId });
+        }
+
         // GET: /Units/ReviewExtensionRequest/5 (RequestId)
         public async Task<IActionResult> ReviewExtensionRequest(int id)
         {
