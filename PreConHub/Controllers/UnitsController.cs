@@ -400,6 +400,7 @@ namespace PreConHub.Controllers
             {
                 UnitId = unit.Id,
                 UnitNumber = unit.UnitNumber,
+                FloorNumber = unit.FloorNumber,
                 ProjectName = unit.Project.Name,
                 ProjectId = unit.ProjectId,
                 UnitType = unit.UnitType,
@@ -408,20 +409,41 @@ namespace PreConHub.Controllers
                 SquareFootage = unit.SquareFootage,
                 PurchasePrice = unit.PurchasePrice,
                 CurrentAppraisalValue = unit.CurrentAppraisalValue,
+
+                // Parking & Locker
+                HasParking = unit.HasParking,
+                ParkingPrice = unit.ParkingPrice,
+                ParkingCount = unit.ParkingCount,
+                ParkingNumber = unit.ParkingNumber,
+                HasLocker = unit.HasLocker,
+                LockerPrice = unit.LockerPrice,
+                LockerCount = unit.LockerCount,
+                LockerNumber = unit.LockerNumber,
+
+                // Key Dates
+                APSDate = unit.APSDate,
                 OccupancyDate = unit.OccupancyDate,
                 ClosingDate = unit.ClosingDate,
-                Status = unit.Status,
-                Recommendation = unit.Recommendation,
-                BuilderDecision = unit.BuilderDecision,
-                IsConfirmedByLawyer = unit.IsConfirmedByLawyer,
+                FirmClosingDate = unit.FirmClosingDate,
+                InterimOccupancyStartDate = unit.InterimOccupancyStartDate,
 
-                // APS / Tarion dates
+                // Tarion Dates
                 FirstTentativeOccupancyDate = unit.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = unit.OutsideOccupancyDate,
                 DelayedOccupancyDate = unit.DelayedOccupancyDate,
                 PurchaserTerminationDate = unit.PurchaserTerminationDate,
-                ParkingCount = unit.ParkingCount,
-                LockerCount = unit.LockerCount,
+
+                // SOA Settings
+                IsFirstTimeBuyer = unit.IsFirstTimeBuyer,
+                IsPrimaryResidence = unit.IsPrimaryResidence,
+                ActualAnnualLandTax = unit.ActualAnnualLandTax,
+                ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
+
+                // Status
+                Status = unit.Status,
+                Recommendation = unit.Recommendation,
+                BuilderDecision = unit.BuilderDecision,
+                IsConfirmedByLawyer = unit.IsConfirmedByLawyer,
 
                 // Late Closing Penalty
                 DailyPenaltyAmount = unit.DailyPenaltyAmount,

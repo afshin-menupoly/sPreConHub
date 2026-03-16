@@ -214,9 +214,10 @@ namespace PreConHub.Models.ViewModels
     {
         public int UnitId { get; set; }
         public string UnitNumber { get; set; } = string.Empty;
+        public string? FloorNumber { get; set; }
         public string ProjectName { get; set; } = string.Empty;
         public int ProjectId { get; set; }
-        
+
         // Unit Info
         public UnitType UnitType { get; set; }
         public int Bedrooms { get; set; }
@@ -224,39 +225,57 @@ namespace PreConHub.Models.ViewModels
         public decimal SquareFootage { get; set; }
         public decimal PurchasePrice { get; set; }
         public decimal? CurrentAppraisalValue { get; set; }
+
+        // Parking & Locker
+        public bool HasParking { get; set; }
+        public decimal ParkingPrice { get; set; }
+        public int ParkingCount { get; set; }
+        public string? ParkingNumber { get; set; }
+        public bool HasLocker { get; set; }
+        public decimal LockerPrice { get; set; }
+        public int LockerCount { get; set; }
+        public string? LockerNumber { get; set; }
+
+        // Key Dates
+        public DateTime? APSDate { get; set; }
         public DateTime? OccupancyDate { get; set; }
         public DateTime? ClosingDate { get; set; }
-        
+        public DateTime? FirmClosingDate { get; set; }
+        public DateTime? InterimOccupancyStartDate { get; set; }
+
+        // Tarion Dates
+        public DateTime? FirstTentativeOccupancyDate { get; set; }
+        public DateTime? OutsideOccupancyDate { get; set; }
+        public DateTime? DelayedOccupancyDate { get; set; }
+        public DateTime? PurchaserTerminationDate { get; set; }
+
+        // SOA Settings
+        public bool IsFirstTimeBuyer { get; set; }
+        public bool IsPrimaryResidence { get; set; } = true;
+        public decimal? ActualAnnualLandTax { get; set; }
+        public decimal? ActualMonthlyMaintenanceFee { get; set; }
+
         // Purchaser Info
         public PurchaserInfoViewModel? PrimaryPurchaser { get; set; }
         public List<PurchaserInfoViewModel> AllPurchasers { get; set; } = new();
-        
+
         // SOA
         public SOAViewModel? SOA { get; set; }
-        
+
         // Shortfall
         public ShortfallViewModel? Shortfall { get; set; }
-        
+
         // Deposits
         public List<DepositViewModel> Deposits { get; set; } = new();
-        
+
         // Documents
         public List<DocumentViewModel> Documents { get; set; } = new();
-        
+
         // Status
         public UnitStatus Status { get; set; }
         public ClosingRecommendation? Recommendation { get; set; }
         public BuilderDecision? BuilderDecision { get; set; }
         public bool IsConfirmedByLawyer { get; set; }
-
-        // NEW: APS (Agreement of Purchase and Sale) date
-        public DateTime? APSDate { get; set; }
-
-        // NEW: Interim occupancy start date (for occupancy calculations)
-        public DateTime? InterimOccupancyStartDate { get; set; }
-
-        // NEW: Is first-time buyer (for LTT rebate calculations)
-        public bool IsFirstTimeBuyer { get; set; } = false;
 
         public List<LawyerAssignmentViewModel> LawyerAssignments { get; set; } = new();
         public int TotalUnreadLawyerNotes { get; set; }
@@ -264,16 +283,6 @@ namespace PreConHub.Models.ViewModels
 
         // Extension Requests
         public List<ExtensionRequestItem> ExtensionRequests { get; set; } = new();
-
-        // APS / Tarion Dates
-        public DateTime? FirstTentativeOccupancyDate { get; set; }
-        public DateTime? OutsideOccupancyDate { get; set; }
-        public DateTime? DelayedOccupancyDate { get; set; }
-        public DateTime? PurchaserTerminationDate { get; set; }
-
-        // Parking & Locker counts
-        public int ParkingCount { get; set; }
-        public int LockerCount { get; set; }
 
         // Unit Fees (upgrades, credits)
         public List<UnitFeeViewModel> UnitFees { get; set; } = new();
