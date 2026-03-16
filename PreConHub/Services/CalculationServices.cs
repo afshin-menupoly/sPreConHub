@@ -119,7 +119,8 @@ namespace PreConHub.Services
                     : unit.Project.Fees.Where(f => fts.Contains(f.FeeType)).Sum(f => f.Amount);
 
             // 4. Development Charges + 5. EDCs — with combined levy cap support
-            var actualDevCharges = UnitOrProjectFee(FeeType.DevelopmentCharges);
+            // Unit.DevelopmentFee (builder-provided) overrides UnitFee/ProjectFee hierarchy
+            var actualDevCharges = unit.DevelopmentFee ?? UnitOrProjectFee(FeeType.DevelopmentCharges);
             var actualEDC = UnitOrProjectFee(FeeType.EducationDevelopmentCharges);
 
             // Check for a combined levy cap covering both DC + EDC
@@ -210,7 +211,8 @@ namespace PreConHub.Services
             soa.TarionFee = unitTarion > 0 ? unitTarion : CalculateTarionFee(totalPrice);
 
             // 9. Utility Connection Fees (combined)
-            soa.UtilityConnectionFees = UnitOrProjectFees(
+            // Unit.MetersFee (builder-provided) overrides UnitFee/ProjectFee hierarchy for utilities
+            soa.UtilityConnectionFees = unit.MetersFee ?? UnitOrProjectFees(
                 FeeType.UtilityConnection, FeeType.SewerConnectionFee,
                 FeeType.WaterConnectionFee, FeeType.HydroConnectionFee,
                 FeeType.GasConnectionFee, FeeType.MeterInstallationFee);

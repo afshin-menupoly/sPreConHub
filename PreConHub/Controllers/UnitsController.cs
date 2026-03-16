@@ -177,6 +177,8 @@ namespace PreConHub.Controllers
                 EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee,
                 UpgradeAmount = model.UpgradeAmount,
                 UpgradePaidDate = model.UpgradePaidDate,
+                DevelopmentFee = model.DevelopmentFee,
+                MetersFee = model.MetersFee,
                 FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = model.OutsideOccupancyDate,
                 DelayedOccupancyDate = model.DelayedOccupancyDate,
@@ -262,6 +264,8 @@ namespace PreConHub.Controllers
                 EstimatedMonthlyOccupancyFee = unit.EstimatedMonthlyOccupancyFee,
                 UpgradeAmount = unit.UpgradeAmount,
                 UpgradePaidDate = unit.UpgradePaidDate,
+                DevelopmentFee = unit.DevelopmentFee,
+                MetersFee = unit.MetersFee,
                 FirstTentativeOccupancyDate = unit.FirstTentativeOccupancyDate,
                 OutsideOccupancyDate = unit.OutsideOccupancyDate,
                 DelayedOccupancyDate = unit.DelayedOccupancyDate,
@@ -341,6 +345,8 @@ namespace PreConHub.Controllers
             unit.EstimatedMonthlyOccupancyFee = model.EstimatedMonthlyOccupancyFee;
             unit.UpgradeAmount = model.UpgradeAmount;
             unit.UpgradePaidDate = model.UpgradePaidDate;
+            unit.DevelopmentFee = model.DevelopmentFee;
+            unit.MetersFee = model.MetersFee;
             unit.FirstTentativeOccupancyDate = model.FirstTentativeOccupancyDate;
             unit.OutsideOccupancyDate = model.OutsideOccupancyDate;
             unit.DelayedOccupancyDate = model.DelayedOccupancyDate;
@@ -466,6 +472,8 @@ namespace PreConHub.Controllers
                 // Upgrade Charges
                 UpgradeAmount = unit.UpgradeAmount,
                 UpgradePaidDate = unit.UpgradePaidDate,
+                DevelopmentFee = unit.DevelopmentFee,
+                MetersFee = unit.MetersFee,
 
                 // Status
                 Status = unit.Status,
@@ -3005,6 +3013,10 @@ namespace PreConHub.Controllers
                             UpgradeAmount = row.UpgradeAmount,
                             UpgradePaidDate = row.UpgradePaidDate,
 
+                            // ===== Builder-Provided Unit Fees =====
+                            DevelopmentFee = row.DevelopmentFee,
+                            MetersFee = row.MetersFee,
+
                             // ===== Tarion Dates =====
                             FirstTentativeOccupancyDate = row.FirstTentativeOccupancyDate,
                             OutsideOccupancyDate = row.OutsideOccupancyDate,
@@ -3237,6 +3249,8 @@ namespace PreConHub.Controllers
         "OccupancyFeeInterestRate", "OccupancyFeeEstCommonExpense", "OccupancyFeeEstPropertyTax", "EstimatedMonthlyOccupancyFee",
         // Upgrade Charges
         "UpgradeAmount", "UpgradePaidDate",
+        // Builder-Provided Unit Fees
+        "DevelopmentFee", "MetersFee",
         // Purchaser Info
         "PurchaserEmail", "PurchaserFirstName", "PurchaserLastName", "PurchaserPhone",
         // Buyer's Lawyer

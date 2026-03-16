@@ -265,6 +265,10 @@ namespace PreConHub.Models.ViewModels
         public decimal? UpgradeAmount { get; set; }
         public DateTime? UpgradePaidDate { get; set; }
 
+        // Builder-Provided Unit Fees
+        public decimal? DevelopmentFee { get; set; }
+        public decimal? MetersFee { get; set; }
+
         // Purchaser Info
         public PurchaserInfoViewModel? PrimaryPurchaser { get; set; }
         public List<PurchaserInfoViewModel> AllPurchasers { get; set; } = new();
@@ -580,6 +584,10 @@ namespace PreConHub.Models.ViewModels
         // Upgrade Charges (from APS)
         public decimal? UpgradeAmount { get; set; }
         public DateTime? UpgradePaidDate { get; set; }
+
+        // Builder-Provided Unit Fees
+        public decimal? DevelopmentFee { get; set; }
+        public decimal? MetersFee { get; set; }
 
         // Parking & Locker details
         public int ParkingCount { get; set; }
@@ -1268,6 +1276,10 @@ namespace PreConHub.Models.ViewModels
         // ===== UPGRADE CHARGES (Optional) =====
         public decimal? UpgradeAmount { get; set; }
         public DateTime? UpgradePaidDate { get; set; }
+
+        // ===== BUILDER-PROVIDED UNIT FEES (Optional) =====
+        public decimal? DevelopmentFee { get; set; }
+        public decimal? MetersFee { get; set; }
 
         // ===== PURCHASER INFORMATION (Optional) =====
         public string? PurchaserEmail { get; set; }

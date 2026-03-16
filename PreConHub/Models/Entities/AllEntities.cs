@@ -391,6 +391,14 @@ namespace PreConHub.Models.Entities
         public DateTime? UpgradePaidDate { get; set; }
 
         // =====================================
+        // Builder-Provided Unit Fees
+        // =====================================
+        /// <summary>Development fee amount for this unit (builder-provided).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? DevelopmentFee { get; set; }
+        /// <summary>Meters fee amount for this unit (builder-provided).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? MetersFee { get; set; }
+
+        // =====================================
         // APS / Tarion Addendum — Critical Dates
         // =====================================
         /// <summary>Tarion: first tentative occupancy date from addendum.</summary>

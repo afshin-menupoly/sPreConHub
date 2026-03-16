@@ -306,6 +306,24 @@
                         </div>
                     }
 
+                    @* -- Development Fee & Meters -- *@
+                    @if (Model.DevelopmentFee.HasValue || Model.MetersFee.HasValue)
+                    {
+                        <div class="border-top pt-3 mt-3">
+                            <h6 class="text-uppercase text-muted small fw-bold mb-2"><i class="bi bi-currency-dollar me-1"></i>Development Fee & Meters</h6>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="text-muted small">Development Fee</div>
+                                    <div class="fw-bold">@(Model.DevelopmentFee.HasValue ? "$" + Model.DevelopmentFee.Value.ToString("N2") : "—")</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="text-muted small">Meters</div>
+                                    <div class="fw-bold">@(Model.MetersFee.HasValue ? "$" + Model.MetersFee.Value.ToString("N2") : "—")</div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
                     @* -- SOA Settings -- *@
                     <div class="border-top pt-3 mt-3">
                         <h6 class="text-uppercase text-muted small fw-bold mb-2">SOA Settings</h6>
