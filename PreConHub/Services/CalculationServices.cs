@@ -306,13 +306,14 @@ namespace PreConHub.Services
             soa.AdditionalConsideration = Math.Round(feeItemsBase * 1.13m, 2);
             soa.TotalSalePrice = soa.SalePrice + soa.AdditionalConsideration;
 
-            // HST Rebates (calculated on totalPrice for eligibility, standard rebate rules)
+            // HST Rebates — require first-time buyer AND primary residence
             var primaryPurchaser = unit.Purchasers.FirstOrDefault(p => p.IsPrimaryPurchaser);
             bool isPrimaryResidence = unit.IsPrimaryResidence;
+            bool isFirstTimeBuyer = unit.IsFirstTimeBuyer;
             bool isRebateAssigned = true;   // Default for pre-construction
 
-            var rebateCalc = CalculateHSTRebates(totalPrice, isPrimaryResidence);
-            soa.IsHSTRebateEligible = isPrimaryResidence;
+            var rebateCalc = CalculateHSTRebates(totalPrice, isPrimaryResidence && isFirstTimeBuyer);
+            soa.IsHSTRebateEligible = isPrimaryResidence && isFirstTimeBuyer;
             soa.HSTRebateFederal = rebateCalc.federalRebate;
             soa.HSTRebateOntario = rebateCalc.ontarioRebate;
             soa.HSTRebateTotal = rebateCalc.federalRebate + rebateCalc.ontarioRebate;

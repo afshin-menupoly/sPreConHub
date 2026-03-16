@@ -790,6 +790,42 @@ namespace PreConHub.Controllers
             return Json(new { success = true, message = $"Builder decision set to '{decision}'." });
         }
 
+        // POST: /Units/SetFirstTimeBuyer (AJAX)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> SetFirstTimeBuyer(int unitId, bool isFirstTimeBuyer)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+
+            if (unit == null)
+                return Json(new { success = false, message = "Unit not found." });
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Json(new { success = false, message = "Access denied." });
+
+            unit.IsFirstTimeBuyer = isFirstTimeBuyer;
+            unit.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "Unit",
+                EntityId = unit.Id,
+                Action = "SetFirstTimeBuyer",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { isFirstTimeBuyer }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            return Json(new { success = true, message = isFirstTimeBuyer ? "Marked as first-time buyer. Recalculate SOA to apply HST rebate." : "Removed first-time buyer status. Recalculate SOA to remove HST rebate." });
+        }
+
         #region Late Closing Penalty
 
         // GET: /Units/SetDailyPenalty/5

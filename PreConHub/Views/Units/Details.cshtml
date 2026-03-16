@@ -291,23 +291,35 @@
                     @* -- SOA Settings -- *@
                     <div class="border-top pt-3 mt-3">
                         <h6 class="text-uppercase text-muted small fw-bold mb-2">SOA Settings</h6>
-                        <div class="d-flex flex-wrap gap-2 mb-2">
-                            @if (Model.IsFirstTimeBuyer)
-                            {
-                                <span class="badge bg-success"><i class="bi bi-check me-1"></i>First-Time Buyer</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-light text-dark border">Not First-Time Buyer</span>
-                            }
-                            @if (Model.IsPrimaryResidence)
-                            {
-                                <span class="badge bg-success"><i class="bi bi-check me-1"></i>Primary Residence</span>
-                            }
-                            else
-                            {
-                                <span class="badge bg-light text-dark border">Not Primary Residence</span>
-                            }
+                        <div class="mb-3">
+                            <div class="form-check mb-2">
+                                <input type="checkbox" class="form-check-input" id="firstTimeBuyerCheck"
+                                       @(Model.IsFirstTimeBuyer ? "checked" : "")
+                                       onchange="setFirstTimeBuyer(this.checked)" />
+                                <label class="form-check-label fw-bold" for="firstTimeBuyerCheck">
+                                    Purchaser is a First-Time Home Buyer
+                                </label>
+                                <div class="form-text">
+                                    @if (Model.IsFirstTimeBuyer)
+                                    {
+                                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>HST rebate (up to $24,000) will be applied in SOA</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted"><i class="bi bi-x-circle me-1"></i>HST rebate = $0 — not a first-time buyer</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2">
+                                @if (Model.IsPrimaryResidence)
+                                {
+                                    <span class="badge bg-success"><i class="bi bi-check me-1"></i>Primary Residence</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-dark border">Not Primary Residence</span>
+                                }
+                            </div>
                         </div>
                         <div class="row g-2">
                             <div class="col-6">
@@ -1160,6 +1172,21 @@
             else { alert(data.message || 'Failed to set decision.'); }
         })
         .catch(() => alert('An error occurred.'));
+    }
+
+    function setFirstTimeBuyer(checked) {
+        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        fetch('@Url.Action("SetFirstTimeBuyer", "Units")', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'unitId=@Model.UnitId&isFirstTimeBuyer=' + checked + '&__RequestVerificationToken=' + encodeURIComponent(token)
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) { location.reload(); }
+            else { alert(data.message || 'Failed to update.'); document.getElementById('firstTimeBuyerCheck').checked = !checked; }
+        })
+        .catch(() => { alert('An error occurred.'); document.getElementById('firstTimeBuyerCheck').checked = !checked; });
     }
 </script>
 }
