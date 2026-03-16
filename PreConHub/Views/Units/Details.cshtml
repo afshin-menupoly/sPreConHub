@@ -855,7 +855,10 @@
                             <div class="col-md-6">
                                 <h6 class="text-success mb-2">Credit Purchaser</h6>
                                 <table class="table table-sm table-borderless">
-                                    <tr><td>Deposits Paid</td><td class="text-end">$@Model.SOA.DepositsPaid.ToString("N2")</td></tr>
+                                    <tr>
+                                        <td>Deposits Paid (@Model.Deposits.Count(d => d.IsPaid)/@Model.Deposits.Count)</td>
+                                        <td class="text-end fw-bold">$@Model.SOA.DepositsPaid.ToString("N2")</td>
+                                    </tr>
                                     @if (Model.SOA.DepositInterest > 0) { <tr><td>Deposit Interest</td><td class="text-end">$@Model.SOA.DepositInterest.ToString("N2")</td></tr> }
                                     @if (Model.SOA.BuilderCredits > 0) { <tr><td>Builder Credits</td><td class="text-end">$@Model.SOA.BuilderCredits.ToString("N2")</td></tr> }
                                     @if (Model.SOA.OtherCredits > 0) { <tr><td>Other Credits</td><td class="text-end">$@Model.SOA.OtherCredits.ToString("N2")</td></tr> }
