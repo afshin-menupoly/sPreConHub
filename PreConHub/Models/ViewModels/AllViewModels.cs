@@ -236,6 +236,16 @@ namespace PreConHub.Models.ViewModels
         public int LockerCount { get; set; }
         public string? LockerNumber { get; set; }
 
+        // Legal Identifiers (SOA header)
+        public string? TarionUnitEnrolmentNumber { get; set; }
+        public string? DwellingUnitNumber { get; set; }
+        public string? ParkingUnitNumber { get; set; }
+        public string? LockerUnitNumber { get; set; }
+        public string? BuilderCompanyName { get; set; }
+        public string? BuilderHSTNumber { get; set; }
+        public string? TarionRegistrationNumber { get; set; }
+        public string? CondoCorpNumber { get; set; }
+
         // Key Dates
         public DateTime? APSDate { get; set; }
         public DateTime? OccupancyDate { get; set; }
@@ -614,6 +624,12 @@ namespace PreConHub.Models.ViewModels
         public string? ParkingNumber { get; set; }
         public int LockerCount { get; set; }
         public string? LockerNumber { get; set; }
+
+        // Legal Identifiers
+        public string? TarionUnitEnrolmentNumber { get; set; }
+        public string? DwellingUnitNumber { get; set; }
+        public string? ParkingUnitNumber { get; set; }
+        public string? LockerUnitNumber { get; set; }
 
         // Tarion dates
         public DateTime? FirstTentativeOccupancyDate { get; set; }
@@ -1245,6 +1261,12 @@ namespace PreConHub.Models.ViewModels
         public decimal LockerPrice { get; set; }
         public int LockerCount { get; set; }
         public string? LockerNumber { get; set; }
+
+        // ===== LEGAL IDENTIFIERS (Optional) =====
+        public string? TarionUnitEnrolmentNumber { get; set; }
+        public string? DwellingUnitNumber { get; set; }
+        public string? ParkingUnitNumber { get; set; }
+        public string? LockerUnitNumber { get; set; }
 
         // ===== DATES (Optional - defaults to project dates) =====
         public DateTime? OccupancyDate { get; set; }

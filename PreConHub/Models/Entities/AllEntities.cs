@@ -120,9 +120,15 @@ namespace PreConHub.Models.Entities
         // =====================================
         // APS / Tarion — Project-Level Data
         // =====================================
-        /// <summary>Tarion enrolment/registration number for this project.</summary>
+        /// <summary>Tarion Builder Registration Number (e.g., B47271).</summary>
         [StringLength(50)]
         public string? TarionRegistrationNumber { get; set; }
+        /// <summary>Builder's HST registration number (e.g., 756936316RT0001).</summary>
+        [StringLength(50)]
+        public string? BuilderHSTNumber { get; set; }
+        /// <summary>Condominium Corporation Number (e.g., Toronto Standard Condominium Corporation No. 3110).</summary>
+        [StringLength(200)]
+        public string? CondoCorpNumber { get; set; }
 
         /// <summary>Legal description of the property (e.g., "Lot 35 and Lot 36 on Plan 806, City of Toronto").</summary>
         [StringLength(500)]
@@ -430,6 +436,22 @@ namespace PreConHub.Models.Entities
         /// <summary>Locker identifier (e.g., "L-15").</summary>
         [StringLength(50)]
         public string? LockerNumber { get; set; }
+
+        // =====================================
+        // Legal Identifiers (for SOA header)
+        // =====================================
+        /// <summary>Tarion Unit Enrolment Number (e.g., H2403967).</summary>
+        [StringLength(50)]
+        public string? TarionUnitEnrolmentNumber { get; set; }
+        /// <summary>Legal dwelling unit number (e.g., "Unit 36, Level 4").</summary>
+        [StringLength(100)]
+        public string? DwellingUnitNumber { get; set; }
+        /// <summary>Legal parking unit number (e.g., "Unit 78, Level B").</summary>
+        [StringLength(100)]
+        public string? ParkingUnitNumber { get; set; }
+        /// <summary>Legal locker unit number (e.g., "Unit 108, Level 4").</summary>
+        [StringLength(100)]
+        public string? LockerUnitNumber { get; set; }
 
         // =====================================
         // NSF Charges & Assignment

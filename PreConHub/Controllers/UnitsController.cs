@@ -162,6 +162,10 @@ namespace PreConHub.Controllers
                 LockerPrice = model.HasLocker ? model.LockerPrice : 0,
                 LockerCount = model.HasLocker ? model.LockerCount : 0,
                 LockerNumber = model.HasLocker ? model.LockerNumber : null,
+                TarionUnitEnrolmentNumber = model.TarionUnitEnrolmentNumber,
+                DwellingUnitNumber = model.DwellingUnitNumber,
+                ParkingUnitNumber = model.ParkingUnitNumber,
+                LockerUnitNumber = model.LockerUnitNumber,
                 OccupancyDate = model.OccupancyDate ?? project.OccupancyDate,
                 ClosingDate = model.ClosingDate ?? project.ClosingDate,
                 APSDate = model.APSDate,
@@ -252,6 +256,10 @@ namespace PreConHub.Controllers
                 LockerPrice = unit.LockerPrice,
                 LockerCount = unit.LockerCount,
                 LockerNumber = unit.LockerNumber,
+                TarionUnitEnrolmentNumber = unit.TarionUnitEnrolmentNumber,
+                DwellingUnitNumber = unit.DwellingUnitNumber,
+                ParkingUnitNumber = unit.ParkingUnitNumber,
+                LockerUnitNumber = unit.LockerUnitNumber,
                 OccupancyDate = unit.OccupancyDate,
                 ClosingDate = unit.ClosingDate,
                 APSDate = unit.APSDate,
@@ -336,6 +344,10 @@ namespace PreConHub.Controllers
             unit.LockerPrice = model.HasLocker ? model.LockerPrice : 0;
             unit.LockerCount = model.HasLocker ? model.LockerCount : 0;
             unit.LockerNumber = model.HasLocker ? model.LockerNumber : null;
+            unit.TarionUnitEnrolmentNumber = model.TarionUnitEnrolmentNumber;
+            unit.DwellingUnitNumber = model.DwellingUnitNumber;
+            unit.ParkingUnitNumber = model.ParkingUnitNumber;
+            unit.LockerUnitNumber = model.LockerUnitNumber;
             unit.OccupancyDate = model.OccupancyDate;
             unit.ClosingDate = model.ClosingDate;
             unit.APSDate = model.APSDate;
@@ -453,6 +465,16 @@ namespace PreConHub.Controllers
                 LockerPrice = unit.LockerPrice,
                 LockerCount = unit.LockerCount,
                 LockerNumber = unit.LockerNumber,
+
+                // Legal Identifiers
+                TarionUnitEnrolmentNumber = unit.TarionUnitEnrolmentNumber,
+                DwellingUnitNumber = unit.DwellingUnitNumber,
+                ParkingUnitNumber = unit.ParkingUnitNumber,
+                LockerUnitNumber = unit.LockerUnitNumber,
+                BuilderCompanyName = unit.Project.BuilderCompanyName,
+                BuilderHSTNumber = unit.Project.BuilderHSTNumber,
+                TarionRegistrationNumber = unit.Project.TarionRegistrationNumber,
+                CondoCorpNumber = unit.Project.CondoCorpNumber,
 
                 // Key Dates
                 APSDate = unit.APSDate,

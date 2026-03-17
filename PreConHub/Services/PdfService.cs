@@ -116,6 +116,13 @@ namespace PreConHub.Services
 
                 // Informational LTT section
                 column.Item().Element(c => ComposeLTTInfo(c, soa, unit.IsFirstTimeBuyer));
+
+                // Additional Consideration breakdown (NOTE 1)
+                if (soa.AdditionalConsideration > 0)
+                {
+                    column.Item().PaddingVertical(8);
+                    column.Item().Element(c => ComposeAdditionalConsiderationBreakdown(c, soa, unit));
+                }
             });
         }
 
@@ -138,9 +145,23 @@ namespace PreConHub.Services
                         col.Item().Text("Property Details").Bold().FontSize(8).FontColor(Colors.Grey.Darken2);
                         col.Item().PaddingTop(4).Text($"Project: {unit.Project?.Name ?? "N/A"}").FontSize(9);
                         col.Item().Text($"Unit: {unit.UnitNumber}").FontSize(9);
+                        if (!string.IsNullOrEmpty(unit.DwellingUnitNumber))
+                            col.Item().Text($"Dwelling: {unit.DwellingUnitNumber}").FontSize(8).FontColor(Colors.Grey.Darken1);
+                        if (!string.IsNullOrEmpty(unit.ParkingUnitNumber))
+                            col.Item().Text($"Parking: {unit.ParkingUnitNumber}").FontSize(8).FontColor(Colors.Grey.Darken1);
+                        if (!string.IsNullOrEmpty(unit.LockerUnitNumber))
+                            col.Item().Text($"Locker: {unit.LockerUnitNumber}").FontSize(8).FontColor(Colors.Grey.Darken1);
                         col.Item().Text($"Type: {unit.UnitType} | {unit.Bedrooms} BR / {unit.Bathrooms} BA").FontSize(9);
                         col.Item().Text($"Size: {unit.SquareFootage:N0} sq ft").FontSize(9);
                         col.Item().Text($"Address: {unit.Project?.Address}, {unit.Project?.City}, ON").FontSize(9);
+                        if (!string.IsNullOrEmpty(unit.Project?.CondoCorpNumber))
+                            col.Item().Text(unit.Project.CondoCorpNumber).FontSize(8).FontColor(Colors.Grey.Darken1);
+                        if (!string.IsNullOrEmpty(unit.Project?.TarionRegistrationNumber))
+                            col.Item().PaddingTop(4).Text($"Tarion Builder Reg: {unit.Project.TarionRegistrationNumber}").FontSize(8);
+                        if (!string.IsNullOrEmpty(unit.TarionUnitEnrolmentNumber))
+                            col.Item().Text($"Unit Enrolment: {unit.TarionUnitEnrolmentNumber}").FontSize(8);
+                        if (!string.IsNullOrEmpty(unit.Project?.BuilderHSTNumber))
+                            col.Item().Text($"HST No: {unit.Project.BuilderHSTNumber}").FontSize(8);
                     });
 
                     // Right Column - Purchaser & Dates
@@ -268,16 +289,57 @@ namespace PreConHub.Services
                 var paidDeposits = deposits.Where(d => d.IsPaid).OrderBy(d => d.PaidDate).ToList();
                 if (paidDeposits.Any())
                 {
-                    SectionHeader(table, "DEPOSITS");
+                    // Categorize deposits: pre-occupancy vs at-occupancy (balance paid)
+                    var preOccDeposits = paidDeposits
+                        .Where(d => d.PaidDate.HasValue && unit.OccupancyDate.HasValue && d.PaidDate.Value < unit.OccupancyDate.Value)
+                        .ToList();
+                    var atOccDeposits = paidDeposits
+                        .Where(d => d.PaidDate.HasValue && unit.OccupancyDate.HasValue && d.PaidDate.Value >= unit.OccupancyDate.Value)
+                        .ToList();
 
-                    foreach (var dep in paidDeposits)
+                    // If no occupancy date, show all together
+                    if (!unit.OccupancyDate.HasValue)
                     {
-                        var label = dep.PaidDate.HasValue
-                            ? $"{dep.PaidDate.Value:MMM dd, yyyy} \u2014 {dep.DepositName}"
-                            : dep.DepositName;
-                        CellDesc(table, label);
+                        preOccDeposits = paidDeposits;
+                        atOccDeposits = new List<Deposit>();
+                    }
+
+                    if (preOccDeposits.Any())
+                    {
+                        SectionHeader(table, "TOTAL DEPOSITS PAID");
+                        foreach (var dep in preOccDeposits)
+                        {
+                            var label = dep.PaidDate.HasValue
+                                ? $"{dep.PaidDate.Value:MMM dd, yyyy} \u2014 {dep.DepositName}"
+                                : dep.DepositName;
+                            CellDesc(table, label);
+                            CellEmpty(table);
+                            CellPurchaser(table, dep.Amount);
+                        }
+                    }
+
+                    // Upgrade charges paid (Credit Purchaser)
+                    if (soa.Upgrades > 0 && unit.UpgradePaidDate.HasValue)
+                    {
+                        SectionHeader(table, "UPGRADE CHARGES PAID");
+                        CellDescBold(table, "Upgrade Charges Paid");
                         CellEmpty(table);
-                        CellPurchaser(table, dep.Amount);
+                        CellPurchaserBold(table, soa.Upgrades);
+                    }
+
+                    // Balance paid at occupancy
+                    if (atOccDeposits.Any())
+                    {
+                        SectionHeader(table, "UNADJUSTED BALANCE PAID ON OCCUPANCY DATE");
+                        foreach (var dep in atOccDeposits)
+                        {
+                            var label = dep.PaidDate.HasValue
+                                ? $"{dep.PaidDate.Value:MMM dd, yyyy} \u2014 {dep.DepositName}"
+                                : dep.DepositName;
+                            CellDesc(table, label);
+                            CellEmpty(table);
+                            CellPurchaser(table, dep.Amount);
+                        }
                     }
                 }
 
@@ -506,6 +568,52 @@ namespace PreConHub.Services
                         c.Item().AlignRight().Text(statusText).FontSize(9).Bold().FontColor(textColor);
                     });
                 });
+            });
+        }
+
+        // ───────────────────────────────────────────────────
+        // ADDITIONAL CONSIDERATION BREAKDOWN
+        // ───────────────────────────────────────────────────
+
+        private void ComposeAdditionalConsiderationBreakdown(IContainer container, StatementOfAdjustments soa, PreConHub.Models.Entities.Unit unit)
+        {
+            container.Background(Colors.Grey.Lighten4).Border(1).BorderColor(Colors.Grey.Lighten2)
+                .Padding(10).Column(column =>
+            {
+                column.Item().Row(row =>
+                {
+                    row.RelativeItem().Text("Additional Consideration Breakdown")
+                        .FontSize(9).Bold().FontColor(Colors.Grey.Darken2);
+                    row.ConstantItem(100).AlignRight().Text($"${soa.AdditionalConsideration:N2}")
+                        .FontSize(9).Bold().Underline();
+                });
+
+                column.Item().PaddingTop(5);
+
+                void FeeRow(string name, decimal amount)
+                {
+                    if (amount <= 0) return;
+                    column.Item().Row(r =>
+                    {
+                        r.RelativeItem().Text(name).FontSize(8);
+                        r.ConstantItem(80).AlignRight().Text($"${amount:N2}").FontSize(8);
+                    });
+                }
+
+                FeeRow("Upgrade Charges", soa.Upgrades > 0 ? Math.Round(soa.Upgrades * 1.13m, 2) : 0);
+                FeeRow("Tarion Warranty", soa.TarionFee > 0 ? Math.Round(soa.TarionFee * 1.13m, 2) : 0);
+                FeeRow("Meters / Utility Connection", soa.UtilityConnectionFees > 0 ? Math.Round(soa.UtilityConnectionFees * 1.13m, 2) : 0);
+                FeeRow("Development Charges", soa.DevelopmentCharges > 0 ? Math.Round(soa.DevelopmentCharges * 1.13m, 2) : 0);
+                FeeRow("Education Development Charges", soa.EducationDevelopmentCharges > 0 ? Math.Round(soa.EducationDevelopmentCharges * 1.13m, 2) : 0);
+                FeeRow("Parkland Levy", soa.ParklandLevy > 0 ? Math.Round(soa.ParklandLevy * 1.13m, 2) : 0);
+                FeeRow("Community Benefit Charges", soa.CommunityBenefitCharges > 0 ? Math.Round(soa.CommunityBenefitCharges * 1.13m, 2) : 0);
+                FeeRow("Schedule B Closing Fees", soa.ScheduleBClosingFees > 0 ? Math.Round(soa.ScheduleBClosingFees * 1.13m, 2) : 0);
+                FeeRow("HCRA Fee", soa.HCRAFee);
+                FeeRow("Electronic Registration Fee", soa.ElectronicRegFee);
+                FeeRow("Status Certificate", soa.StatusCertFee);
+                FeeRow("Transaction Levy (LAWPRO)", soa.TransactionLevyFee);
+                FeeRow("Legal Fees", soa.LegalFeesEstimate > 0 ? Math.Round(soa.LegalFeesEstimate * 1.13m, 2) : 0);
+                FeeRow("Other Charges", soa.OtherDebits > 0 ? Math.Round(soa.OtherDebits * 1.13m, 2) : 0);
             });
         }
 
