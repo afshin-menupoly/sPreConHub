@@ -441,8 +441,13 @@
                         </div>
                         <div class="row g-2">
                             <div class="col-6">
-                                <div class="text-muted small">Annual Land Tax</div>
+                                <div class="text-muted small">Annual Land Tax @(Model.PriorYearAnnualLandTax.HasValue ? "(Closing Yr)" : "")</div>
                                 <div>@if (Model.ActualAnnualLandTax.HasValue) { @("$" + Model.ActualAnnualLandTax.Value.ToString("N2")) } else { <span class="text-muted fst-italic">Using 1% estimate</span> }</div>
+                                @if (Model.PriorYearAnnualLandTax.HasValue)
+                                {
+                                    <div class="text-muted small mt-1">Prior Year</div>
+                                    <div>$@Model.PriorYearAnnualLandTax.Value.ToString("N2")</div>
+                                }
                             </div>
                             <div class="col-6">
                                 <div class="text-muted small">Dwelling Common Expense</div>

@@ -253,6 +253,7 @@ namespace PreConHub.Models.ViewModels
         public bool IsFirstTimeBuyer { get; set; }
         public bool IsPrimaryResidence { get; set; } = true;
         public decimal? ActualAnnualLandTax { get; set; }
+        public decimal? PriorYearAnnualLandTax { get; set; }
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
         public decimal? ParkingMonthlyCommonExpense { get; set; }
         public decimal? LockerMonthlyCommonExpense { get; set; }
@@ -580,6 +581,7 @@ namespace PreConHub.Models.ViewModels
         public DateTime? OccupancyDate { get; set; }
         public DateTime? ClosingDate { get; set; }
         public decimal? ActualAnnualLandTax { get; set; }
+        public decimal? PriorYearAnnualLandTax { get; set; }
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
         public decimal? ParkingMonthlyCommonExpense { get; set; }
         public decimal? LockerMonthlyCommonExpense { get; set; }
@@ -1279,6 +1281,7 @@ namespace PreConHub.Models.ViewModels
         /// Actual annual property tax from builder's tax bill. Null = use 1% estimate.
         /// </summary>
         public decimal? ActualAnnualLandTax { get; set; }
+        public decimal? PriorYearAnnualLandTax { get; set; }
 
         /// <summary>
         /// Actual monthly maintenance/common expense fee. Null = use $0.60/sqft estimate.

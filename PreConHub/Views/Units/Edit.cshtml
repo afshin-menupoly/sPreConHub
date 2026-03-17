@@ -269,13 +269,23 @@
                                 <div class="form-text">Affects HST rebate eligibility</div>
                             </div>
                             <div class="col-md-3">
-                                <label asp-for="ActualAnnualLandTax" class="form-label">Annual Land Tax</label>
+                                <label asp-for="ActualAnnualLandTax" class="form-label">Annual Land Tax (Closing Year)</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input asp-for="ActualAnnualLandTax" type="number" step="0.01" min="0" class="form-control" placeholder="e.g., 5200" />
+                                    <input asp-for="ActualAnnualLandTax" type="number" step="0.01" min="0" class="form-control" placeholder="e.g., 4788" />
                                 </div>
                                 <div class="form-text">Blank = 1% estimate</div>
                             </div>
+                            <div class="col-md-3">
+                                <label asp-for="PriorYearAnnualLandTax" class="form-label">Annual Land Tax (Prior Year)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="PriorYearAnnualLandTax" type="number" step="0.01" min="0" class="form-control" placeholder="e.g., 4542" />
+                                </div>
+                                <div class="form-text">If occupancy year differs from closing year</div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mt-1">
                             <div class="col-md-3">
                                 <label asp-for="ActualMonthlyMaintenanceFee" class="form-label">Dwelling Common Expense</label>
                                 <div class="input-group">

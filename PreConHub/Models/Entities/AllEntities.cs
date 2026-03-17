@@ -364,8 +364,10 @@ namespace PreConHub.Models.Entities
         public DateTime? InterimOccupancyStartDate { get; set; }
         public bool IsFirstTimeBuyer { get; set; } = false;
         public bool IsPrimaryResidence { get; set; } = true;
-        /// <summary>Actual annual municipal land tax paid by builder — used for accurate SOA land tax adjustment.</summary>
+        /// <summary>Actual annual municipal land tax for the closing year — used for SOA land tax adjustment.</summary>
         [Column(TypeName = "decimal(18,2)")] public decimal? ActualAnnualLandTax { get; set; }
+        /// <summary>Annual land tax for the occupancy year when it differs from the closing year (e.g., occupancy Nov 2024, closing Jul 2025).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? PriorYearAnnualLandTax { get; set; }
         /// <summary>Actual monthly common expense/maintenance fee for the dwelling unit.</summary>
         [Column(TypeName = "decimal(18,2)")] public decimal? ActualMonthlyMaintenanceFee { get; set; }
         /// <summary>Monthly common expense for the parking component (if applicable).</summary>

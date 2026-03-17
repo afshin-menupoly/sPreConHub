@@ -628,17 +628,45 @@ namespace PreConHub.Services
             if (!unit.OccupancyDate.HasValue || !unit.ClosingDate.HasValue) return 0;
             if (unit.ClosingDate.Value <= unit.OccupancyDate.Value) return 0;
 
-            // Use the last applicable rate from any deposit's interest periods
-            var lastRate = unit.Deposits
+            var occupancyDate = unit.OccupancyDate.Value;
+            var closingDate = unit.ClosingDate.Value;
+
+            // Gather all rate periods from all deposits
+            var allPeriods = unit.Deposits
                 .SelectMany(d => d.InterestPeriods)
-                .OrderByDescending(p => p.PeriodEnd)
-                .Select(p => p.AnnualRate)
-                .FirstOrDefault();
+                .GroupBy(p => new { p.PeriodStart, p.PeriodEnd, p.AnnualRate })
+                .Select(g => g.First())
+                .OrderBy(p => p.PeriodStart)
+                .ToList();
 
-            if (lastRate <= 0) return 0;
+            if (!allPeriods.Any())
+            {
+                // Fallback: no periods, use last known rate
+                var lastRate = unit.Deposits
+                    .Where(d => d.InterestRate.HasValue && d.InterestRate.Value > 0)
+                    .Select(d => d.InterestRate!.Value)
+                    .FirstOrDefault();
+                if (lastRate <= 0) return 0;
+                var days = (closingDate - occupancyDate).Days;
+                return Math.Round(depositInterest * (lastRate / 100m) * (days / 365m), 2);
+            }
 
-            var days = (unit.ClosingDate.Value - unit.OccupancyDate.Value).Days;
-            return Math.Round(depositInterest * (lastRate / 100m) * (days / 365m), 2);
+            // Per-period calculation: interest on deposit interest from occupancy to closing
+            decimal totalInterest = 0;
+            foreach (var period in allPeriods)
+            {
+                if (period.AnnualRate <= 0) continue;
+                var effectiveStart = occupancyDate > period.PeriodStart ? occupancyDate : period.PeriodStart;
+                var effectiveEnd = closingDate < period.PeriodEnd ? closingDate : period.PeriodEnd;
+
+                if (effectiveEnd > effectiveStart)
+                {
+                    var daysInPeriod = (effectiveEnd - effectiveStart).Days + 1; // inclusive
+                    totalInterest += depositInterest * (period.AnnualRate / 100m) * (daysInPeriod / 365m);
+                }
+            }
+
+            return Math.Round(totalInterest, 2);
         }
 
         /// <summary>
@@ -868,26 +896,46 @@ namespace PreConHub.Services
         {
             if (unit.ClosingDate == null) return 0;
 
-            // Use actual land tax if builder entered it; otherwise estimate at 1% of purchase price
-            decimal annualTax = (unit.ActualAnnualLandTax.HasValue && unit.ActualAnnualLandTax.Value > 0)
+            var closingDate = unit.ClosingDate.Value;
+            var occupancyDate = unit.OccupancyDate ?? closingDate;
+
+            // Closing year tax (required)
+            decimal closingYearTax = (unit.ActualAnnualLandTax.HasValue && unit.ActualAnnualLandTax.Value > 0)
                 ? unit.ActualAnnualLandTax.Value
                 : unit.PurchasePrice * 0.01m;
 
-            int daysInYear = DateTime.IsLeapYear(unit.ClosingDate.Value.Year) ? 366 : 365;
-
-            // Spec §5: PurchaserDays = OccupancyDate to ClosingDate when available
-            int purchaserDays;
-            if (unit.OccupancyDate.HasValue && unit.OccupancyDate.Value < unit.ClosingDate.Value)
+            // If occupancy and closing are in the same year, simple proration
+            if (occupancyDate.Year == closingDate.Year)
             {
-                purchaserDays = (unit.ClosingDate.Value - unit.OccupancyDate.Value).Days;
-            }
-            else
-            {
-                // Fallback: remaining days of the year after closing
-                purchaserDays = daysInYear - unit.ClosingDate.Value.DayOfYear;
+                int daysInYear = DateTime.IsLeapYear(closingDate.Year) ? 366 : 365;
+                // Purchaser responsible from occupancy to Dec 31
+                int purchaserDays = (new DateTime(closingDate.Year, 12, 31) - occupancyDate).Days + 1;
+                return Math.Round(closingYearTax * purchaserDays / daysInYear, 2);
             }
 
-            return Math.Round(annualTax * purchaserDays / daysInYear, 2);
+            // Multi-year: occupancy in year N, closing in year N+1 (or later)
+            // Prior year tax (occupancy year)
+            decimal priorYearTax = (unit.PriorYearAnnualLandTax.HasValue && unit.PriorYearAnnualLandTax.Value > 0)
+                ? unit.PriorYearAnnualLandTax.Value
+                : closingYearTax; // fallback to closing year tax if not entered
+
+            decimal totalTax = 0;
+
+            // Occupancy year: from occupancy date to Dec 31
+            int priorYearDays = DateTime.IsLeapYear(occupancyDate.Year) ? 366 : 365;
+            int occYearPurchaserDays = (new DateTime(occupancyDate.Year, 12, 31) - occupancyDate).Days + 1;
+            totalTax += Math.Round(priorYearTax * occYearPurchaserDays / priorYearDays, 2);
+
+            // Full years between occupancy year and closing year (if any)
+            for (int y = occupancyDate.Year + 1; y < closingDate.Year; y++)
+            {
+                totalTax += closingYearTax; // full year
+            }
+
+            // Closing year: Jan 1 to Dec 31 (purchaser owns all year)
+            totalTax += closingYearTax;
+
+            return totalTax;
         }
 
         private decimal CalculateCommonExpenseAdjustment(Unit unit)

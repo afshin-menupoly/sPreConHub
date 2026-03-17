@@ -170,6 +170,7 @@ namespace PreConHub.Controllers
                 IsFirstTimeBuyer = model.IsFirstTimeBuyer,
                 IsPrimaryResidence = model.IsPrimaryResidence,
                 ActualAnnualLandTax = model.ActualAnnualLandTax,
+                PriorYearAnnualLandTax = model.PriorYearAnnualLandTax,
                 ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee,
                 ParkingMonthlyCommonExpense = model.ParkingMonthlyCommonExpense,
                 LockerMonthlyCommonExpense = model.LockerMonthlyCommonExpense,
@@ -259,6 +260,7 @@ namespace PreConHub.Controllers
                 IsFirstTimeBuyer = unit.IsFirstTimeBuyer,
                 IsPrimaryResidence = unit.IsPrimaryResidence,
                 ActualAnnualLandTax = unit.ActualAnnualLandTax,
+                PriorYearAnnualLandTax = unit.PriorYearAnnualLandTax,
                 ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
                 ParkingMonthlyCommonExpense = unit.ParkingMonthlyCommonExpense,
                 LockerMonthlyCommonExpense = unit.LockerMonthlyCommonExpense,
@@ -342,6 +344,7 @@ namespace PreConHub.Controllers
             unit.IsFirstTimeBuyer = model.IsFirstTimeBuyer;
             unit.IsPrimaryResidence = model.IsPrimaryResidence;
             unit.ActualAnnualLandTax = model.ActualAnnualLandTax;
+            unit.PriorYearAnnualLandTax = model.PriorYearAnnualLandTax;
             unit.ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee;
             unit.ParkingMonthlyCommonExpense = model.ParkingMonthlyCommonExpense;
             unit.LockerMonthlyCommonExpense = model.LockerMonthlyCommonExpense;
@@ -468,6 +471,7 @@ namespace PreConHub.Controllers
                 IsFirstTimeBuyer = unit.IsFirstTimeBuyer,
                 IsPrimaryResidence = unit.IsPrimaryResidence,
                 ActualAnnualLandTax = unit.ActualAnnualLandTax,
+                PriorYearAnnualLandTax = unit.PriorYearAnnualLandTax,
                 ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
                 ParkingMonthlyCommonExpense = unit.ParkingMonthlyCommonExpense,
                 LockerMonthlyCommonExpense = unit.LockerMonthlyCommonExpense,
@@ -3151,6 +3155,7 @@ namespace PreConHub.Controllers
 
                             // ===== SOA Adjustment Fields =====
                             ActualAnnualLandTax = row.ActualAnnualLandTax,
+                            PriorYearAnnualLandTax = row.PriorYearAnnualLandTax,
                             ActualMonthlyMaintenanceFee = row.ActualMonthlyMaintenanceFee,
 
                             // ===== Occupancy Fee =====
@@ -3394,7 +3399,7 @@ namespace PreConHub.Controllers
         // SOA Fields
         "IsFirstTimeBuyer", "IsPrimaryResidence",
         // SOA Adjustment Fields
-        "ActualAnnualLandTax", "ActualMonthlyMaintenanceFee",
+        "ActualAnnualLandTax", "PriorYearAnnualLandTax", "ActualMonthlyMaintenanceFee",
         // Occupancy Fee
         "OccupancyFeeInterestRate", "OccupancyFeeEstCommonExpense", "OccupancyFeeEstPropertyTax", "EstimatedMonthlyOccupancyFee",
         // Upgrade Charges
