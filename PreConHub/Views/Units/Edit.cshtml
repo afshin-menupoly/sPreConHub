@@ -277,12 +277,30 @@
                                 <div class="form-text">Blank = 1% estimate</div>
                             </div>
                             <div class="col-md-3">
-                                <label asp-for="ActualMonthlyMaintenanceFee" class="form-label">Monthly Maintenance</label>
+                                <label asp-for="ActualMonthlyMaintenanceFee" class="form-label">Dwelling Common Expense</label>
                                 <div class="input-group">
                                     <span class="input-group-text">$</span>
-                                    <input asp-for="ActualMonthlyMaintenanceFee" type="number" step="0.01" min="0" class="form-control" placeholder="e.g., 450" />
+                                    <input asp-for="ActualMonthlyMaintenanceFee" type="number" step="0.01" min="0" class="form-control" placeholder="e.g., 660" />
                                 </div>
                                 <div class="form-text">Blank = $0.60/sqft</div>
+                            </div>
+                        </div>
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-3">
+                                <label asp-for="ParkingMonthlyCommonExpense" class="form-label">Parking Common Expense</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="ParkingMonthlyCommonExpense" type="number" step="0.01" min="0" class="form-control" placeholder="e.g., 71.44" />
+                                </div>
+                                <div class="form-text">Monthly, per parking unit</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label asp-for="LockerMonthlyCommonExpense" class="form-label">Locker Common Expense</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input asp-for="LockerMonthlyCommonExpense" type="number" step="0.01" min="0" class="form-control" placeholder="e.g., 11.91" />
+                                </div>
+                                <div class="form-text">Monthly, per locker unit</div>
                             </div>
                         </div>
 

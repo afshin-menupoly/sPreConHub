@@ -115,7 +115,7 @@ namespace PreConHub.Services
                 column.Item().PaddingVertical(8);
 
                 // Informational LTT section
-                column.Item().Element(c => ComposeLTTInfo(c, soa));
+                column.Item().Element(c => ComposeLTTInfo(c, soa, unit.IsFirstTimeBuyer));
             });
         }
 
@@ -394,6 +394,22 @@ namespace PreConHub.Services
                     CellPurchaser(table, soa.OccupancyFeesPaid);
                 }
 
+                // Occupancy Fee Tax Portion Refund (Credit Purchaser)
+                if (soa.OccupancyFeeTaxRefund > 0)
+                {
+                    CellDesc(table, "Re-adjustment of Tax Portion of Occupancy Fee");
+                    CellEmpty(table);
+                    CellPurchaser(table, soa.OccupancyFeeTaxRefund);
+                }
+
+                // Occupancy Fee Closing Month Adjustment (Credit Purchaser)
+                if (soa.OccupancyFeeClosingMonthAdj > 0)
+                {
+                    CellDesc(table, "Occupancy Fee Closing Month Adjustment");
+                    CellEmpty(table);
+                    CellPurchaser(table, soa.OccupancyFeeClosingMonthAdj);
+                }
+
                 // Security Deposit Refund (Credit Purchaser)
                 if (soa.SecurityDepositRefund > 0)
                 {
@@ -497,7 +513,7 @@ namespace PreConHub.Services
         // INFORMATIONAL LTT (not included in balance)
         // ───────────────────────────────────────────────────
 
-        private void ComposeLTTInfo(IContainer container, StatementOfAdjustments soa)
+        private void ComposeLTTInfo(IContainer container, StatementOfAdjustments soa, bool isFirstTimeBuyer)
         {
             if (soa.LandTransferTax <= 0 && soa.TorontoLandTransferTax <= 0) return;
 
@@ -528,6 +544,12 @@ namespace PreConHub.Services
                     row.RelativeItem().Text("Combined Net LTT:").FontSize(9).Bold();
                     row.ConstantItem(100).AlignRight().Text($"${combinedLtt:N2}").FontSize(9).Bold();
                 });
+
+                if (isFirstTimeBuyer)
+                {
+                    column.Item().PaddingTop(3).Text("First-Time Home Buyer LTT rebates applied: Ontario (up to $4,000) + Toronto MLTT (up to $4,475).")
+                        .FontSize(7).FontColor(Colors.Green.Darken2).Italic();
+                }
 
                 column.Item().PaddingTop(3).Text("Land Transfer Tax is paid by the purchaser's lawyer at land registration and is not included in the SOA balance.")
                     .FontSize(7).FontColor(Colors.Grey.Medium).Italic();

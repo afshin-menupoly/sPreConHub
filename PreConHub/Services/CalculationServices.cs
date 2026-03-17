@@ -55,6 +55,7 @@ namespace PreConHub.Services
                     .ThenInclude(p => p.LevyCaps)  // NEW: Include levy caps
                 .Include(u => u.Deposits)
                     .ThenInclude(d => d.InterestPeriods)
+                .Include(u => u.UpgradeInterestPeriods)
                 .Include(u => u.Fees)
                 .Include(u => u.NSFCharges)
                 .Include(u => u.OccupancyFees)
@@ -228,6 +229,30 @@ namespace PreConHub.Services
             soa.OccupancyFeesPaid = unit.OccupancyFees.Where(o => o.IsPaid).Sum(o => o.TotalMonthlyFee);
             soa.OccupancyFeesOwing = soa.OccupancyFeesChargeable - soa.OccupancyFeesPaid;
 
+            // 12a. Occupancy Fee Tax Refund — total property tax portion paid during occupancy (Credit Purchaser)
+            soa.OccupancyFeeTaxRefund = Math.Round(
+                unit.OccupancyFees.Where(o => o.IsPaid).Sum(o => o.PropertyTaxComponent), 2);
+
+            // 12b. Occupancy Fee Closing Month Adjustment — overpayment in the closing month (Credit Purchaser)
+            // If purchaser paid the full month's occupancy fee but closing is mid-month,
+            // credit them for the unused portion (from closing date to month end)
+            if (unit.ClosingDate.HasValue && unit.OccupancyFees.Any())
+            {
+                var closingMonthFee = unit.OccupancyFees
+                    .FirstOrDefault(o => o.IsPaid
+                        && o.PeriodStart.Year == unit.ClosingDate.Value.Year
+                        && o.PeriodStart.Month == unit.ClosingDate.Value.Month);
+                if (closingMonthFee != null)
+                {
+                    int daysInMonth = DateTime.DaysInMonth(unit.ClosingDate.Value.Year, unit.ClosingDate.Value.Month);
+                    int daysPurchaserUsed = unit.ClosingDate.Value.Day - 1; // up to day before closing
+                    decimal dailyRate = (closingMonthFee.TotalMonthlyFee - closingMonthFee.PropertyTaxComponent) / daysInMonth;
+                    decimal purchaserOwes = Math.Round(dailyRate * daysPurchaserUsed, 2);
+                    decimal paidExTax = closingMonthFee.TotalMonthlyFee - closingMonthFee.PropertyTaxComponent;
+                    soa.OccupancyFeeClosingMonthAdj = Math.Max(0, Math.Round(paidExTax - purchaserOwes, 2));
+                }
+            }
+
             // 13. Parking
             soa.ParkingPrice = unit.HasParking ? unit.ParkingPrice : 0;
 
@@ -268,13 +293,16 @@ namespace PreConHub.Services
             soa.StatusCertFee = GetSystemFeeWithHST(systemFees, "StatusCert");
             soa.TransactionLevyFee = GetSystemFeeWithHST(systemFees, "TransactionLevy");
 
-            // 19. Reserve Fund Contribution (2 × monthly common expenses)
-            decimal monthlyCommonExpense = (unit.ActualMonthlyMaintenanceFee.HasValue && unit.ActualMonthlyMaintenanceFee.Value > 0)
+            // 19. Reserve Fund Contribution (2 × total monthly common expenses incl. parking + locker)
+            decimal dwellingCommonExpense = (unit.ActualMonthlyMaintenanceFee.HasValue && unit.ActualMonthlyMaintenanceFee.Value > 0)
                 ? unit.ActualMonthlyMaintenanceFee.Value
                 : unit.SquareFootage * 0.60m;
+            decimal parkingCommonExpense = unit.ParkingMonthlyCommonExpense ?? 0;
+            decimal lockerCommonExpense = unit.LockerMonthlyCommonExpense ?? 0;
+            decimal monthlyCommonExpense = dwellingCommonExpense + parkingCommonExpense + lockerCommonExpense;
             soa.ReserveFundContribution = Math.Round(monthlyCommonExpense * 2, 2);
 
-            // 20. Common Expenses First Month (full month after closing)
+            // 20. Common Expenses First Month (full month after closing — all components)
             soa.CommonExpensesFirstMonth = Math.Round(monthlyCommonExpense, 2);
 
             // =====================================
@@ -301,14 +329,15 @@ namespace PreConHub.Services
             soa.AdditionalConsideration = Math.Round(feeItemsBase * 1.13m, 2);
             soa.TotalSalePrice = soa.SalePrice + soa.AdditionalConsideration;
 
-            // HST Rebates — require first-time buyer AND primary residence
+            // HST Rebates — Ontario New Housing Rebate requires primary residence only
+            // (no first-time buyer requirement). Federal rebate also requires primary residence.
             var primaryPurchaser = unit.Purchasers.FirstOrDefault(p => p.IsPrimaryPurchaser);
             bool isPrimaryResidence = unit.IsPrimaryResidence;
             bool isFirstTimeBuyer = unit.IsFirstTimeBuyer;
             bool isRebateAssigned = true;   // Default for pre-construction
 
-            var rebateCalc = CalculateHSTRebates(totalPrice, isPrimaryResidence && isFirstTimeBuyer);
-            soa.IsHSTRebateEligible = isPrimaryResidence && isFirstTimeBuyer;
+            var rebateCalc = CalculateHSTRebates(totalPrice, isPrimaryResidence);
+            soa.IsHSTRebateEligible = isPrimaryResidence;
             soa.HSTRebateFederal = rebateCalc.federalRebate;
             soa.HSTRebateOntario = rebateCalc.ontarioRebate;
             soa.HSTRebateTotal = rebateCalc.federalRebate + rebateCalc.ontarioRebate;
@@ -382,6 +411,9 @@ namespace PreConHub.Services
             // 3. Interest on Deposit Interest (OccupancyDate to ClosingDate)
             soa.InterestOnDepositInterest = CalculateInterestOnDepositInterest(unit, soa.DepositInterest);
 
+            // 3a. Upgrade Charge Interest (per-period daily simple interest)
+            soa.UpgradeChargeInterest = CalculateUpgradeChargeInterest(unit);
+
             // 3. Builder Credits (unit-specific credits)
             soa.BuilderCredits = unit.Fees
                 .Where(f => f.IsCredit)
@@ -414,8 +446,11 @@ namespace PreConHub.Services
             // Spec §7: HSTRebateTotal included in purchaser credits
             soa.TotalPurchaserCredits = soa.DepositsPaid
                 + soa.DepositInterest
+                + soa.UpgradeChargeInterest
                 + soa.InterestOnDepositInterest
                 + soa.OccupancyFeesPaid
+                + soa.OccupancyFeeTaxRefund
+                + soa.OccupancyFeeClosingMonthAdj
                 + soa.SecurityDepositRefund
                 + soa.BuilderCredits
                 + soa.OtherCredits
@@ -549,6 +584,34 @@ namespace PreConHub.Services
                     // InterestRate stored as whole number (e.g. 2.0 = 2%), divide by 100 to match period-based path
                     var daysHeld = (closingDate - depositDate).Days + 1; // +1 inclusive counting (spec §3)
                     totalInterest += deposit.Amount * (deposit.InterestRate.Value / 100m) * (daysHeld / 365m);
+                }
+            }
+
+            return Math.Round(totalInterest, 2);
+        }
+
+        /// <summary>
+        /// Per-period daily simple interest on upgrade charges: Amount × (Rate/100) × (DaysInPeriod/365).
+        /// Uses UpgradeChargeInterestPeriod rows; paid date to closing date, clamped by period boundaries.
+        /// </summary>
+        private decimal CalculateUpgradeChargeInterest(Unit unit)
+        {
+            if (!unit.UpgradeAmount.HasValue || unit.UpgradeAmount.Value <= 0 || !unit.UpgradeInterestPeriods.Any())
+                return 0;
+
+            decimal totalInterest = 0;
+            var paidDate = unit.UpgradePaidDate ?? DateTime.UtcNow;
+            var closingDate = unit.ClosingDate ?? DateTime.UtcNow;
+
+            foreach (var period in unit.UpgradeInterestPeriods.OrderBy(p => p.PeriodStart))
+            {
+                var effectiveStart = paidDate > period.PeriodStart ? paidDate : period.PeriodStart;
+                var effectiveEnd = closingDate < period.PeriodEnd ? closingDate : period.PeriodEnd;
+
+                if (effectiveEnd > effectiveStart)
+                {
+                    var daysInPeriod = (effectiveEnd - effectiveStart).Days + 1; // +1 inclusive
+                    totalInterest += unit.UpgradeAmount.Value * (period.AnnualRate / 100m) * (daysInPeriod / 365m);
                 }
             }
 
@@ -831,15 +894,18 @@ namespace PreConHub.Services
         {
             if (unit.ClosingDate == null) return 0;
 
-            // Use actual maintenance fee if builder entered it; otherwise estimate at $0.60/sqft
-            decimal monthlyFee = (unit.ActualMonthlyMaintenanceFee.HasValue && unit.ActualMonthlyMaintenanceFee.Value > 0)
+            // Total monthly common expense = dwelling + parking + locker
+            decimal dwellingFee = (unit.ActualMonthlyMaintenanceFee.HasValue && unit.ActualMonthlyMaintenanceFee.Value > 0)
                 ? unit.ActualMonthlyMaintenanceFee.Value
                 : unit.SquareFootage * 0.60m;
+            decimal totalMonthlyFee = dwellingFee
+                + (unit.ParkingMonthlyCommonExpense ?? 0)
+                + (unit.LockerMonthlyCommonExpense ?? 0);
 
             int daysInMonth = DateTime.DaysInMonth(unit.ClosingDate.Value.Year, unit.ClosingDate.Value.Month);
             // Purchaser reimburses vendor for remaining days of the closing month
             int daysRemaining = daysInMonth - unit.ClosingDate.Value.Day;
-            return Math.Round((monthlyFee / daysInMonth) * daysRemaining, 2);
+            return Math.Round((totalMonthlyFee / daysInMonth) * daysRemaining, 2);
         }
 
 

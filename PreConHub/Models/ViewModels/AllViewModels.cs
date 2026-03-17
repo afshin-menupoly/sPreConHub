@@ -254,6 +254,8 @@ namespace PreConHub.Models.ViewModels
         public bool IsPrimaryResidence { get; set; } = true;
         public decimal? ActualAnnualLandTax { get; set; }
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
+        public decimal? ParkingMonthlyCommonExpense { get; set; }
+        public decimal? LockerMonthlyCommonExpense { get; set; }
 
         // Occupancy Fee Parameters
         public decimal? OccupancyFeeInterestRate { get; set; }
@@ -264,6 +266,7 @@ namespace PreConHub.Models.ViewModels
         // Upgrade Charges
         public decimal? UpgradeAmount { get; set; }
         public DateTime? UpgradePaidDate { get; set; }
+        public List<UpgradeChargeInterestPeriodViewModel> UpgradeInterestPeriods { get; set; } = new();
 
         // Builder-Provided Unit Fees
         public decimal? DevelopmentFee { get; set; }
@@ -435,6 +438,9 @@ namespace PreConHub.Models.ViewModels
         // Credits
         public decimal DepositsPaid { get; set; }
         public decimal DepositInterest { get; set; }
+        public decimal UpgradeChargeInterest { get; set; }
+        public decimal OccupancyFeeTaxRefund { get; set; }
+        public decimal OccupancyFeeClosingMonthAdj { get; set; }
         public decimal BuilderCredits { get; set; }
         public decimal OtherCredits { get; set; }
         public decimal TotalCredits { get; set; }
@@ -520,6 +526,16 @@ namespace PreConHub.Models.ViewModels
         [Required][Range(0.001, 99.999)] public decimal AnnualRate { get; set; }
     }
 
+    public class UpgradeChargeInterestPeriodViewModel
+    {
+        public int Id { get; set; }
+        public int UnitId { get; set; }
+        [Required] public DateTime PeriodStart { get; set; }
+        [Required] public DateTime PeriodEnd { get; set; }
+        /// <summary>Annual rate as a percentage, e.g. 1.500 = 1.5%</summary>
+        [Required][Range(0, 99.999)] public decimal AnnualRate { get; set; }
+    }
+
     // InterestCompoundingType and DepositHolder are defined in Models/Entities/AllEntities.cs
 
     #endregion
@@ -565,6 +581,8 @@ namespace PreConHub.Models.ViewModels
         public DateTime? ClosingDate { get; set; }
         public decimal? ActualAnnualLandTax { get; set; }
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
+        public decimal? ParkingMonthlyCommonExpense { get; set; }
+        public decimal? LockerMonthlyCommonExpense { get; set; }
 
         // APS dates
         public DateTime? APSDate { get; set; }
@@ -1266,6 +1284,8 @@ namespace PreConHub.Models.ViewModels
         /// Actual monthly maintenance/common expense fee. Null = use $0.60/sqft estimate.
         /// </summary>
         public decimal? ActualMonthlyMaintenanceFee { get; set; }
+        public decimal? ParkingMonthlyCommonExpense { get; set; }
+        public decimal? LockerMonthlyCommonExpense { get; set; }
 
         // ===== OCCUPANCY FEE (Optional) =====
         public decimal? OccupancyFeeInterestRate { get; set; }

@@ -352,6 +352,7 @@ namespace PreConHub.Models.Entities
         public virtual ICollection<UnitFee> Fees { get; set; } = new List<UnitFee>();
         public virtual ICollection<OccupancyFee> OccupancyFees { get; set; } = new List<OccupancyFee>();
         public virtual ICollection<Document> Documents { get; set; } = new List<Document>();
+        public virtual ICollection<UpgradeChargeInterestPeriod> UpgradeInterestPeriods { get; set; } = new List<UpgradeChargeInterestPeriod>();
         public virtual StatementOfAdjustments? SOA { get; set; }
         public virtual ShortfallAnalysis? ShortfallAnalysis { get; set; }
         public bool LawyerConfirmed { get; set; }
@@ -365,8 +366,12 @@ namespace PreConHub.Models.Entities
         public bool IsPrimaryResidence { get; set; } = true;
         /// <summary>Actual annual municipal land tax paid by builder — used for accurate SOA land tax adjustment.</summary>
         [Column(TypeName = "decimal(18,2)")] public decimal? ActualAnnualLandTax { get; set; }
-        /// <summary>Actual monthly common expense/maintenance fee — used for accurate SOA common expense adjustment.</summary>
+        /// <summary>Actual monthly common expense/maintenance fee for the dwelling unit.</summary>
         [Column(TypeName = "decimal(18,2)")] public decimal? ActualMonthlyMaintenanceFee { get; set; }
+        /// <summary>Monthly common expense for the parking component (if applicable).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? ParkingMonthlyCommonExpense { get; set; }
+        /// <summary>Monthly common expense for the locker component (if applicable).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal? LockerMonthlyCommonExpense { get; set; }
         public virtual ICollection<ClosingExtensionRequest> ExtensionRequests { get; set; } = new List<ClosingExtensionRequest>();
         public virtual ICollection<SOAVersion> SOAVersions { get; set; } = new List<SOAVersion>();
 
@@ -785,6 +790,18 @@ namespace PreConHub.Models.Entities
         [Column(TypeName = "decimal(6,3)")] public decimal AnnualRate { get; set; }
     }
 
+    /// <summary>Interest rate period for upgrade charges — same pattern as deposit interest periods.</summary>
+    public class UpgradeChargeInterestPeriod
+    {
+        [Key] public int Id { get; set; }
+        public int UnitId { get; set; }
+        [ForeignKey("UnitId")] public virtual Unit Unit { get; set; } = null!;
+        public DateTime PeriodStart { get; set; }
+        public DateTime PeriodEnd { get; set; }
+        /// <summary>Annual rate as a percentage, e.g. 1.500 = 1.5% per annum.</summary>
+        [Column(TypeName = "decimal(6,3)")] public decimal AnnualRate { get; set; }
+    }
+
     public enum DepositStatus
     {
         Pending = 0,
@@ -1105,6 +1122,12 @@ namespace PreConHub.Models.Entities
         [Column(TypeName = "decimal(18,2)")] public decimal OccupancyFeesPaid { get; set; }
         /// <summary>Interest earned on the total deposit interest, from OccupancyDate to ClosingDate (Credit Purchaser).</summary>
         [Column(TypeName = "decimal(18,2)")] public decimal InterestOnDepositInterest { get; set; }
+        /// <summary>Interest earned on upgrade charges from paid date to closing date (Credit Purchaser).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal UpgradeChargeInterest { get; set; }
+        /// <summary>Refund of tax portion of occupancy fees paid during occupancy period (Credit Purchaser).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal OccupancyFeeTaxRefund { get; set; }
+        /// <summary>Occupancy fee closing month adjustment — overpayment refund to purchaser (Credit Purchaser).</summary>
+        [Column(TypeName = "decimal(18,2)")] public decimal OccupancyFeeClosingMonthAdj { get; set; }
         /// <summary>Sum of all Credit Vendor items — replaces TotalDebits in the two-column SOA model.</summary>
         [Column(TypeName = "decimal(18,2)")] public decimal TotalVendorCredits { get; set; }
         /// <summary>Sum of all Credit Purchaser items — replaces TotalCredits in the two-column SOA model.</summary>

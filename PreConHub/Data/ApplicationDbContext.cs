@@ -33,6 +33,7 @@ namespace PreConHub.Data
         public DbSet<ProjectFinancials> ProjectFinancials { get; set; }
         public DbSet<ClosingExtensionRequest> ClosingExtensionRequests { get; set; }
         public DbSet<DepositInterestPeriod> DepositInterestPeriods { get; set; }
+        public DbSet<UpgradeChargeInterestPeriod> UpgradeChargeInterestPeriods { get; set; }
         public DbSet<SystemFeeConfig> SystemFeeConfigs { get; set; }
         public DbSet<SOAVersion> SOAVersions { get; set; }
         public DbSet<ClosingPenalty> ClosingPenalties { get; set; }
@@ -396,6 +397,20 @@ namespace PreConHub.Data
                     .HasForeignKey(e => e.DepositId)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasIndex(e => e.DepositId);
+            });
+
+            // ============================================
+            // UpgradeChargeInterestPeriod Configuration
+            // ============================================
+            builder.Entity<UpgradeChargeInterestPeriod>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.AnnualRate).HasColumnType("decimal(6,3)");
+                entity.HasOne(e => e.Unit)
+                    .WithMany(u => u.UpgradeInterestPeriods)
+                    .HasForeignKey(e => e.UnitId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(e => e.UnitId);
             });
 
             // ============================================

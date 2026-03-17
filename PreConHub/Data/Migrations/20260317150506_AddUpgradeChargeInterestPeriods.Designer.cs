@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PreConHub.Data;
 
@@ -11,9 +12,11 @@ using PreConHub.Data;
 namespace PreConHub.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260317150506_AddUpgradeChargeInterestPeriods")]
+    partial class AddUpgradeChargeInterestPeriods
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1646,12 +1649,6 @@ namespace PreConHub.Data.Migrations
                     b.Property<decimal>("NetSalePrice")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<decimal>("OccupancyFeeClosingMonthAdj")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("OccupancyFeeTaxRefund")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<decimal>("OccupancyFeesChargeable")
                         .HasColumnType("decimal(18,2)");
 
@@ -1955,9 +1952,6 @@ namespace PreConHub.Data.Migrations
                     b.Property<int>("LockerCount")
                         .HasColumnType("int");
 
-                    b.Property<decimal?>("LockerMonthlyCommonExpense")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("LockerNumber")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
@@ -1985,9 +1979,6 @@ namespace PreConHub.Data.Migrations
 
                     b.Property<int>("ParkingCount")
                         .HasColumnType("int");
-
-                    b.Property<decimal?>("ParkingMonthlyCommonExpense")
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ParkingNumber")
                         .HasMaxLength(50)

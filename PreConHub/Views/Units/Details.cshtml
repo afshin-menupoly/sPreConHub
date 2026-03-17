@@ -300,8 +300,80 @@
                                 </div>
                                 <div class="col-6">
                                     <div class="text-muted small">Paid Date</div>
-                                    <div>@(Model.UpgradePaidDate.HasValue ? Model.UpgradePaidDate.Value.ToString("MMM dd, yyyy") : "<span class='text-muted fst-italic'>Not set</span>")</div>
+                                    <div>@if (Model.UpgradePaidDate.HasValue) { @Model.UpgradePaidDate.Value.ToString("MMM dd, yyyy") } else { <span class="text-muted fst-italic">Not set</span> }</div>
                                 </div>
+                            </div>
+                        </div>
+                    }
+
+                    @* -- Upgrade Charge Interest Rate Periods -- *@
+                    @if (Model.UpgradeAmount.HasValue && Model.UpgradeAmount.Value > 0)
+                    {
+                        <div class="border-top pt-3 mt-3">
+                            <h6 class="text-uppercase text-muted small fw-bold mb-2">
+                                <i class="bi bi-percent me-1"></i>Upgrade Charge Interest Periods
+                                <a class="ms-2 small" data-bs-toggle="collapse" href="#upgrade-periods" role="button" aria-expanded="false">
+                                    <i class="bi bi-chevron-down"></i> @(Model.UpgradeInterestPeriods.Any() ? $"{Model.UpgradeInterestPeriods.Count} period(s)" : "Add periods")
+                                </a>
+                            </h6>
+                            <div class="collapse" id="upgrade-periods">
+                                <p class="text-muted small mb-2">
+                                    Daily simple interest: <code>$@((Model.UpgradeAmount ?? 0).ToString("N0")) x (Rate% / 100) x (Days / 365)</code>
+                                </p>
+                                @if (Model.UpgradeInterestPeriods.Any())
+                                {
+                                    <table class="table table-sm table-bordered bg-white mb-3">
+                                        <thead class="table-secondary">
+                                            <tr><th>Start</th><th>End</th><th>Rate</th><th class="text-end">Est. Interest</th><th></th></tr>
+                                        </thead>
+                                        <tbody>
+                                            @foreach (var period in Model.UpgradeInterestPeriods)
+                                            {
+                                                var upgDays = (period.PeriodEnd - period.PeriodStart).Days + 1;
+                                                var upgEstInterest = (Model.UpgradeAmount ?? 0) * (period.AnnualRate / 100m) * (upgDays / 365m);
+                                                <tr>
+                                                    <td>@period.PeriodStart.ToString("MMM d, yyyy")</td>
+                                                    <td>@period.PeriodEnd.ToString("MMM d, yyyy")</td>
+                                                    <td><span class="badge bg-primary">@period.AnnualRate.ToString("0.000")%</span></td>
+                                                    <td class="text-end text-muted small">~$@upgEstInterest.ToString("N2")</td>
+                                                    <td class="text-center">
+                                                        <form asp-action="DeleteUpgradeInterestPeriod" asp-controller="Units" method="post" class="d-inline" onsubmit="return confirm('Delete this rate period?')">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="periodId" value="@period.Id" />
+                                                            <input type="hidden" name="unitId" value="@Model.UnitId" />
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger p-0 px-1"><i class="bi bi-trash"></i></button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                }
+                                else
+                                {
+                                    <div class="alert alert-light border mb-3 py-2"><i class="bi bi-info-circle me-1"></i>No rate periods entered yet.</div>
+                                }
+                                <form asp-action="AddUpgradeInterestPeriod" asp-controller="Units" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="unitId" value="@Model.UnitId" />
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-3"><label class="form-label form-label-sm fw-semibold">Start</label><input type="date" name="periodStart" class="form-control form-control-sm" required /></div>
+                                        <div class="col-md-3"><label class="form-label form-label-sm fw-semibold">End</label><input type="date" name="periodEnd" class="form-control form-control-sm" required /></div>
+                                        <div class="col-md-3"><label class="form-label form-label-sm fw-semibold">Rate (%)</label><input type="number" name="annualRate" class="form-control form-control-sm" placeholder="e.g. 1.500" step="0.001" min="0" max="99.999" required /></div>
+                                        <div class="col-md-3"><button type="submit" class="btn btn-sm btn-info text-white w-100"><i class="bi bi-plus me-1"></i>Add Period</button></div>
+                                    </div>
+                                    <div class="form-text mt-1"><i class="bi bi-lightbulb me-1"></i>Use government-published semi-annual rates.</div>
+                                </form>
+                                @if (Model.Deposits.Any(d => d.InterestPeriods.Any()))
+                                {
+                                    <form asp-action="CopyUpgradePeriodsFromDeposit" asp-controller="Units" method="post" class="mt-2">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="unitId" value="@Model.UnitId" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" onclick="return confirm('Import interest periods from deposit? You can still edit them after import.')">
+                                            <i class="bi bi-copy me-1"></i>Import Periods from Deposits
+                                        </button>
+                                    </form>
+                                }
                             </div>
                         </div>
                     }
@@ -328,25 +400,7 @@
                     <div class="border-top pt-3 mt-3">
                         <h6 class="text-uppercase text-muted small fw-bold mb-2">SOA Settings</h6>
                         <div class="mb-3">
-                            <div class="form-check mb-2">
-                                <input type="checkbox" class="form-check-input" id="firstTimeBuyerCheck"
-                                       @(Model.IsFirstTimeBuyer ? "checked" : "")
-                                       onchange="setFirstTimeBuyer(this.checked)" />
-                                <label class="form-check-label fw-bold" for="firstTimeBuyerCheck">
-                                    Purchaser is a First-Time Home Buyer
-                                </label>
-                                <div class="form-text">
-                                    @if (Model.IsFirstTimeBuyer)
-                                    {
-                                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>HST rebate (up to $24,000) will be applied in SOA</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted"><i class="bi bi-x-circle me-1"></i>HST rebate = $0 — not a first-time buyer</span>
-                                    }
-                                </div>
-                            </div>
-                            <div class="d-flex flex-wrap gap-2">
+                            <div class="d-flex flex-wrap gap-2 mb-2">
                                 @if (Model.IsPrimaryResidence)
                                 {
                                     <span class="badge bg-success"><i class="bi bi-check me-1"></i>Primary Residence</span>
@@ -356,17 +410,64 @@
                                     <span class="badge bg-light text-dark border">Not Primary Residence</span>
                                 }
                             </div>
+                            <div class="form-text mb-2">
+                                @if (Model.IsPrimaryResidence)
+                                {
+                                    <span class="text-success"><i class="bi bi-check-circle me-1"></i>Ontario New Housing Rebate (up to $24,000) will be applied in SOA</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted"><i class="bi bi-x-circle me-1"></i>HST rebate = $0 — not a primary residence</span>
+                                }
+                            </div>
+                            <div class="form-check mb-2">
+                                <input type="checkbox" class="form-check-input" id="firstTimeBuyerCheck"
+                                       @(Model.IsFirstTimeBuyer ? "checked" : "")
+                                       onchange="setFirstTimeBuyer(this.checked)" />
+                                <label class="form-check-label" for="firstTimeBuyerCheck">
+                                    Purchaser is a First-Time Home Buyer
+                                </label>
+                                <div class="form-text">
+                                    @if (Model.IsFirstTimeBuyer)
+                                    {
+                                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>LTT rebate: Ontario up to $4,000 + Toronto up to $4,475 (if applicable)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">LTT first-time buyer rebate not applied</span>
+                                    }
+                                </div>
+                            </div>
                         </div>
                         <div class="row g-2">
                             <div class="col-6">
                                 <div class="text-muted small">Annual Land Tax</div>
-                                <div>@(Model.ActualAnnualLandTax.HasValue ? "$" + Model.ActualAnnualLandTax.Value.ToString("N2") : "<span class='text-muted fst-italic'>Using 1% estimate</span>")</div>
+                                <div>@if (Model.ActualAnnualLandTax.HasValue) { @("$" + Model.ActualAnnualLandTax.Value.ToString("N2")) } else { <span class="text-muted fst-italic">Using 1% estimate</span> }</div>
                             </div>
                             <div class="col-6">
-                                <div class="text-muted small">Monthly Maintenance</div>
-                                <div>@(Model.ActualMonthlyMaintenanceFee.HasValue ? "$" + Model.ActualMonthlyMaintenanceFee.Value.ToString("N2") : "<span class='text-muted fst-italic'>Using $0.60/sqft</span>")</div>
+                                <div class="text-muted small">Dwelling Common Expense</div>
+                                <div>@if (Model.ActualMonthlyMaintenanceFee.HasValue) { @("$" + Model.ActualMonthlyMaintenanceFee.Value.ToString("N2")) } else { <span class="text-muted fst-italic">Using $0.60/sqft</span> }</div>
                             </div>
                         </div>
+                        @if (Model.ParkingMonthlyCommonExpense.HasValue || Model.LockerMonthlyCommonExpense.HasValue)
+                        {
+                            <div class="row g-2 mt-1">
+                                @if (Model.ParkingMonthlyCommonExpense.HasValue)
+                                {
+                                    <div class="col-6">
+                                        <div class="text-muted small">Parking Common Expense</div>
+                                        <div>$@Model.ParkingMonthlyCommonExpense.Value.ToString("N2")</div>
+                                    </div>
+                                }
+                                @if (Model.LockerMonthlyCommonExpense.HasValue)
+                                {
+                                    <div class="col-6">
+                                        <div class="text-muted small">Locker Common Expense</div>
+                                        <div>$@Model.LockerMonthlyCommonExpense.Value.ToString("N2")</div>
+                                    </div>
+                                }
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
@@ -878,6 +979,9 @@
                                         <td class="text-end fw-bold">$@Model.SOA.DepositsPaid.ToString("N2")</td>
                                     </tr>
                                     @if (Model.SOA.DepositInterest > 0) { <tr><td>Deposit Interest</td><td class="text-end">$@Model.SOA.DepositInterest.ToString("N2")</td></tr> }
+                                    @if (Model.SOA.UpgradeChargeInterest > 0) { <tr><td>Upgrade Charge Interest</td><td class="text-end">$@Model.SOA.UpgradeChargeInterest.ToString("N2")</td></tr> }
+                                    @if (Model.SOA.OccupancyFeeTaxRefund > 0) { <tr><td>Occ. Fee Tax Portion Refund</td><td class="text-end">$@Model.SOA.OccupancyFeeTaxRefund.ToString("N2")</td></tr> }
+                                    @if (Model.SOA.OccupancyFeeClosingMonthAdj > 0) { <tr><td>Occ. Fee Closing Month Adj.</td><td class="text-end">$@Model.SOA.OccupancyFeeClosingMonthAdj.ToString("N2")</td></tr> }
                                     @if (Model.SOA.BuilderCredits > 0) { <tr><td>Builder Credits</td><td class="text-end">$@Model.SOA.BuilderCredits.ToString("N2")</td></tr> }
                                     @if (Model.SOA.OtherCredits > 0) { <tr><td>Other Credits</td><td class="text-end">$@Model.SOA.OtherCredits.ToString("N2")</td></tr> }
                                     @if (Model.SOA.DelayedOccupancyCompensation > 0) { <tr class="text-success"><td><i class="bi bi-clock me-1"></i>Delayed Occ. Compensation</td><td class="text-end">$@Model.SOA.DelayedOccupancyCompensation.ToString("N2")</td></tr> }
@@ -893,11 +997,23 @@
                             <tr class="border-top fs-5 fw-bold"><td>CASH REQUIRED TO CLOSE</td><td class="text-end text-primary">$@Model.SOA.CashRequiredToClose.ToString("N2")</td></tr>
                         </table>
 
-                        @if (Model.SOA.LandTransferTax > 0)
+                        @if (Model.SOA.LandTransferTax > 0 || Model.SOA.TorontoLandTransferTax > 0)
                         {
-                            <div class="bg-light rounded p-2 mt-2 small text-muted">
-                                <strong>Land Transfer Tax (paid at registration):</strong> Ontario LTT: $@Model.SOA.LandTransferTax.ToString("N2")
-                                @if (Model.SOA.TorontoLandTransferTax > 0) { <text> | Toronto LTT: $@Model.SOA.TorontoLandTransferTax.ToString("N2")</text> }
+                            var combinedLtt = Model.SOA.LandTransferTax + Model.SOA.TorontoLandTransferTax;
+                            <div class="bg-light rounded p-3 mt-2 small">
+                                <strong class="text-dark"><i class="bi bi-info-circle me-1"></i>Land Transfer Tax (paid at registration, not included in balance)</strong>
+                                <table class="table table-sm table-borderless mb-0 mt-2">
+                                    <tr><td class="text-muted">Ontario LTT</td><td class="text-end">$@Model.SOA.LandTransferTax.ToString("N2")</td></tr>
+                                    @if (Model.SOA.TorontoLandTransferTax > 0)
+                                    {
+                                        <tr><td class="text-muted">Toronto MLTT</td><td class="text-end">$@Model.SOA.TorontoLandTransferTax.ToString("N2")</td></tr>
+                                    }
+                                    @if (Model.IsFirstTimeBuyer)
+                                    {
+                                        <tr class="text-success"><td><i class="bi bi-check-circle me-1"></i>First-Time Buyer Rebate (Ontario up to $4,000 + Toronto up to $4,475)</td><td class="text-end">Applied</td></tr>
+                                    }
+                                    <tr class="border-top fw-bold"><td>Combined Net LTT</td><td class="text-end">$@combinedLtt.ToString("N2")</td></tr>
+                                </table>
                             </div>
                         }
                         <div class="text-muted small mt-3"><i class="bi bi-clock me-1"></i>Calculated: @Model.SOA.CalculatedAt.ToString("MMM dd, yyyy h:mm tt")</div>

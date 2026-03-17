@@ -171,6 +171,8 @@ namespace PreConHub.Controllers
                 IsPrimaryResidence = model.IsPrimaryResidence,
                 ActualAnnualLandTax = model.ActualAnnualLandTax,
                 ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee,
+                ParkingMonthlyCommonExpense = model.ParkingMonthlyCommonExpense,
+                LockerMonthlyCommonExpense = model.LockerMonthlyCommonExpense,
                 OccupancyFeeInterestRate = model.OccupancyFeeInterestRate,
                 OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense,
                 OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax,
@@ -258,6 +260,8 @@ namespace PreConHub.Controllers
                 IsPrimaryResidence = unit.IsPrimaryResidence,
                 ActualAnnualLandTax = unit.ActualAnnualLandTax,
                 ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
+                ParkingMonthlyCommonExpense = unit.ParkingMonthlyCommonExpense,
+                LockerMonthlyCommonExpense = unit.LockerMonthlyCommonExpense,
                 OccupancyFeeInterestRate = unit.OccupancyFeeInterestRate,
                 OccupancyFeeEstCommonExpense = unit.OccupancyFeeEstCommonExpense,
                 OccupancyFeeEstPropertyTax = unit.OccupancyFeeEstPropertyTax,
@@ -339,6 +343,8 @@ namespace PreConHub.Controllers
             unit.IsPrimaryResidence = model.IsPrimaryResidence;
             unit.ActualAnnualLandTax = model.ActualAnnualLandTax;
             unit.ActualMonthlyMaintenanceFee = model.ActualMonthlyMaintenanceFee;
+            unit.ParkingMonthlyCommonExpense = model.ParkingMonthlyCommonExpense;
+            unit.LockerMonthlyCommonExpense = model.LockerMonthlyCommonExpense;
             unit.OccupancyFeeInterestRate = model.OccupancyFeeInterestRate;
             unit.OccupancyFeeEstCommonExpense = model.OccupancyFeeEstCommonExpense;
             unit.OccupancyFeeEstPropertyTax = model.OccupancyFeeEstPropertyTax;
@@ -392,6 +398,7 @@ namespace PreConHub.Controllers
                 .Include(u => u.Project)
                 .Include(u => u.Deposits)
                     .ThenInclude(d => d.InterestPeriods)
+                .Include(u => u.UpgradeInterestPeriods)
                 .Include(u => u.Purchasers)
                     .ThenInclude(p => p.Purchaser)
                 .Include(u => u.Purchasers)
@@ -462,6 +469,8 @@ namespace PreConHub.Controllers
                 IsPrimaryResidence = unit.IsPrimaryResidence,
                 ActualAnnualLandTax = unit.ActualAnnualLandTax,
                 ActualMonthlyMaintenanceFee = unit.ActualMonthlyMaintenanceFee,
+                ParkingMonthlyCommonExpense = unit.ParkingMonthlyCommonExpense,
+                LockerMonthlyCommonExpense = unit.LockerMonthlyCommonExpense,
 
                 // Occupancy Fee Parameters
                 OccupancyFeeInterestRate = unit.OccupancyFeeInterestRate,
@@ -472,6 +481,16 @@ namespace PreConHub.Controllers
                 // Upgrade Charges
                 UpgradeAmount = unit.UpgradeAmount,
                 UpgradePaidDate = unit.UpgradePaidDate,
+                UpgradeInterestPeriods = unit.UpgradeInterestPeriods
+                    .OrderBy(p => p.PeriodStart)
+                    .Select(p => new UpgradeChargeInterestPeriodViewModel
+                    {
+                        Id = p.Id,
+                        UnitId = p.UnitId,
+                        PeriodStart = p.PeriodStart,
+                        PeriodEnd = p.PeriodEnd,
+                        AnnualRate = p.AnnualRate
+                    }).ToList(),
                 DevelopmentFee = unit.DevelopmentFee,
                 MetersFee = unit.MetersFee,
 
@@ -709,6 +728,9 @@ namespace PreConHub.Controllers
                     // Credits
                     DepositsPaid = unit.SOA.DepositsPaid,
                     DepositInterest = unit.SOA.DepositInterest,
+                    UpgradeChargeInterest = unit.SOA.UpgradeChargeInterest,
+                    OccupancyFeeTaxRefund = unit.SOA.OccupancyFeeTaxRefund,
+                    OccupancyFeeClosingMonthAdj = unit.SOA.OccupancyFeeClosingMonthAdj,
                     BuilderCredits = unit.SOA.BuilderCredits,
                     OtherCredits = unit.SOA.OtherCredits,
                     TotalCredits = unit.SOA.TotalCredits,
@@ -2662,6 +2684,134 @@ namespace PreConHub.Controllers
             else
             {
                 TempData["Error"] = "All periods from the source deposit already exist on this deposit.";
+            }
+
+            return RedirectToAction(nameof(Details), new { id = unitId });
+        }
+
+        // POST: /Units/AddUpgradeInterestPeriod
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> AddUpgradeInterestPeriod(int unitId, DateTime periodStart, DateTime periodEnd, decimal annualRate)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+
+            if (unit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            if (periodEnd <= periodStart)
+            {
+                TempData["Error"] = "Period end date must be after period start date.";
+                return RedirectToAction(nameof(Details), new { id = unitId });
+            }
+
+            var period = new UpgradeChargeInterestPeriod
+            {
+                UnitId = unitId,
+                PeriodStart = periodStart,
+                PeriodEnd = periodEnd,
+                AnnualRate = annualRate
+            };
+
+            _context.UpgradeChargeInterestPeriods.Add(period);
+            _context.AuditLogs.Add(new AuditLog
+            {
+                EntityType = "UpgradeChargeInterestPeriod",
+                EntityId = unitId,
+                Action = "Create",
+                UserId = userId,
+                UserName = User.Identity?.Name,
+                UserRole = User.IsInRole("Admin") ? "Admin" : "Builder",
+                NewValues = System.Text.Json.JsonSerializer.Serialize(new { unitId, periodStart, periodEnd, annualRate }),
+                Timestamp = DateTime.UtcNow
+            });
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Upgrade interest period added: {periodStart:MMM d, yyyy} – {periodEnd:MMM d, yyyy} @ {annualRate:0.000}%";
+            return RedirectToAction(nameof(Details), new { id = unitId });
+        }
+
+        // POST: /Units/DeleteUpgradeInterestPeriod
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteUpgradeInterestPeriod(int periodId, int unitId)
+        {
+            var period = await _context.UpgradeChargeInterestPeriods
+                .Include(p => p.Unit).ThenInclude(u => u.Project)
+                .FirstOrDefaultAsync(p => p.Id == periodId);
+
+            if (period == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && period.Unit.Project.BuilderId != userId)
+                return Forbid();
+
+            _context.UpgradeChargeInterestPeriods.Remove(period);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = "Upgrade interest period deleted.";
+            return RedirectToAction(nameof(Details), new { id = unitId });
+        }
+
+        // POST: /Units/CopyUpgradePeriodsFromDeposit — Import periods from first deposit's interest periods
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CopyUpgradePeriodsFromDeposit(int unitId)
+        {
+            var unit = await _context.Units
+                .Include(u => u.Project)
+                .Include(u => u.UpgradeInterestPeriods)
+                .Include(u => u.Deposits).ThenInclude(d => d.InterestPeriods)
+                .FirstOrDefaultAsync(u => u.Id == unitId);
+
+            if (unit == null)
+                return NotFound();
+
+            var userId = _userManager.GetUserId(User);
+            if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
+                return Forbid();
+
+            var sourceDeposit = unit.Deposits
+                .FirstOrDefault(d => d.InterestPeriods.Any());
+
+            if (sourceDeposit == null)
+            {
+                TempData["Error"] = "No deposit with interest periods found to copy from.";
+                return RedirectToAction(nameof(Details), new { id = unitId });
+            }
+
+            var copiedCount = 0;
+            foreach (var sourcePeriod in sourceDeposit.InterestPeriods.OrderBy(p => p.PeriodStart))
+            {
+                var exists = unit.UpgradeInterestPeriods.Any(p =>
+                    p.PeriodStart == sourcePeriod.PeriodStart && p.PeriodEnd == sourcePeriod.PeriodEnd);
+                if (exists) continue;
+
+                _context.UpgradeChargeInterestPeriods.Add(new UpgradeChargeInterestPeriod
+                {
+                    UnitId = unitId,
+                    PeriodStart = sourcePeriod.PeriodStart,
+                    PeriodEnd = sourcePeriod.PeriodEnd,
+                    AnnualRate = sourcePeriod.AnnualRate
+                });
+                copiedCount++;
+            }
+
+            if (copiedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+                TempData["Success"] = $"Imported {copiedCount} period(s) from {sourceDeposit.DepositName}.";
+            }
+            else
+            {
+                TempData["Error"] = "All periods already exist.";
             }
 
             return RedirectToAction(nameof(Details), new { id = unitId });
