@@ -566,6 +566,8 @@ namespace PreConHub.Models.ViewModels
 
         // APS / Tarion fields
         public string? TarionRegistrationNumber { get; set; }
+        public string? BuilderHSTNumber { get; set; }
+        public string? CondoCorpNumber { get; set; }
         public string? PropertyLegalDescription { get; set; }
         public string? VendorSolicitorName { get; set; }
         public string? VendorSolicitorAddress { get; set; }

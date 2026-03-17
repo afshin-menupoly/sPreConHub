@@ -388,6 +388,8 @@ namespace PreConHub.Controllers
                 OccupancyDate = project.OccupancyDate,
                 ClosingDate = project.ClosingDate,
                 TarionRegistrationNumber = project.TarionRegistrationNumber,
+                BuilderHSTNumber = project.BuilderHSTNumber,
+                CondoCorpNumber = project.CondoCorpNumber,
                 PropertyLegalDescription = project.PropertyLegalDescription,
                 VendorSolicitorName = project.VendorSolicitorName,
                 VendorSolicitorAddress = project.VendorSolicitorAddress,
@@ -431,6 +433,8 @@ namespace PreConHub.Controllers
             project.OccupancyDate = model.OccupancyDate;
             project.ClosingDate = model.ClosingDate;
             project.TarionRegistrationNumber = model.TarionRegistrationNumber;
+            project.BuilderHSTNumber = model.BuilderHSTNumber;
+            project.CondoCorpNumber = model.CondoCorpNumber;
             project.PropertyLegalDescription = model.PropertyLegalDescription;
             project.VendorSolicitorName = model.VendorSolicitorName;
             project.VendorSolicitorAddress = model.VendorSolicitorAddress;

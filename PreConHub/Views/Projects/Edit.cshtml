@@ -103,9 +103,19 @@
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label asp-for="TarionRegistrationNumber" class="form-label">Tarion Registration #</label>
-                                <input asp-for="TarionRegistrationNumber" class="form-control" placeholder="e.g., 47271" />
+                                <input asp-for="TarionRegistrationNumber" class="form-control" placeholder="e.g., B47271" />
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-md-4">
+                                <label asp-for="BuilderHSTNumber" class="form-label">Builder HST Number</label>
+                                <input asp-for="BuilderHSTNumber" class="form-control" placeholder="e.g., 756936316RT0001" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="CondoCorpNumber" class="form-label">Condo Corp Number</label>
+                                <input asp-for="CondoCorpNumber" class="form-control" placeholder="e.g., TSCC No. 3110" />
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-12">
                                 <label asp-for="PropertyLegalDescription" class="form-label">Property Legal Description</label>
                                 <input asp-for="PropertyLegalDescription" class="form-control" placeholder="e.g., Lot 35 and Lot 36 on Plan 806, City of Toronto" />
                             </div>
