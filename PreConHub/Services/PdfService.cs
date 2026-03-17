@@ -395,6 +395,14 @@ namespace PreConHub.Services
                     CellPurchaser(table, soa.InterestOnDepositInterest);
                 }
 
+                // Upgrade Charge Interest (Credit Purchaser)
+                if (soa.UpgradeChargeInterest > 0)
+                {
+                    CellDesc(table, "Interest on Upgrade Charges");
+                    CellEmpty(table);
+                    CellPurchaser(table, soa.UpgradeChargeInterest);
+                }
+
                 // ══════════════════════════════════════════
                 // ADJUSTMENTS
                 // ══════════════════════════════════════════
