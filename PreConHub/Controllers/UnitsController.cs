@@ -393,7 +393,9 @@ namespace PreConHub.Controllers
             {
                 try
                 {
-                    await _soaService.CalculateSOAAsync(id);
+                    var editUserId = _userManager.GetUserId(User);
+                    var editUserRole = User.IsInRole("Admin") ? "Admin" : "Builder";
+                    await _soaService.CalculateSOAAsync(id, editUserId, editUserRole);
                     await _shortfallService.AnalyzeShortfallAsync(id);
                 }
                 catch (Exception ex)
@@ -1545,9 +1547,10 @@ namespace PreConHub.Controllers
         public async Task<IActionResult> CalculateSOA(int id)
         {
             var userId = _userManager.GetUserId(User);
+            var userRole = User.IsInRole("Admin") ? "Admin" : "Builder";
             try
             {
-                var soa = await _soaService.CalculateSOAAsync(id);
+                var soa = await _soaService.CalculateSOAAsync(id, userId, userRole);
                 var analysis = await _shortfallService.AnalyzeShortfallAsync(id);
 
                 _context.AuditLogs.Add(new AuditLog
@@ -4365,7 +4368,9 @@ namespace PreConHub.Controllers
                 // Calculate SOA
                 try
                 {
-                    await _soaService.CalculateSOAAsync(unit.Id);
+                    var createUserId = _userManager.GetUserId(User);
+                    var createUserRole = User.IsInRole("Admin") ? "Admin" : "Builder";
+                    await _soaService.CalculateSOAAsync(unit.Id, createUserId, createUserRole);
                     await _shortfallService.AnalyzeShortfallAsync(unit.Id);
                 }
                 catch (Exception ex)
