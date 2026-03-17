@@ -666,6 +666,22 @@ namespace PreConHub.Services
                 }
             }
 
+            // Fallback: if no periods overlap the occupancy-to-closing window,
+            // use the last known rate from the most recent period
+            if (totalInterest <= 0)
+            {
+                var lastRate = allPeriods
+                    .Where(p => p.AnnualRate > 0)
+                    .OrderByDescending(p => p.PeriodEnd)
+                    .Select(p => p.AnnualRate)
+                    .FirstOrDefault();
+                if (lastRate > 0)
+                {
+                    var days = (closingDate - occupancyDate).Days;
+                    totalInterest = depositInterest * (lastRate / 100m) * (days / 365m);
+                }
+            }
+
             return Math.Round(totalInterest, 2);
         }
 

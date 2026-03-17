@@ -403,23 +403,44 @@ namespace PreConHub.Services
                 // Land Taxes
                 if (soa.PropertyTaxAdjustment > 0)
                 {
-                    var annualTax = unit.ActualAnnualLandTax ?? unit.PurchasePrice * 0.01m;
-                    var daysInYear = DateTime.IsLeapYear(closingDate.Year) ? 366 : 365;
-                    var purchaserDays = daysInYear - closingDate.DayOfYear;
+                    var closingYearTax = unit.ActualAnnualLandTax ?? unit.PurchasePrice * 0.01m;
                     var estFlag = unit.ActualAnnualLandTax == null ? " *est" : "";
-                    CellDesc(table, $"Land Taxes (Annual: ${annualTax:N2}; {purchaserDays}/{daysInYear} days{estFlag})");
-                    CellVendor(table, soa.PropertyTaxAdjustment);
-                    CellEmpty(table);
+                    var occDate = unit.OccupancyDate ?? closingDate;
+
+                    if (unit.PriorYearAnnualLandTax.HasValue && occDate.Year < closingDate.Year)
+                    {
+                        // Multi-year: show both years
+                        CellDesc(table, $"Land Taxes {occDate.Year} (Annual: ${unit.PriorYearAnnualLandTax.Value:N2}; prorated from {occDate:MMM d})");
+                        var priorYearDays = DateTime.IsLeapYear(occDate.Year) ? 366 : 365;
+                        var occYearDays = (new DateTime(occDate.Year, 12, 31) - occDate).Days + 1;
+                        var priorYearAmount = Math.Round(unit.PriorYearAnnualLandTax.Value * occYearDays / priorYearDays, 2);
+                        CellVendor(table, priorYearAmount);
+                        CellEmpty(table);
+
+                        CellDesc(table, $"Land Taxes {closingDate.Year} (Annual: ${closingYearTax:N2}; full year)");
+                        CellVendor(table, closingYearTax);
+                        CellEmpty(table);
+                    }
+                    else
+                    {
+                        // Single year or same year
+                        var daysInYear = DateTime.IsLeapYear(closingDate.Year) ? 366 : 365;
+                        var purchaserDays = (new DateTime(closingDate.Year, 12, 31) - occDate).Days + 1;
+                        CellDesc(table, $"Land Taxes (Annual: ${closingYearTax:N2}; {purchaserDays}/{daysInYear} days{estFlag})");
+                        CellVendor(table, soa.PropertyTaxAdjustment);
+                        CellEmpty(table);
+                    }
                 }
 
                 // Common Expenses
                 if (soa.CommonExpenseAdjustment > 0)
                 {
-                    var monthlyFee = unit.ActualMonthlyMaintenanceFee ?? unit.SquareFootage * 0.60m;
+                    var dwellingFee = unit.ActualMonthlyMaintenanceFee ?? unit.SquareFootage * 0.60m;
+                    var totalMonthlyFee = dwellingFee + (unit.ParkingMonthlyCommonExpense ?? 0) + (unit.LockerMonthlyCommonExpense ?? 0);
                     var daysInMonth = DateTime.DaysInMonth(closingDate.Year, closingDate.Month);
                     var daysRemaining = daysInMonth - closingDate.Day;
                     var estFlag = unit.ActualMonthlyMaintenanceFee == null ? " *est" : "";
-                    CellDesc(table, $"Common Expenses (Monthly: ${monthlyFee:N2}; {daysRemaining}/{daysInMonth} days{estFlag})");
+                    CellDesc(table, $"Common Expenses (Monthly: ${totalMonthlyFee:N2}; {daysRemaining}/{daysInMonth} days{estFlag})");
                     CellVendor(table, soa.CommonExpenseAdjustment);
                     CellEmpty(table);
                 }
