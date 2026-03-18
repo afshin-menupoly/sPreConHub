@@ -2140,6 +2140,41 @@ namespace PreConHub.Controllers
             ViewBag.ExistingLawyer = existingAssignment?.Lawyer;
             ViewBag.ExistingAssignmentId = existingAssignment?.Id;
 
+            // Fetch all lawyers from this builder's projects (active assignments only)
+            var builderLawyerAssignments = await _context.LawyerAssignments
+                .Where(la => la.Project.BuilderId == userId && la.IsActive && la.Lawyer != null)
+                .Select(la => new {
+                    la.LawyerId,
+                    la.Lawyer.FirstName,
+                    la.Lawyer.LastName,
+                    la.Lawyer.Email,
+                    la.Lawyer.PhoneNumber,
+                    Company = la.Lawyer.CompanyName,
+                    ProjectName = la.Project.Name,
+                    la.ProjectId,
+                    UnitNumber = la.Unit != null ? la.Unit.UnitNumber : null
+                })
+                .ToListAsync();
+
+            var existingLawyers = builderLawyerAssignments
+                .GroupBy(l => l.LawyerId)
+                .Select(g => new {
+                    g.First().LawyerId,
+                    g.First().FirstName,
+                    g.First().LastName,
+                    g.First().Email,
+                    Phone = g.First().PhoneNumber,
+                    g.First().Company,
+                    IsCurrentProject = g.Any(a => a.ProjectId == unit.ProjectId),
+                    Assignments = g.Select(a => new { a.ProjectName, a.UnitNumber }).Distinct().ToList()
+                })
+                .OrderByDescending(l => l.IsCurrentProject)
+                .ThenBy(l => l.FirstName)
+                .ThenBy(l => l.LastName)
+                .ToList();
+
+            ViewBag.ExistingLawyersJson = System.Text.Json.JsonSerializer.Serialize(existingLawyers);
+
             return View();
         }
 
@@ -2153,6 +2188,7 @@ namespace PreConHub.Controllers
             string lawyerEmail,
             string? lawyerPhone,
             string? lawFirm,
+            string? existingLawyerId,
             bool sendInvitation = true)
         {
             var unit = await _context.Units
@@ -2167,7 +2203,7 @@ namespace PreConHub.Controllers
             if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
                 return Forbid();
 
-            if (string.IsNullOrWhiteSpace(lawyerEmail))
+            if (string.IsNullOrEmpty(existingLawyerId) && string.IsNullOrWhiteSpace(lawyerEmail))
             {
                 TempData["Error"] = "Lawyer email is required.";
                 return RedirectToAction(nameof(AssignLawyer), new { id = unitId });
@@ -2185,7 +2221,25 @@ namespace PreConHub.Controllers
                 }
 
                 // Find or create lawyer user
-                var lawyerUser = await _userManager.FindByEmailAsync(lawyerEmail);
+                ApplicationUser? lawyerUser = null;
+
+                if (!string.IsNullOrEmpty(existingLawyerId))
+                {
+                    // Use existing lawyer selected from list
+                    lawyerUser = await _userManager.FindByIdAsync(existingLawyerId);
+                    if (lawyerUser == null)
+                    {
+                        TempData["Error"] = "Selected lawyer not found.";
+                        return RedirectToAction(nameof(AssignLawyer), new { id = unitId });
+                    }
+                    lawyerFirstName = lawyerUser.FirstName ?? lawyerFirstName;
+                    lawyerLastName = lawyerUser.LastName ?? lawyerLastName;
+                    lawyerEmail = lawyerUser.Email ?? lawyerEmail;
+                }
+                else
+                {
+                    lawyerUser = await _userManager.FindByEmailAsync(lawyerEmail);
+                }
 
                 if (lawyerUser == null)
                 {
@@ -2331,6 +2385,41 @@ namespace PreConHub.Controllers
             ViewBag.ExistingLawyer = existingAssignment?.Lawyer;
             ViewBag.ExistingAssignmentId = existingAssignment?.Id;
 
+            // Fetch all lawyers from this builder's projects (active assignments only)
+            var builderLawyerAssignments = await _context.LawyerAssignments
+                .Where(la => la.Project.BuilderId == userId && la.IsActive && la.Lawyer != null)
+                .Select(la => new {
+                    la.LawyerId,
+                    la.Lawyer.FirstName,
+                    la.Lawyer.LastName,
+                    la.Lawyer.Email,
+                    la.Lawyer.PhoneNumber,
+                    Company = la.Lawyer.CompanyName,
+                    ProjectName = la.Project.Name,
+                    la.ProjectId,
+                    UnitNumber = la.Unit != null ? la.Unit.UnitNumber : null
+                })
+                .ToListAsync();
+
+            var existingLawyers = builderLawyerAssignments
+                .GroupBy(l => l.LawyerId)
+                .Select(g => new {
+                    g.First().LawyerId,
+                    g.First().FirstName,
+                    g.First().LastName,
+                    g.First().Email,
+                    Phone = g.First().PhoneNumber,
+                    g.First().Company,
+                    IsCurrentProject = g.Any(a => a.ProjectId == unit.ProjectId),
+                    Assignments = g.Select(a => new { a.ProjectName, a.UnitNumber }).Distinct().ToList()
+                })
+                .OrderByDescending(l => l.IsCurrentProject)
+                .ThenBy(l => l.FirstName)
+                .ThenBy(l => l.LastName)
+                .ToList();
+
+            ViewBag.ExistingLawyersJson = System.Text.Json.JsonSerializer.Serialize(existingLawyers);
+
             return View();
         }
 
@@ -2344,6 +2433,7 @@ namespace PreConHub.Controllers
             string lawyerEmail,
             string? lawyerPhone,
             string? lawFirm,
+            string? existingLawyerId,
             bool sendInvitation = true)
         {
             var unit = await _context.Units
@@ -2358,7 +2448,7 @@ namespace PreConHub.Controllers
             if (!User.IsInRole("Admin") && unit.Project.BuilderId != userId)
                 return Forbid();
 
-            if (string.IsNullOrWhiteSpace(lawyerEmail))
+            if (string.IsNullOrEmpty(existingLawyerId) && string.IsNullOrWhiteSpace(lawyerEmail))
             {
                 TempData["Error"] = "Lawyer email is required.";
                 return RedirectToAction(nameof(AssignBuyerLawyer), new { id = unitId });
@@ -2376,7 +2466,25 @@ namespace PreConHub.Controllers
                 }
 
                 // Find or create lawyer user
-                var lawyerUser = await _userManager.FindByEmailAsync(lawyerEmail);
+                ApplicationUser? lawyerUser = null;
+
+                if (!string.IsNullOrEmpty(existingLawyerId))
+                {
+                    // Use existing lawyer selected from list
+                    lawyerUser = await _userManager.FindByIdAsync(existingLawyerId);
+                    if (lawyerUser == null)
+                    {
+                        TempData["Error"] = "Selected lawyer not found.";
+                        return RedirectToAction(nameof(AssignBuyerLawyer), new { id = unitId });
+                    }
+                    lawyerFirstName = lawyerUser.FirstName ?? lawyerFirstName;
+                    lawyerLastName = lawyerUser.LastName ?? lawyerLastName;
+                    lawyerEmail = lawyerUser.Email ?? lawyerEmail;
+                }
+                else
+                {
+                    lawyerUser = await _userManager.FindByEmailAsync(lawyerEmail);
+                }
 
                 if (lawyerUser == null)
                 {

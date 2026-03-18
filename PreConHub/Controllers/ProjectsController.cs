@@ -1402,6 +1402,40 @@ namespace PreConHub.Controllers
             ViewBag.MarketingAgencyUserId = project.MarketingAgencyUserId;
             ViewBag.MAUsers = maUsers.Where(u => u.IsActive).OrderBy(u => u.FirstName).ToList();
 
+            // Fetch MA users from this builder's projects for searchable list
+            var builderMAProjects = await _context.Projects
+                .Where(p => p.BuilderId == userId && p.MarketingAgencyUserId != null && p.MarketingAgencyUser != null)
+                .Select(p => new {
+                    p.MarketingAgencyUserId,
+                    p.MarketingAgencyUser!.FirstName,
+                    p.MarketingAgencyUser.LastName,
+                    p.MarketingAgencyUser.Email,
+                    p.MarketingAgencyUser.PhoneNumber,
+                    Company = p.MarketingAgencyUser.CompanyName,
+                    ProjectName = p.Name,
+                    ProjectId = p.Id
+                })
+                .ToListAsync();
+
+            var existingMAUsers = builderMAProjects
+                .GroupBy(p => p.MarketingAgencyUserId)
+                .Select(g => new {
+                    MAUserId = g.Key,
+                    g.First().FirstName,
+                    g.First().LastName,
+                    g.First().Email,
+                    Phone = g.First().PhoneNumber,
+                    g.First().Company,
+                    IsCurrentProject = g.Any(a => a.ProjectId == id),
+                    Projects = g.Select(a => a.ProjectName).Distinct().ToList()
+                })
+                .OrderByDescending(u => u.IsCurrentProject)
+                .ThenBy(u => u.FirstName)
+                .ThenBy(u => u.LastName)
+                .ToList();
+
+            ViewBag.ExistingMAUsersJson = System.Text.Json.JsonSerializer.Serialize(existingMAUsers);
+
             return View();
         }
 

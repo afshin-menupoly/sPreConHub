@@ -4,7 +4,7 @@
 
 <div class="container py-4">
     <div class="row justify-content-center">
-        <div class="col-lg-7">
+        <div class="col-lg-8">
             <!-- Header -->
             <div class="mb-4">
                 <nav aria-label="breadcrumb">
@@ -29,20 +29,72 @@
                     <h6 class="alert-heading"><i class="bi bi-exclamation-triangle me-2"></i>Existing Assignment</h6>
                     <p class="mb-2">
                         This unit is currently assigned to <strong>@existingLawyer.FirstName @existingLawyer.LastName</strong>
-                        (@existingLawyer.Email)
+                        (@@existingLawyer.Email)
                     </p>
                     <p class="mb-0 small">Assigning a new lawyer will deactivate the current assignment.</p>
                 </div>
             }
 
-            <!-- Form Card -->
+            <!-- Select Existing Lawyer Card -->
+            <div class="card border-0 shadow-sm mb-3" id="existingLawyerCard">
+                <div class="card-body p-4">
+                    <h5 class="mb-3 pb-2 border-bottom">
+                        <i class="bi bi-search me-2 text-primary"></i>Select Existing Lawyer
+                    </h5>
+                    <div class="mb-3">
+                        <input type="text" id="lawyerSearch" class="form-control" placeholder="Search by name or firm (min 3 characters)..." />
+                        <div class="form-text">Type at least 3 characters to search by first name, last name, or law firm</div>
+                    </div>
+                    <div id="lawyerListContainer" style="display:none;">
+                        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                            <table class="table table-hover table-sm align-middle mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Firm</th>
+                                        <th>Assigned To</th>
+                                        <th style="width: 90px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="lawyerTableBody"></tbody>
+                            </table>
+                        </div>
+                        <nav id="lawyerPagination" class="mt-2">
+                            <ul class="pagination pagination-sm justify-content-center mb-0"></ul>
+                        </nav>
+                    </div>
+                    <div id="noSearchResults" style="display:none;" class="text-muted text-center py-3">
+                        <i class="bi bi-search me-1"></i>No lawyers found matching your search.
+                    </div>
+                    <div id="noLawyers" style="display:none;" class="text-muted text-center py-3">
+                        <i class="bi bi-info-circle me-1"></i>No existing lawyers found for your projects.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Existing lawyer assignment form (hidden, submitted via JS) -->
+            <form id="existingLawyerForm" asp-action="AssignLawyer" method="post" style="display:none;">
+                <input type="hidden" name="unitId" value="@ViewBag.UnitId" />
+                <input type="hidden" name="existingLawyerId" id="existingLawyerIdInput" />
+                <input type="hidden" name="lawyerFirstName" value="" />
+                <input type="hidden" name="lawyerLastName" value="" />
+                <input type="hidden" name="lawyerEmail" value="" />
+                <input type="hidden" name="sendInvitation" id="existingSendInvitation" value="false" />
+            </form>
+
+            <!-- Divider -->
+            <div class="text-center my-3">
+                <span class="text-muted small">&mdash; OR create a new lawyer &mdash;</span>
+            </div>
+
+            <!-- New Lawyer Form Card -->
             <div class="card border-0 shadow-sm">
                 <div class="card-body p-4">
                     <form asp-action="AssignLawyer" method="post">
                         <input type="hidden" name="unitId" value="@ViewBag.UnitId" />
 
                         <h5 class="mb-3 pb-2 border-bottom">
-                            <i class="bi bi-person me-2 text-primary"></i>Lawyer Information
+                            <i class="bi bi-person-plus me-2 text-primary"></i>New Lawyer Information
                         </h5>
 
                         <div class="row mb-3">
@@ -58,7 +110,7 @@
 
                         <div class="mb-3">
                             <label class="form-label">Email Address <span class="text-danger">*</span></label>
-                            <input type="email" name="lawyerEmail" class="form-control" placeholder="sarah.johnson@lawfirm.ca" required />
+                            <input type="email" name="lawyerEmail" class="form-control" placeholder="sarah.johnson@@lawfirm.ca" required />
                             <div class="form-text">Invitation will be sent to this email address</div>
                         </div>
 
@@ -93,7 +145,7 @@
                                 <i class="bi bi-arrow-left me-2"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-primary">
-                                <i class="bi bi-briefcase me-2"></i>Assign Lawyer
+                                <i class="bi bi-briefcase me-2"></i>Assign New Lawyer
                             </button>
                         </div>
                     </form>
@@ -115,3 +167,120 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+(function () {
+    const PAGE_SIZE = 10;
+    const allLawyers = @Html.Raw(ViewBag.ExistingLawyersJson ?? "[]");
+    const currentProjectId = @ViewBag.ProjectId;
+    let filtered = [];
+    let currentPage = 1;
+
+    const searchInput = document.getElementById('lawyerSearch');
+    const listContainer = document.getElementById('lawyerListContainer');
+    const tableBody = document.getElementById('lawyerTableBody');
+    const paginationUl = document.querySelector('#lawyerPagination ul');
+    const noResults = document.getElementById('noSearchResults');
+    const noLawyers = document.getElementById('noLawyers');
+
+    if (allLawyers.length === 0) {
+        noLawyers.style.display = 'block';
+        searchInput.disabled = true;
+        searchInput.placeholder = 'No existing lawyers available';
+    }
+
+    searchInput.addEventListener('input', function () {
+        const q = this.value.trim().toLowerCase();
+        if (q.length < 3) {
+            listContainer.style.display = 'none';
+            noResults.style.display = 'none';
+            return;
+        }
+        filtered = allLawyers.filter(function (l) {
+            return (l.FirstName && l.FirstName.toLowerCase().startsWith(q)) ||
+                   (l.LastName && l.LastName.toLowerCase().startsWith(q)) ||
+                   (l.Company && l.Company.toLowerCase().startsWith(q));
+        });
+        currentPage = 1;
+        render();
+    });
+
+    function render() {
+        if (filtered.length === 0) {
+            listContainer.style.display = 'none';
+            noResults.style.display = 'block';
+            return;
+        }
+        noResults.style.display = 'none';
+        listContainer.style.display = 'block';
+
+        const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+        const start = (currentPage - 1) * PAGE_SIZE;
+        const page = filtered.slice(start, start + PAGE_SIZE);
+
+        tableBody.innerHTML = '';
+        page.forEach(function (l) {
+            const assignments = l.Assignments.map(function (a) {
+                return a.UnitNumber ? a.ProjectName + ' / Unit ' + a.UnitNumber : a.ProjectName;
+            }).join(', ');
+            const badge = l.IsCurrentProject
+                ? ' <span class="badge bg-primary-subtle text-primary-emphasis ms-1">This project</span>'
+                : '';
+            const tr = document.createElement('tr');
+            tr.style.cursor = 'pointer';
+            tr.innerHTML =
+                '<td><strong>' + escHtml(l.FirstName + ' ' + l.LastName) + '</strong>' + badge +
+                '<br/><small class="text-muted">' + escHtml(l.Email || '') + '</small></td>' +
+                '<td>' + escHtml(l.Company || '—') + '</td>' +
+                '<td class="small">' + escHtml(assignments || '—') + '</td>' +
+                '<td><button type="button" class="btn btn-sm btn-outline-primary select-lawyer-btn">Select</button></td>';
+            tr.querySelector('.select-lawyer-btn').addEventListener('click', function () {
+                selectLawyer(l);
+            });
+            tableBody.appendChild(tr);
+        });
+
+        // Pagination
+        paginationUl.innerHTML = '';
+        if (totalPages > 1) {
+            addPageItem('«', currentPage > 1 ? currentPage - 1 : null);
+            for (var p = 1; p <= totalPages; p++) {
+                addPageItem(p.toString(), p, p === currentPage);
+            }
+            addPageItem('»', currentPage < totalPages ? currentPage + 1 : null);
+        }
+    }
+
+    function addPageItem(label, page, active) {
+        const li = document.createElement('li');
+        li.className = 'page-item' + (active ? ' active' : '') + (page == null ? ' disabled' : '');
+        const a = document.createElement('a');
+        a.className = 'page-link';
+        a.href = '#';
+        a.textContent = label;
+        if (page != null) {
+            a.addEventListener('click', function (e) {
+                e.preventDefault();
+                currentPage = page;
+                render();
+            });
+        }
+        li.appendChild(a);
+        paginationUl.appendChild(li);
+    }
+
+    function selectLawyer(lawyer) {
+        if (!confirm('Assign ' + lawyer.FirstName + ' ' + lawyer.LastName + ' (' + (lawyer.Company || 'No firm') + ') to this unit?')) return;
+        document.getElementById('existingLawyerIdInput').value = lawyer.LawyerId;
+        document.getElementById('existingLawyerForm').submit();
+    }
+
+    function escHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+})();
+</script>
+}
